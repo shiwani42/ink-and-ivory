@@ -8,6 +8,11 @@
   .card { flex-direction: column; width: 380px; background-color: #f4ede0; border-radius: 22px; border-width: 2px; border-color: #d8ccb4; padding-left: 16px; padding-right: 16px; padding-top: 16px; padding-bottom: 12px; gap: 8px; }
   .eyebrow { color: #a8231a; font-family: inter; font-size: 14px; font-weight: 700; letter-spacing: 2.2px; padding-left: 4px; }
   .title { color: #1d1813; font-family: merriweather; font-size: 30px; font-weight: 700; padding-left: 4px; }
+  .crafts { flex-direction: row; gap: 8px; }
+  .craft { flex-grow: 1; height: 76px; border-radius: 16px; background-color: #ebe1cf; align-items: center; justify-content: center; cursor: pointer; }
+  .craft:hover { background-color: #e0d2b8; }
+  .craft:active { background-color: #d2bf9c; }
+  .craft-label { color: #1d1813; font-family: merriweather; font-size: 19px; font-weight: 700; }
   .meta { color: #5e5246; font-family: inter; font-size: 17px; font-weight: 500; padding-left: 4px; }
   .actions { flex-direction: row; gap: 8px; }
   .primary { flex-grow: 1; height: 80px; border-radius: 16px; background-color: #1d1813; align-items: center; justify-content: center; cursor: pointer; }
@@ -35,7 +40,11 @@
 </style>
 <div class="card">
   <div class="eyebrow">HANDS OF A MASTER</div>
-  <div class="title">Lessons</div>
+  <div class="crafts">
+    <div id="craft-cal" class="craft"><div id="craft-cal-label" class="craft-label">Calligraphy</div></div>
+    <div id="craft-piano" class="craft"><div id="craft-piano-label" class="craft-label">Piano</div></div>
+  </div>
+  <div id="menu-title" class="title">Lessons</div>
   <div id="streak" class="meta">First lesson</div>
   <div id="menu-actions" class="actions" style="display: none">
     <div id="btn-next" class="primary"><div class="primary-label">Next lesson</div></div>
@@ -66,5 +75,5 @@
   <div class="row">
     <div id="btn-place" class="btn grow"><div class="btn-label">Move paper here</div></div>
   </div>
-  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0. Hand: WebXR Input Profiles, MIT. Light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0.</div>
+  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0. Hand: WebXR Input Profiles, MIT. Light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
 </div>

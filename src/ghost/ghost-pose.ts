@@ -74,12 +74,14 @@ export class GhostPoseBuilder {
     leanX: number,
     leanZ: number,
     out: Float32Array,
+    steep = false,
   ): void {
     // Finger direction: down onto the paper, away from the writer, toward the
     // hand's own side, leaning a little into the current stroke.
     // The hand comes in from the writer's side (lower right for a right hand),
     // so from the writer's eyes it reads as a clear silhouette, not end-on.
-    this.f.set(-0.5 * this.sign + 0.2 * leanX, -0.5, -0.7 + 0.2 * leanZ).normalize();
+    if (steep) this.f.set(-0.22 * this.sign, -0.82, -0.52).normalize(); // a pianist's arched finger
+    else this.f.set(-0.5 * this.sign + 0.2 * leanX, -0.5, -0.7 + 0.2 * leanZ).normalize();
     // Back of the hand faces up and slightly outward.
     this.d.set(0.3 * this.sign, 1, 0.1);
     this.d.addScaledVector(this.f, -this.d.dot(this.f)).normalize();

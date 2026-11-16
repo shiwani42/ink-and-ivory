@@ -212,6 +212,7 @@ export interface DeskSet {
   stamp: Mesh; // the imprint left after a finished character
   hanko: Group; // the jade seal itself, animated to stamp the page
   cursor: Mesh; // where your fingertip will touch: shrinks and darkens as you approach
+  callig: Group; // the calligraphy set (mat, paper, tools); hidden in piano mode
   virtualTable: Object3D; // shown only when no real desk was found
 }
 
@@ -220,6 +221,10 @@ export function createDeskSet(): DeskSet {
   root.name = 'desk-root';
   const body = new Group();
   root.add(body);
+  // Everything that belongs to calligraphy (hidden while the piano is out).
+  const callig = new Group();
+  callig.name = 'calligraphy-set';
+  body.add(callig);
 
   // Felt mat: rounded, 3 mm thick, woven texture tinted deep indigo.
   const matGeo = new ExtrudeGeometry(roundedRect(MAT_W, MAT_D, 0.012), {
@@ -243,8 +248,8 @@ export function createDeskSet(): DeskSet {
   });
   felt.normalScale.set(0.7, 0.7);
   const mat = new Mesh(matGeo, felt);
-  body.add(mat);
-  body.add(contactShadow(MAT_W * 1.25, MAT_D * 1.2, 0.4));
+  callig.add(mat);
+  callig.add(contactShadow(MAT_W * 1.25, MAT_D * 1.2, 0.4));
 
   // Washi: painted colour + grid, real fibre normals and roughness.
   const paperMat = new MeshStandardMaterial({
@@ -258,51 +263,51 @@ export function createDeskSet(): DeskSet {
   const paperMesh = new Mesh(new PlaneGeometry(PAPER_W, PAPER_D), paperMat);
   paperMesh.rotation.x = -Math.PI / 2;
   paperMesh.position.y = SURFACE_Y - 0.0002;
-  body.add(paperMesh);
+  callig.add(paperMesh);
 
   const paper = new Group();
   paper.position.y = SURFACE_Y;
-  body.add(paper);
+  callig.add(paper);
 
   // Paperweight along the far edge.
   const weight = model('model-paperweight');
   weight.position.set(0, SURFACE_Y - 0.0002, -PAPER_D / 2 + 0.012);
-  body.add(weight);
+  callig.add(weight);
 
   // Inkstone with stick and pool (long axis along z), right of the mat.
   const inkstone = model('model-inkstone');
   inkstone.position.set(MAT_W / 2 + 0.06, 0, -0.08);
   inkstone.rotation.y = 0.08;
-  body.add(inkstone);
+  callig.add(inkstone);
   const sInk = contactShadow(0.11, 0.16, 0.45);
   sInk.position.set(inkstone.position.x, 0.0005, inkstone.position.z);
-  body.add(sInk);
+  callig.add(sInk);
 
   // Brush resting on its celadon rest, tip pointing away from the writer.
   const rest = model('model-brush-rest');
   rest.position.set(MAT_W / 2 + 0.05, 0, 0.1);
   rest.rotation.y = Math.PI / 2;
-  body.add(rest);
+  callig.add(rest);
   const brush = model('model-brush');
   brush.position.set(MAT_W / 2 + 0.05, 0.011, 0.08);
   brush.rotation.y = Math.PI / 2;
-  body.add(brush);
+  callig.add(brush);
   const sBrush = contactShadow(0.05, 0.12, 0.3);
   sBrush.position.set(rest.position.x, 0.0005, 0.09);
-  body.add(sBrush);
+  callig.add(sBrush);
 
   // Water dropper, back right.
   const dropper = model('model-water-dropper');
   dropper.position.set(MAT_W / 2 + 0.07, 0, -0.205);
-  body.add(dropper);
+  callig.add(dropper);
   const sDrop = contactShadow(0.07, 0.07, 0.4);
   sDrop.position.set(dropper.position.x, 0.0005, dropper.position.z);
-  body.add(sDrop);
+  callig.add(sDrop);
 
   // Seal and paste dish, left near corner. Split the jade seal out so it can stamp.
   const sealSet = model('model-seal-set');
   sealSet.position.set(HANKO_HOME.x - 0.04, 0, HANKO_HOME.z);
-  body.add(sealSet);
+  callig.add(sealSet);
   const hanko = new Group();
   const parts: Object3D[] = [];
   sealSet.traverse((o) => {
@@ -310,10 +315,10 @@ export function createDeskSet(): DeskSet {
   });
   for (const p of parts) hanko.add(p); // keep their local offsets inside the set
   hanko.position.set(HANKO_HOME.x - 0.04, 0, HANKO_HOME.z);
-  body.add(hanko);
+  callig.add(hanko);
   const sSeal = contactShadow(0.1, 0.06, 0.35);
   sSeal.position.set(HANKO_HOME.x - 0.02, 0.0005, HANKO_HOME.z);
-  body.add(sSeal);
+  callig.add(sSeal);
 
   // Printed seal on the paper: the calibration target.
   const sealTex = sealTexture();
@@ -339,7 +344,7 @@ export function createDeskSet(): DeskSet {
   stamp.rotation.x = -Math.PI / 2;
   stamp.position.set(STAMP_X, SURFACE_Y + 0.0005, STAMP_Z);
   stamp.visible = false;
-  body.add(stamp);
+  callig.add(stamp);
 
   const cursor = new Mesh(
     new RingGeometry(0.0035, 0.0055, 32),
@@ -357,5 +362,5 @@ export function createDeskSet(): DeskSet {
   virtualTable.visible = false;
   root.add(virtualTable);
 
-  return { root, body, paper, seal, sealRing, stamp, hanko, cursor, virtualTable };
+  return { root, body, paper, seal, sealRing, stamp, hanko, cursor, callig, virtualTable };
 }

@@ -1,6 +1,7 @@
 import {
   createSystem,
   DomeGradient,
+  Group,
   FollowBehavior,
   Follower,
   IBLTexture,
@@ -34,6 +35,8 @@ import {
 import { GhostHand, JointBlender } from './ghost/ghost-hand.js';
 import { GhostPoseBuilder, JOINT_COUNT, type Handedness } from './ghost/ghost-pose.js';
 import { Sparks } from './fx/sparks.js';
+import { type FingerTip, PianoMode } from './piano/piano-mode.js';
+import { SONGS } from './piano/songs.js';
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
 import { LESSONS, type Lesson } from './lessons/lessons.js';
 import { StrokePath } from './lessons/master-path.js';
@@ -62,7 +65,8 @@ import {
  * x right, y up, z toward the writer.
  */
 
-type Mode = 'demo2d' | 'placing' | 'watch' | 'calibrate' | 'practice' | 'complete';
+type Mode = 'demo2d' | 'placing' | 'watch' | 'calibrate' | 'practice' | 'complete' | 'piano';
+type Craft = 'calligraphy' | 'piano';
 type GuideMode = 'adaptive' | 'always' | 'off';
 type PracticePhase = 'ready' | 'drawing' | 'cooldown';
 
@@ -132,6 +136,13 @@ export class CalligraphySystem extends createSystem({
   private captionActionsShown = false;
   private sparks = new Sparks();
   private sparkClock = 0;
+  private craft: Craft = 'calligraphy';
+  private piano!: PianoMode;
+  private tips: FingerTip[] = Array.from({ length: 10 }, () => ({ x: 0, y: 0, z: 0, valid: false, extended: false }));
+  private handJoints = [new Float32Array(JOINT_COUNT * 16), new Float32Array(JOINT_COUNT * 16)];
+  private calX = SEAL_X; // calibration target (moves beside the keyboard in piano mode)
+  private calZ = SEAL_Z;
+  private pianoHintAt = -10;
   private status?: UIKitMLAsset; // body-locked card shown while finding the desk
   private statusEntity?: Entity;
   private textScale = 1;
@@ -293,7 +304,17 @@ export class CalligraphySystem extends createSystem({
     );
     this.desk = createDeskSet();
     this.deskEntity = this.world.createTransformEntity(this.desk.root, { persistent: true });
-    this.desk.paper.add(this.sparks.points);
+    // Effects live on their own layer at paper height, visible in both crafts.
+    const fx = new Group();
+    fx.position.y = SURFACE_Y;
+    this.desk.body.add(fx);
+    fx.add(this.sparks.points);
+    this.piano = new PianoMode({
+      play: (midi, velocity) => this.sfx.piano(midi, velocity),
+      sparks: (x, y, z, n) => this.sparks.burst(x, y, z, n, 0.12),
+    });
+    this.piano.root.visible = false;
+    this.desk.body.add(this.piano.root);
     this.ghost = new GhostHand();
     this.world.createTransformEntity(this.ghost.root, { persistent: true });
     this.poses = { left: new GhostPoseBuilder('left'), right: new GhostPoseBuilder('right') };
@@ -379,19 +400,26 @@ export class CalligraphySystem extends createSystem({
       this.text(this.welcome, 'xr-note', 'Open this page in Meta Quest Browser to start at your desk.');
     }
     on(this.welcome, 'xr-button', () => this.world.launchXR());
-    LESSONS.forEach((_, i) => on(this.menu, `lesson-${i}`, () => this.startLesson(i, true)));
+    LESSONS.forEach((_, i) =>
+      on(this.menu, `lesson-${i}`, () => {
+        if (i < this.lessonCount()) this.startLesson(i, true); // tiles 5-6 are hidden for piano
+      }),
+    );
     on(this.menu, 'btn-slower', () => this.setTempo(this.tempo - 0.1));
     on(this.menu, 'btn-faster', () => this.setTempo(this.tempo + 0.1));
     on(this.menu, 'btn-watch', () => this.startLesson(this.lessonIndex, true));
     on(this.menu, 'btn-guide', () => this.cycleGuide());
     on(this.menu, 'btn-place', () => this.beginPlacing());
     on(this.menu, 'btn-text', () => this.toggleTextSize());
+    on(this.menu, 'craft-cal', () => this.setCraft('calligraphy'));
+    on(this.menu, 'craft-piano', () => this.setCraft('piano'));
     on(this.menu, 'btn-music', () => {
-      this.sfx.setMusicOn(!this.sfx.musicOn);
+      if (this.craft === 'piano') this.sfx.musicOn = !this.sfx.musicOn; // stays silent at the piano
+      else this.sfx.setMusicOn(!this.sfx.musicOn);
       this.text(this.menu, 'btn-music-label', this.sfx.musicOn ? 'Music: on' : 'Music: off');
     });
     on(this.menu, 'btn-next', () =>
-      this.startLesson(Math.min(LESSONS.length - 1, this.lessonIndex + 1), true),
+      this.startLesson(Math.min(this.lessonCount() - 1, this.lessonIndex + 1), true),
     );
     on(this.menu, 'btn-again', () => this.startLesson(this.lessonIndex, false));
 
@@ -547,16 +575,27 @@ export class CalligraphySystem extends createSystem({
 
   private refreshMenu(): void {
     if (!this.menu) return;
-    LESSONS.forEach((l, i) => {
-      const p = this.progress.lessons[l.id];
+    const piano = this.craft === 'piano';
+    const items = piano
+      ? SONGS.map((s) => ({ id: s.id, name: s.name }))
+      : LESSONS.map((l) => ({ id: l.id, name: cap(l.meaning) }));
+    for (let i = 0; i < 6; i++) {
+      const tile = this.menu.getElementById(`lesson-${i}`);
+      const item = items[i];
+      tile?.setProperties({ display: item ? 'flex' : 'none' });
+      if (!item) continue;
+      const p = this.progress.lessons[item.id];
       const stars = p?.passed ? '*'.repeat(this.stars(p.best)) : '';
-      this.text(this.menu, `lesson-${i}-label`, cap(l.meaning));
+      this.text(this.menu, `lesson-${i}-label`, item.name);
       this.text(this.menu, `lesson-${i}-best`, p?.best ? `${stars} ${p.best}` : ' ');
-      // The current lesson's row is highlighted in warm gold.
-      this.menu
-        ?.getElementById(`lesson-${i}`)
-        ?.setProperties({ backgroundColor: i === this.lessonIndex ? '#e6cf9f' : '#ebe1cf' });
-    });
+      // The current lesson's tile is highlighted in warm gold.
+      tile?.setProperties({ backgroundColor: i === this.lessonIndex ? '#e6cf9f' : '#ebe1cf' });
+    }
+    this.text(this.menu, 'menu-title', piano ? 'Piano songs' : 'Calligraphy');
+    this.menu.getElementById('craft-cal')?.setProperties({ backgroundColor: piano ? '#ebe1cf' : '#1d1813' });
+    this.menu.getElementById('craft-piano')?.setProperties({ backgroundColor: piano ? '#1d1813' : '#ebe1cf' });
+    this.menu.getElementById<UIKit.Text>('craft-cal-label')?.setProperties({ color: piano ? '#1d1813' : '#f4ede0' });
+    this.menu.getElementById<UIKit.Text>('craft-piano-label')?.setProperties({ color: piano ? '#f4ede0' : '#1d1813' });
     this.text(this.menu, 'tempo', `Tempo ${Math.round(this.tempo * 100)}%`);
     const guide = { adaptive: 'Guide: adaptive', always: 'Guide: always', off: 'Guide: off' }[this.guideMode];
     this.text(this.menu, 'btn-guide-label', guide);
@@ -600,12 +639,11 @@ export class CalligraphySystem extends createSystem({
 
   private enterXR(): void {
     this.sfx.unlock();
-    this.sfx.startMusic();
+    if (this.craft === 'calligraphy') this.sfx.startMusic();
     this.progress = loadProgress();
-    const resume = this.progress.lessons;
-    // Resume at the first lesson not yet passed.
-    const next = LESSONS.findIndex((l) => !resume[l.id]?.passed);
-    this.loadLesson(next === -1 ? LESSONS.length - 1 : next);
+    void this.sfx.loadPiano(import.meta.env.BASE_URL);
+    this.lessonIndex = this.firstUnpassed();
+    if (this.craft === 'calligraphy') this.loadLesson(this.lessonIndex);
     this.beginPlacing();
   }
 
@@ -659,6 +697,10 @@ export class CalligraphySystem extends createSystem({
     this.penDown = false;
     this.locked = false;
     this.sfx.setScratch(0);
+    if (this.craft === 'piano') {
+      this.startSong(index, watchFirst);
+      return;
+    }
     this.loadLesson(index);
     this.showCaptionActions(false);
     this.desk.stamp.visible = false;
@@ -689,12 +731,19 @@ export class CalligraphySystem extends createSystem({
       this.mode = 'calibrate';
       this.log('calibrate');
       this.calibHold = 0;
-      this.ghostTarget(SEAL_X + 0.03, HOVER_Y + 0.02, SEAL_Z + 0.02);
+      this.ghostTarget(this.calX + 0.03, HOVER_Y + 0.02, this.calZ + 0.02);
       this.setCaption(
         'STEP 2 OF 3  -  TOUCH',
         'Touch the red seal',
         'Like the master: rest your index fingertip on the red seal for a moment. This tells the paper where your desk is.',
       );
+      return;
+    }
+    if (this.craft === 'piano') {
+      this.mode = 'piano';
+      this.piano.startPlay();
+      this.log('practice');
+      this.promptNote(true);
       return;
     }
     this.mode = 'practice';
@@ -993,6 +1042,7 @@ export class CalligraphySystem extends createSystem({
       this.ghostLean.x,
       this.ghostLean.z,
       this.ghostJoints,
+      this.mode === 'piano',
     );
     if (import.meta.env.DEV && this.clock - this.lastPoseLog > 3) {
       this.lastPoseLog = this.clock;
@@ -1123,11 +1173,11 @@ export class CalligraphySystem extends createSystem({
     const pulse = 0.55 + 0.45 * Math.sin(this.clock * 5);
     const ring = this.desk.sealRing;
     ring.visible = true;
-    ring.position.set(SEAL_X, ring.position.y, SEAL_Z);
+    ring.position.set(this.calX, ring.position.y, this.calZ);
     (ring.material as { opacity: number }).opacity = pulse;
     ring.scale.setScalar(1 + 0.15 * pulse);
     if (!this.tipValid) return;
-    const near = Math.hypot(this.tip.x - SEAL_X, this.tip.z - SEAL_Z) < 0.03;
+    const near = Math.hypot(this.tip.x - this.calX, this.tip.z - this.calZ) < 0.03;
     if (near && this.tip.y < 0.045 && this.tipSpeed < 0.05) {
       this.calibHold += dt;
       if (this.calibHold > 0.35) {
@@ -1410,6 +1460,197 @@ export class CalligraphySystem extends createSystem({
     this.refreshMenu();
   }
 
+  // ---------------------------------------------------------------- crafts
+
+  private lessonCount(): number {
+    return this.craft === 'piano' ? SONGS.length : LESSONS.length;
+  }
+
+  private lessonIds(): string[] {
+    return this.craft === 'piano' ? SONGS.map((s) => s.id) : LESSONS.map((l) => l.id);
+  }
+
+  private firstUnpassed(): number {
+    const ids = this.lessonIds();
+    const i = ids.findIndex((id) => !this.progress.lessons[id]?.passed);
+    return i === -1 ? ids.length - 1 : i;
+  }
+
+  private setCraft(craft: Craft): void {
+    if (craft === this.craft || this.mode === 'demo2d' || this.mode === 'placing') return;
+    this.craft = craft;
+    const piano = craft === 'piano';
+    this.desk.callig.visible = !piano;
+    this.piano.root.visible = piano;
+    // Background music would compete with the notes: silence it at the piano.
+    if (piano) this.sfx.stopMusic(0.8);
+    else this.sfx.startMusic();
+    // The calibration seal sits on the paper, or beside the keyboard.
+    this.calX = piano ? 0.215 : SEAL_X;
+    this.calZ = piano ? 0.085 : SEAL_Z;
+    this.desk.seal.position.set(this.calX, this.desk.seal.position.y, this.calZ);
+    this.desk.sealRing.position.set(this.calX, this.desk.sealRing.position.y, this.calZ);
+    this.desk.cursor.visible = false;
+    this.startLesson(this.firstUnpassed(), true);
+  }
+
+  private pianoEyebrow(): string {
+    return `PIANO  -  SONG ${this.lessonIndex + 1} OF ${SONGS.length}  -  ${this.piano.song.name.toUpperCase()}`;
+  }
+
+  private startSong(index: number, watchFirst: boolean): void {
+    this.lessonIndex = index;
+    this.piano.tempo = Math.max(0.5, Math.min(1, this.tempo + 0.2));
+    this.piano.loadSong(index);
+    this.showCaptionActions(false);
+    // Clear calligraphy ink so a later switch back starts clean.
+    for (const r of this.userRibbons) this.fadeOut(r, 0.3);
+    this.userRibbons = [];
+    this.ghost.visible = true;
+    this.ghost.opacity = this.guideMode === 'off' ? 0.3 : 0.78 - 0.56 * this.skill();
+    if (watchFirst) {
+      this.mode = 'piano';
+      this.piano.startWatch();
+      this.setCaption(
+        this.pianoEyebrow(),
+        'Listen to the master',
+        `${this.piano.song.teaching} ${this.piano.song.notes.length} notes. Just watch and listen for now.`,
+      );
+    } else {
+      this.beginPractice();
+    }
+    this.refreshMenu();
+    this.applyPanelVisibility();
+    this.log(`lesson ${this.piano.song.id} (${watchFirst ? 'watch' : 'practice'})`);
+    if (import.meta.env.DEV) {
+      this.desk.paper.updateWorldMatrix(true, false);
+      const w = (x: number, y: number, z: number) => {
+        const p = new Vector3(x, y, z).applyMatrix4(this.desk.paper.matrixWorld);
+        return [+p.x.toFixed(4), +p.y.toFixed(4), +p.z.toFixed(4)];
+      };
+      this.log(`piano-layout ${JSON.stringify({ ...(this.piano.layout(w) as object), seal: w(this.calX, 0, this.calZ) })}`);
+    }
+  }
+
+  private promptNote(first = false): void {
+    const total = this.piano.song.notes.length;
+    const i = this.piano.noteIndex;
+    this.setCaption(
+      first && !this.progress.lessons[this.piano.song.id] ? 'YOUR TURN' : this.pianoEyebrow(),
+      first ? 'Your turn' : `Note ${Math.min(i + 1, total)} of ${total}`,
+      first
+        ? 'Tap the glowing key with any fingertip. The master plays with you. Keep to the beat and the keys turn gold.'
+        : 'Tap the glowing key. Stay on the beat to turn it gold.',
+    );
+  }
+
+  private onPianoEvent(ev: ReturnType<PianoMode['update']>): void {
+    if (ev.type === 'watch-done') {
+      this.applyGuideStrength();
+      this.beginPractice();
+    } else if (ev.type === 'note') {
+      this.progress.strokes++;
+      if (ev.correct) {
+        this.log(`note ${ev.index} correct${ev.inTime ? ' on-beat' : ''}`);
+        if (ev.inTime && !this.progress.seenLock) {
+          this.progress.seenLock = true;
+          this.setCaption(this.pianoEyebrow(), 'In unison', 'You played with the master, on the beat. Notes on the beat turn gold.');
+        } else if (this.clock - this.pianoHintAt > 1.5) {
+          this.promptNote();
+        }
+      } else {
+        this.log(`note ${ev.index} wrong`);
+        this.pianoHintAt = this.clock;
+        this.setCaption(this.pianoEyebrow(), 'Not that key', 'Look for the key that glows red-orange, under the master\'s finger.');
+      }
+    } else if (ev.type === 'complete') {
+      this.completeSong(ev.score, ev.accuracy, ev.rhythm);
+    }
+  }
+
+  private completeSong(score: number, accuracy: number, rhythm: number): void {
+    this.log(`lesson complete score ${score} accuracy ${accuracy.toFixed(2)} rhythm ${rhythm.toFixed(2)}`);
+    const song = this.piano.song;
+    const record = lessonProgress(this.progress, song.id);
+    const prevBest = record.best;
+    record.attempts++;
+    record.best = Math.max(record.best, score);
+    record.passed = record.passed || score >= PASS_SCORE;
+    const days = markPracticeDay(this.progress);
+    saveProgress(this.progress);
+    this.sfx.fanfare();
+    for (const k of this.piano.keys) this.sparks.burst((k.x0 + k.x1) / 2, k.top - SURFACE_Y, (k.z0 + k.z1) / 2, 2, 0.14);
+    const isLast = this.lessonIndex === SONGS.length - 1;
+    const stars = '*'.repeat(this.stars(score)) || '-';
+    this.setCaption(
+      this.pianoEyebrow(),
+      `${song.name} complete  ${stars}`,
+      score > prevBest && prevBest > 0
+        ? `New best (was ${prevBest}). The master's hand will fade a little more next time.`
+        : `${Math.round(accuracy * 100)}% of keys right, ${Math.round(rhythm * 100)}% on the beat.`,
+      `Score ${score}  -  ${days > 1 ? `${days}-day streak` : 'practised today'}`,
+    );
+    this.menu?.getElementById('btn-next')?.setProperties({ display: isLast ? 'none' : 'flex' });
+    this.showCaptionActions(true);
+    this.refreshMenu();
+  }
+
+  /** All ten fingertips (both hands), paper-local, for the piano. */
+  private readAllTips(): void {
+    for (const t of this.tips) t.valid = false;
+    const frame = this.xrFrame as
+      | (XRFrame & { fillPoses?: (spaces: XRSpace[], base: XRSpace, out: Float32Array) => boolean })
+      | undefined;
+    const ref = this.renderer.xr.getReferenceSpace();
+    const session = this.renderer.xr.getSession();
+    if (!frame?.fillPoses || !ref || !session) return;
+    this.player.updateWorldMatrix(true, false);
+    this.desk.paper.updateWorldMatrix(true, false);
+    this.paperInv.copy(this.desk.paper.matrixWorld).invert();
+    let h = 0;
+    for (const source of session.inputSources) {
+      if (!source.hand || h > 1) continue;
+      let spaces = this.jointSpaces.get(source);
+      if (!spaces) {
+        spaces = Array.from(source.hand.values());
+        this.jointSpaces.set(source, spaces);
+      }
+      const buf = this.handJoints[h];
+      if (frame.fillPoses(spaces, ref, buf)) {
+        [4, 9, 14, 19, 24].forEach((j, f) => {
+          // Extended = tip far from its finger's base joint (curled tips tuck in close).
+          const base = f === 0 ? 1 : j - 4;
+          const reach = Math.hypot(
+            buf[j * 16 + 12] - buf[base * 16 + 12],
+            buf[j * 16 + 13] - buf[base * 16 + 13],
+            buf[j * 16 + 14] - buf[base * 16 + 14],
+          );
+          this.v.set(buf[j * 16 + 12], buf[j * 16 + 13], buf[j * 16 + 14]);
+          if (!this.playerIsIdentity) this.v.applyMatrix4(this.player.matrixWorld);
+          this.v.applyMatrix4(this.paperInv);
+          const t = this.tips[h * 5 + f];
+          t.x = this.v.x;
+          t.y = this.v.y;
+          t.z = this.v.z;
+          t.valid = true;
+          if (f === 0) {
+            // A thumb tucked against the side of the hand (pointing, fist) is
+            // not playing, however straight it is: near the index finger's base.
+            const tuck = Math.hypot(
+              buf[4 * 16 + 12] - buf[6 * 16 + 12],
+              buf[4 * 16 + 13] - buf[6 * 16 + 13],
+              buf[4 * 16 + 14] - buf[6 * 16 + 14],
+            );
+            t.extended = reach > 0.045 && tuck > 0.045;
+          } else {
+            t.extended = reach > 0.06;
+          }
+        });
+      }
+      h++;
+    }
+  }
+
   private updateHanko(dt: number): void {
     if (this.hankoAnim < 0) return;
     const t = (this.hankoAnim += dt);
@@ -1549,10 +1790,18 @@ export class CalligraphySystem extends createSystem({
       if (!this.stepChoreo(dt, false)) {
         const cycle = (this.clock % 2.4) / 2.4;
         const tap = cycle < 0.45 ? Math.sin((cycle / 0.45) * Math.PI) : 0;
-        this.ghostTip.set(SEAL_X + 0.004, TIP_CONTACT_Y + (1 - tap) * 0.035, SEAL_Z);
+        this.ghostTip.set(this.calX + 0.004, TIP_CONTACT_Y + (1 - tap) * 0.035, this.calZ);
         this.easeLean(0, 0, dt);
       }
       this.updateCalibrate(dt);
+    } else if (this.mode === 'piano') {
+      this.ghost.visible = this.guideMode !== 'off' || this.piano.phase === 'watch';
+      this.readAllTips();
+      const ev = this.piano.update(dt, this.tips, this.surfaceOffset);
+      this.ghostTip.copy(this.piano.ghostTip);
+      this.easeLean(0, 0, dt);
+      this.ghost.gold = Math.max(this.lockBlend, this.piano.gold);
+      this.onPianoEvent(ev);
     } else if (this.mode === 'practice') {
       this.ghost.visible = this.guideMode !== 'off' || this.lockBlend > 0.01;
       this.updatePractice(dt);

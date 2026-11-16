@@ -98,6 +98,32 @@ def draw(points, duration, jitter, device='hand-right'):
     hand_to((ex, y + 0.07, ez), 0.3, device)
 
 
+def play_song(lay, device):
+    """Tap every note of the song on its key, in time, in one natural hand sequence."""
+    beat = lay['beat']
+    steps = []
+    for name, beats in lay['notes']:
+        k = lay['keys'][name]
+        above = {'x': k[0], 'y': k[1] + CONTACT + 0.035, 'z': k[2]}
+        down = {'x': k[0], 'y': k[1] + CONTACT - 0.002, 'z': k[2]}
+        travel = max(0.08, beats * beat - 0.2)
+        steps.append({'label': f'{name}-over', 'anchor': 'index-tip', 'position': above, 'duration': travel})
+        steps.append({'label': f'{name}-tap', 'anchor': 'index-tip', 'position': down, 'duration': 0.1})
+        steps.append({'label': f'{name}-up', 'anchor': 'index-tip', 'position': above, 'duration': 0.1})
+    # Play with a pointing hand (one finger, the way a beginner plays a melody).
+    cli('xr', 'set-hand-pose', payload={'device': device, 'poseId': 'point'})
+    # run-sequence is capped at 25 s: send the song in chunks of about 18 s.
+    chunk, total = [], 0.0
+    for st in steps:
+        chunk.append(st)
+        total += st['duration']
+        if total > 18 and st['label'].endswith('-up'):
+            cli('xr', 'run-sequence', payload={'device': device, 'steps': chunk})
+            chunk, total = [], 0.0
+    if chunk:
+        cli('xr', 'run-sequence', payload={'device': device, 'steps': chunk})
+
+
 def look_at_paper(layout):
     seal = layout['seal']
     centre = (seal[0] - 0.088, seal[1], seal[2] - 0.138)
@@ -117,6 +143,7 @@ def main():
     ap.add_argument('--jitter', type=float, default=2.0, help='random fingertip error in mm')
     ap.add_argument('--negative', action='store_true', help='first try wrong strokes and expect specific hints')
     ap.add_argument('--hand', default='right', choices=['right', 'left'], help='writing hand')
+    ap.add_argument('--piano', type=int, default=0, help='also play N piano songs after the calligraphy lessons')
     ap.add_argument('--watch', action='store_true', help='keep the emulated head looking at the paper (for a human watching)')
     args = ap.parse_args()
     jitter = args.jitter / 1000
@@ -230,6 +257,28 @@ def main():
             press('btn-next', other)
             m, _ = wait_for(r'^layout (.*)', m0, 10)
             layout = json.loads(m.group(1))
+
+    if args.piano:
+        m0 = mark()
+        press('craft-piano', other)
+        for song_no in range(args.piano):
+            m, _ = wait_for(r'^piano-layout (.*)', m0, 15)
+            lay = json.loads(m.group(1))
+            print(f'5.{song_no + 1} piano {lay["song"]}: {len(lay["notes"])} notes')
+            if args.watch:
+                look_at_paper(lay)
+            wait_for(r'^practice$', m0, 60)
+            ms = mark()
+            play_song(lay, writer)
+            m, _ = wait_for(r'lesson complete score (\d+) accuracy ([\d.]+) rhythm ([\d.]+)', ms, 20)
+            score = int(m.group(1))
+            print(f'     score {score} (accuracy {m.group(2)}, rhythm {m.group(3)})')
+            results.append((lay['song'], [score]))
+            time.sleep(1.0)
+            shot(f'piano-{song_no + 1}-{lay["song"]}')
+            if song_no < args.piano - 1:
+                m0 = mark()
+                press('btn-next', other)
 
     print('\nRESULTS')
     ok = True

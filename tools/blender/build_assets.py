@@ -394,3 +394,59 @@ for fn in (build_brush, build_brush_rest, build_inkstone, build_water_dropper, b
         traceback.print_exc()
         print('FAILED', fn.__name__, e)
 print('ALL_DONE')
+
+# ---------------------------------------------------------------- 8. keyboard (A3 to C5), keys as named nodes
+# Keyboard-local (Blender Z up): x along the keys, -y away from the player
+# (glTF: +z toward the player), key tops at z = 0.012 (white) / 0.022 (black).
+WHITE = ['A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']
+BLACK_AFTER = {'A3': 'As3', 'C4': 'Cs4', 'D4': 'Ds4', 'F4': 'Fs4', 'G4': 'Gs4', 'A4': 'As4'}
+KW, KGAP, KL, KH = 0.030, 0.0012, 0.12, 0.012     # white key width, gap, length, height
+BW, BL, BH = 0.017, 0.075, 0.010                    # black key width, length, height above white
+
+
+def build_keyboard():
+    reset(); M = mats()
+    ivory = material('ivory', (0.93, 0.9, 0.84), 0.32)
+    ebony = material('ebony', (0.025, 0.022, 0.02), 0.18)
+    felt = material('felt_red', (0.42, 0.05, 0.04), 0.95)
+    objs = []
+    n = len(WHITE)
+    total = n * KW
+    x0 = -total / 2 + KW / 2
+    for i, note in enumerate(WHITE):
+        k = box(f'key_{note}', KW - KGAP, KL, KH)
+        k.location = (x0 + i * KW, 0.0, KH / 2)
+        bevel(k, 0.0012, 2)
+        smooth(k, 35)
+        assign(k, ivory)
+        objs.append(k)
+        if note in BLACK_AFTER:
+            b = box(f'key_{BLACK_AFTER[note]}', BW, BL, BH)
+            b.location = (x0 + i * KW + KW / 2, (KL - BL) / 2, KH + BH / 2)
+            bevel(b, 0.0015, 2)
+            smooth(b, 35)
+            assign(b, ebony)
+            objs.append(b)
+    # Walnut case: key bed, back rail with a red felt strip, cheeks.
+    bed = box('case_bed', total + 0.03, KL + 0.05, 0.006, -0.006)
+    bed.location.y = 0.012
+    uv_cube(bed, 0.4); assign(bed, M['walnut']); objs.append(bed)
+    rail = box('case_rail', total + 0.03, 0.045, 0.032)
+    rail.location.y = KL / 2 + 0.024
+    bevel(rail, 0.004, 3); smooth(rail, 35); uv_cube(rail, 0.4); assign(rail, M['walnut']); objs.append(rail)
+    strip = box('case_felt', total, 0.006, 0.004, 0.012)
+    strip.location.y = KL / 2 + 0.0
+    assign(strip, felt); objs.append(strip)
+    for sgn in (-1, 1):
+        cheek = box('case_cheek', 0.015, KL + 0.05, 0.03)
+        cheek.location = (sgn * (total / 2 + 0.0075), 0.012, 0.015)
+        bevel(cheek, 0.004, 3); smooth(cheek, 35); uv_cube(cheek, 0.2); assign(cheek, M['walnut']); objs.append(cheek)
+    # Blender +Y is away from the player; glTF export maps Blender -Y to +Z (toward the player).
+    export('keyboard', objs)
+
+
+try:
+    build_keyboard()
+except Exception as e:
+    import traceback; traceback.print_exc(); print('FAILED build_keyboard', e)
+print('KEYBOARD_DONE')

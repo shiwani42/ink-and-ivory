@@ -139,6 +139,54 @@ export class Sfx {
     this.musicGain.gain.setTargetAtTime(this.muted ? 0 : level, this.ctx.currentTime, seconds / 3);
   }
 
+  // ------------------------------------------------------------ sampled piano
+  // Salamander Grand Piano (Alexander Holm, CC-BY 3.0), six samples spread a
+  // minor third apart and pitch-shifted to every key in A3 to C5.
+  private pianoSamples: { midi: number; buffer: AudioBuffer }[] = [];
+  private pianoLoading = false;
+
+  async loadPiano(baseUrl: string): Promise<void> {
+    if (!this.ctx || this.pianoLoading || this.pianoSamples.length) return;
+    this.pianoLoading = true;
+    const files: [string, number][] = [['A3', 57], ['C4', 60], ['Ds4', 63], ['Fs4', 66], ['A4', 69], ['C5', 72]];
+    const ctx = this.ctx;
+    const loaded = await Promise.all(
+      files.map(async ([name, midi]) => {
+        try {
+          const res = await fetch(`${baseUrl}audio/piano/${name}.mp3`);
+          const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
+          return { midi, buffer };
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    this.pianoSamples = loaded.filter((x): x is { midi: number; buffer: AudioBuffer } => !!x);
+    this.pianoLoading = false;
+  }
+
+  /** Play a piano note (MIDI number) at velocity 0..1. Falls back to a bell if samples are missing. */
+  piano(midi: number, velocity = 0.8): void {
+    if (!this.ready()) return;
+    if (!this.pianoSamples.length) {
+      this.tone(440 * Math.pow(2, (midi - 69) / 12), this.ctx!.currentTime, 1.2, 0.18 * velocity);
+      return;
+    }
+    let best = this.pianoSamples[0];
+    for (const s of this.pianoSamples) if (Math.abs(s.midi - midi) < Math.abs(best.midi - midi)) best = s;
+    const ctx = this.ctx!;
+    const src = ctx.createBufferSource();
+    src.buffer = best.buffer;
+    src.playbackRate.value = Math.pow(2, (midi - best.midi) / 12);
+    const g = ctx.createGain();
+    const t = ctx.currentTime;
+    g.gain.setValueAtTime(0.55 * velocity, t);
+    g.gain.setTargetAtTime(0, t + 1.6, 0.4);
+    src.connect(g).connect(this.master!);
+    src.start(t);
+    src.stop(t + 3.5);
+  }
+
   /** Continuous brush-on-paper texture. `speed` in m/s, 0 = silent. */
   setScratch(speed: number): void {
     if (!this.ctx || !this.scratchGain || !this.scratchFilter) return;
