@@ -19,6 +19,7 @@ Both first versions "worked" and were still called *dummy* by the user. Everythi
 ## References (load when the phase needs them)
 | File | Contents |
 |---|---|
+| [references/build-path.md](references/build-path.md) | WebXR/IWSDK vs Unity/Unreal/Android: what each gives visually and technically, decision guide |
 | [references/process.md](references/process.md) | Working with the user, iteration loop, parallel agents, lessons from past winners |
 | [references/architecture.md](references/architecture.md) | One system + state machine, content as data, lifecycle, saves, dev presets, LLM contract |
 | [references/hands-input.md](references/hands-input.md) | Joints, smoothing, active hand, both pinch tiers, grab point, gestures, microgestures |
@@ -46,8 +47,8 @@ Scripts: [scripts/xr_e2e_lib.py](scripts/xr_e2e_lib.py) (emulator end-to-end lib
 
 ## Workflow
 
-### Phase 0: Orient and set up (Linux first; Windows for casting and recording)
-1. Read `AGENTS.md`, `.claude/rules/*`, `iwsdk.config.json`, `src/*.ts`, the scene JSON in one bounded pass.
+### Phase 0: Orient and set up (Linux first; the Meta VR CLI records and casts from Linux)
+1. Read `AGENTS.md`, `.claude/rules/*`, `iwsdk.config.json`, `src/*.ts`, the scene JSON in one bounded pass. For a new project, decide the build path first (WebXR vs Unity/Unreal): [references/build-path.md](references/build-path.md).
 2. **Scaffold:** `npx @iwsdk/create` (AR target, TypeScript, scene understanding). Pin `@iwsdk/core` exactly, 1.1.0 or later (fixes missing textures under multiview).
 3. **`.npmrc`:** `onnxruntime-node-install-cuda=skip`, or `npm ci` fails on Linux.
 4. **Install:** `npm ci`, then `npm run setup` (the scaffold's script is `iwsdk adapter sync && iwsdk reference warmup`). Gitignore `.mcp.json` and `opencode.json` (absolute paths).
@@ -82,10 +83,10 @@ Dev-only structured logs (`[tag] #page.seq event key=value layout={json}`), a de
 Copy `scripts/xr_e2e_lib.py`, write the journey, give each feature a flag, run the whole matrix in one command (`npm run test:xr`). Every bug that would have cost points was found by running the journey. Quick run after each change; full run before each commit. Run long suites in the background; don't poll.
 
 ### Phase 6: Make it production-grade (in order of impact)
-1. Lighting and grounding; 2. the hero object or character; 3. environment (place or dome); 4. materials that glint; 5. juice; 6. text; 7. sound. See visual-quality.md, audio.md, assets-and-licensing.md.
+1. Lighting and grounding (baked AO first); 2. the hero object or character; 3. environment (place or dome); 4. materials that glint (clear coat); 5. juice; 6. text; 7. sound, positioned in 3D (HRTF). See visual-quality.md, audio.md, assets-and-licensing.md.
 
 ### Phase 7: Measure and optimise
-Target **72 fps; 60 fps is the hard floor.** Budget: ≤100 draw calls per eye, aim ≤150k triangles (300k ceiling), one shadow map, no full-screen post-processing. The emulator renders each eye separately: halve its counts. Desktop frame time does not predict Quest; capture on the device (`hz-perfetto-debug`).
+Target **72 fps; 60 fps is the hard floor.** Budget: ≤100 draw calls per eye, aim ≤150k triangles (300k ceiling), one shadow map, no full-screen post-processing. The emulator renders each eye separately: halve its counts. Desktop frame time does not predict Quest; capture on the device (`metavr perf capture`, testing.md; `hz-perfetto-debug`). With headroom, step up to 90 Hz (visual-quality.md).
 
 ### Phase 8: Judge yourself, then document
 Score the four criteria honestly. List what only a headset can prove (testing.md). Write README, `docs/JUDGING.md`, `docs/TESTING.md`, `docs/SUBMISSION.md`, CREDITS, in-app credits (submission.md). Update docs in the same commit as the feature.

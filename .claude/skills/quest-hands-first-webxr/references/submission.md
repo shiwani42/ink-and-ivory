@@ -31,3 +31,6 @@ Name known issues and what's next; link any SDK fork or patch you made (it reads
 
 ## Pre-submit self-check
 Score yourself on the four criteria; walk the headset-only list in testing.md; confirm every credit against its source page; confirm both URLs work logged out.
+
+## Recording the trailer (Meta's guidance)
+Record landscape 1920 × 1080 (`metavr capture video start --width 1920 --height 1080`, from Linux too). Meta suggests 36 fps (variable), image stabilisation low, and slow, deliberate head movement. Mixed Reality Capture doesn't apply to WebXR. Use `?state=` presets to jump to each shot.

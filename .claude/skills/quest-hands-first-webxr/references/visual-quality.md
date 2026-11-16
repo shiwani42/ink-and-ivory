@@ -51,3 +51,23 @@ One palette, one material language, one font pair. Every prop passes the "same w
 - **Merge static models by material** in Blender before export; keep only nodes the code animates or names separate (93 meshes → 7 cut one mode from 280 to 112 emulator draw calls).
 - Log `renderer.info.render` every 3–5 s in dev. The emulator renders each eye separately: halve its numbers; compare by timestamp.
 - Desktop frame time doesn't predict Quest: capture on the device (`hz-perfetto-debug`).
+
+## Baked ambient occlusion (the cheapest big upgrade)
+IBL-lit models look flat without contact darkening. Bake AO in Blender into a second UV map and export it as glTF occlusion; three.js loads it as `aoMap` on UV channel 1, at no runtime cost. Recipe (`bake_ao` in `hands-of-a-master/tools/blender/build_assets.py`):
+1. Apply modifiers (`make_single_user`, `convert`), so the bake matches the export.
+2. Per object: add UV map `AO`, make it active, `smart_project(angle_limit=66°, island_margin=0.03)`.
+3. New image (512 px props, 1024 px hero), Non-Color; a copy of each material gets an Image Texture node (UV Map node = `AO`) set as the active node.
+4. Cycles, CPU, ~48 samples; `world.light_settings.distance` = AO reach (3 cm props, 25 cm a piano); `bpy.ops.object.bake(type='AO', margin=6)`; `img.pack()`.
+5. Wire glTF occlusion: a node group named **`glTF Material Output`** with a float input `Occlusion`, fed from the AO texture's red channel. Reset the active UV to index 0.
+6. Merge by material first, then bake (merged meshes stay one draw each). About 1 minute for a 10k-triangle piano on CPU.
+AO only affects indirect light (IBL, ambient), so it reads strongest under image-based lighting. Check: the GLB's materials have `occlusionTexture`.
+
+## Materials that read as real
+- **Lacquer, polished wood, car paint:** Principled `Coat Weight` 1, `Coat Roughness` ~0.04 over a satin base (roughness ~0.2); exported as `KHR_materials_clearcoat`. One extra shader layer, no extra draw.
+- **Reflections:** feed each place's own HDR as the environment, so metal and coat reflect the room the user sees.
+
+## Frame rate and layers (Meta's WebXR guidance)
+- Request 72 Hz first. If on-device traces show headroom, step up via `session.supportedFrameRates` / `updateTargetFrameRate(90)` (Quest Browser 16.4+). Meta: "higher frame rates result in more realistic experiences."
+- Verify that foveation actually applies: `adb shell ovrgpuprofiler -e` (restart the browser), then `ovrgpuprofiler -t`.
+- **`XRQuadLayer`** (IWSDK optional feature `layers`) renders panel text crisply, but the compositor draws it *over* everything, including hands. Use it only for panels that hands never pass in front of. The emulator shows only the fallback mesh.
+- KTX2/Basis is Meta's recommended texture format (IWSDK bundles `KTX2Loader`); worth it when texture memory or upload hitches show up.

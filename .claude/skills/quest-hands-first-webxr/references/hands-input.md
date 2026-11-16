@@ -48,3 +48,9 @@ The lowest hand over the work area wins, with three rules:
 | Actions fire on their own | hand passing through a surface; resting hand chosen; curled fingers dipping | minimum duration, plunge detection, ignore hands far below, prefer the current hand |
 | First action after calibration is garbage | finger still on the calibration target | require a lift first |
 | Pinch flickers at the edge | single threshold | hysteresis (table above) |
+
+## Gaze on Quest 3/3S
+The judging text names gaze interactions (Unity/Unreal ISDK v207+). Quest 3 and 3S have **no eye tracking**, and IWSDK's `GazeSystem` waits for an input source with `targetRayMode === 'gaze'`. On these headsets, use **head gaze**: a character that reacts when you look at it, or a panel that brightens when it's in the centre of view. Don't ask for dwell-to-select as the only input.
+
+## Meta's hands guidance worth quoting in JUDGING.md
+"Avoid time-based or reflex-heavy events" and "do not penalize users for taking their time" (design/hands-best-practices). Keep wait modes forgiving, and score rhythm only as a bonus.

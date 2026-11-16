@@ -65,3 +65,6 @@ Load with `<link>` plus `document.fonts.load()` and a 2.5 s timeout; fall back g
 
 ## Verify
 Capture the view at each onboarding moment and inspect at full resolution: clipped edges, overlaps between any two text elements, text over a face or the work, legibility at the real distance.
+
+## UIKitML: don't hide text elements at load
+A tile that starts with `style="display: none"` and blank text didn't lay out new text when the code later set its text and showed it. The tile appeared with its number but no name. Give every element real placeholder text, start it visible, and let the code hide what isn't needed on the first refresh.

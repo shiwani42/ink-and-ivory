@@ -30,3 +30,6 @@ If `session.initiateRoomCapture` exists and no horizontal planes arrive within a
 
 ## Test placement three ways
 No table nearby; seated at a table; a round table. The emulator room has about 15 labelled planes, so test both "seated at a table" and "standing in the middle".
+
+## Remembering placement across sessions
+IWSDK 1.1.0 already restores a persistent anchor at the reference-space origin through `localStorage` (`scene-understanding/scene-understanding-system.js`, about lines 538–630). Store the content's pose relative to it to bring the desk or board back next session. Limits: 8 anchors per site, nothing persists in private browsing, and it needs a headset to verify. Judges may only see one session, so it's a nice-to-have, worth one line in the write-up if it works.

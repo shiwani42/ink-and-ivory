@@ -23,3 +23,13 @@ Repeated sounds (taps, clacks, steps) get 3–4 variants or a random pitch (±3%
 
 ## Speech
 `speechSynthesis` voices vary by device and may be missing: always caption, and list "TTS voices present" as a headset-only check. Drive a character's jaw from the line timing (syllable rhythm), not from audio analysis.
+
+## Spatial (HRTF) audio
+Sounds should come from where they happen. Meta's design guidance calls spatial audio out, and neither 2026 project used it at first.
+- One `PannerNode` per sound source: `panningModel 'HRTF'`, `distanceModel 'inverse'`, `refDistance` ~0.6 m (arm's length unchanged), `rolloffFactor` ~0.6. Position it with `positionX/Y/Z` (fallback `setPosition`).
+- One-shots (piano notes, dice, clacks): create a panner per event at the object's world position (`localToWorld` into a preallocated vector).
+- Continuous sounds (brush scratch): one persistent panner, moved every frame.
+- **Move the ears every frame:** `ctx.listener.positionX…` and `forwardX…/upX…` from the head's world position and quaternion (`(0,0,-1)` and `(0,1,0)` rotated), with preallocated vectors.
+- If the app owns its own `AudioContext`, IWSDK's `AudioListener` on the head does not drive it; update the listener yourself.
+- `speechSynthesis` voices cannot go through a panner. Place a caption near the speaker instead.
+- Test with headphones on desktop, then on the headset.

@@ -49,3 +49,19 @@
 
 ## What only a headset can prove (keep this list in `docs/TESTING.md`, tick it on the device)
 72 fps (60 floor) during the heaviest effect; text and models render under multiview; contact and pinch thresholds with real hands; tracking at gesture extremes (under the table, edge of view); two different rooms; depth occlusion; text legibility at distance; hand-tracking permission prompt; system-menu pause; TTS voices; the file picker in Quest Browser; microgestures; the production URL logged out.
+
+## Meta VR CLI on the device (works on Linux)
+The `metavr` binary installs to `~/.metavr/npm/binaries/@meta-quest__metavr-linux-x64/<version>/metavr` and is not on PATH.
+```
+metavr device list ; metavr device configure-testing setup        # stay awake; "restore" afterwards
+metavr adb reverse tcp:8081 tcp:8081 ; metavr device browser http://localhost:8081
+metavr perf capture --app com.oculus.browser --mode vr --duration 10000 -o run1
+metavr perf analyze-trace --focus frames ; metavr perf open <id>
+metavr shell ovrgpuprofiler --realtime="29,30"                   # vertex vs fragment load
+metavr capture video start --width 1920 --height 1080 ; metavr capture video stop
+metavr capture screenshot -o shot.png --width 1920 --height 1080
+metavr casting start | status | stop
+```
+For CPU frame time in the browser: `chrome://inspect#devices`, then "trace" on com.oculus.browser with the `xr.debug` category.
+- `metavr asset search` (Meta's 3D Asset Library) failed server-side for us in Nov 2026, even when logged in. Retry occasionally; don't depend on it.
+- Meta Spatial Simulator runs 2D Android apps only (macOS/Windows); it can't test WebXR. Use IWER.
