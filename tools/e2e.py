@@ -98,6 +98,13 @@ def draw(points, duration, jitter, device='hand-right'):
     hand_to((ex, y + 0.07, ez), 0.3, device)
 
 
+def look_at_paper(layout):
+    seal = layout['seal']
+    centre = (seal[0] - 0.088, seal[1], seal[2] - 0.138)
+    cli('xr', 'set-transform', payload={'device': 'headset', 'position': {'x': centre[0], 'y': centre[1] + 0.32, 'z': centre[2] + 0.42}})
+    cli('xr', 'look-at', payload={'device': 'headset', 'target': {'x': centre[0], 'y': centre[1], 'z': centre[2] - 0.03}})
+
+
 def press(target, hand='hand-left'):
     cli('xr', 'run-sequence', payload={'device': hand, 'steps': [
         {'label': 'press', 'target': target, 'press': {}},
@@ -110,6 +117,7 @@ def main():
     ap.add_argument('--jitter', type=float, default=2.0, help='random fingertip error in mm')
     ap.add_argument('--negative', action='store_true', help='first try wrong strokes and expect specific hints')
     ap.add_argument('--hand', default='right', choices=['right', 'left'], help='writing hand')
+    ap.add_argument('--watch', action='store_true', help='keep the emulated head looking at the paper (for a human watching)')
     args = ap.parse_args()
     jitter = args.jitter / 1000
     writer = f'hand-{args.hand}'
@@ -147,6 +155,8 @@ def main():
     print('   placed on', m.group(1))
     m, _ = wait_for(r'^layout (.*)', m0, 10)
     layout = json.loads(m.group(1))
+    if args.watch:
+        look_at_paper(layout)
     time.sleep(1.2)
     shot('01-watch')
 
@@ -190,6 +200,8 @@ def main():
         for i, stroke in enumerate(layout['strokes']):
             for attempt in range(3):
                 ms = mark()
+                if args.watch:
+                    look_at_paper(layout)
                 draw(stroke['pts'], stroke['duration'], jitter, writer)
                 if i == 0 and attempt == 0 and lesson_no in (0, args.lessons - 1):
                     shot(f'{lesson_no + 2:02d}-{lesson}-stroke')
@@ -207,6 +219,9 @@ def main():
                 print('     stroke failed three times')
                 scores.append(0)
         wait_for(r'lesson complete', m0, 6)
+        if args.watch:
+            look_at_paper(layout)
+            time.sleep(2.0)
         time.sleep(0.8)
         shot(f'{lesson_no + 2:02d}-{lesson}-complete')
         results.append((lesson, scores))
