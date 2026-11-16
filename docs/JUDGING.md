@@ -6,8 +6,8 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
 - **Evidence:** "E2E" means the automated emulator run in [TESTING.md](TESTING.md). Anything not yet verified on a physical Quest is marked ⚠.
 
 ## Entry choices
-- **Track: Productivity.** The rules define it as "creative tools, or habits tied to a recurring context". This is a daily practice habit for a creative skill.
-- **Division: New Experience.** It was built entirely in the competition window (16 Nov 2026), from the official IWSDK starter.
+- **Track: Productivity.** The rules define it as "creative tools, or habits tied to a recurring context". This is a daily practice habit for two creative skills: calligraphy and piano.
+- **Division: New Experience.** It was built entirely in the competition window (16 to 17 Nov 2026), from the official IWSDK starter.
 - **Special awards to name in the text:**
   - **Best Reason to Come Back**, the primary one: streak, best scores, and a master who visibly lets go as you improve.
   - **Boldest Original Concept.**
@@ -16,11 +16,11 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
 ## Hard requirements (Stage 1, pass/fail)
 | Requirement | Status | Evidence |
 |---|---|---|
-| Hands-first: the whole experience completes without a controller | ✅ | E2E plays all 6 lessons using only emulated hands: entry, placement, watch, calibration, 15 strokes, menu pokes, "Next lesson". The emulator's input mode is set to `hand`. |
-| Judged on Quest 3 / 3S at 60 fps or more | ✅ design / ⚠ device | Peak 64 draw calls and about 31k triangles in XR. Requests 72 Hz, foveation 0.4, no real-time shadows, no post-processing. Not yet captured on a headset. |
-| English | ✅ | All UI and captions are in English. Characters appear only as ink on the paper. |
-| No logos, brands or identifiable people | ✅ | Original procedural art. The seal is an abstract geometric mark. Credits are text only. |
-| Original, not a wrapper ("take it away" test) | ✅ | No third-party service at all: scoring, choreography, ink and sound all run locally. |
+| Hands-first: the whole experience completes without a controller | ✅ | E2E plays all 6 calligraphy lessons and all 4 piano songs using only emulated hands: entry, placement, watch, calibration, 15 strokes, every song note, menu pokes, "Next lesson", switching craft. The emulator's input mode is set to `hand`. |
+| Judged on Quest 3 / 3S at 60 fps or more | ✅ design / ⚠ device | At most 112 draw calls and 62k triangles in XR (emulator, counted over both eyes; Quest's multiview draws both eyes at once). The 93-part grand piano is merged into 7 meshes, one per material. Requests 72 Hz, foveation 0.4, no real-time shadows, no post-processing; the 360-degree place is one sphere draw. Not yet captured on a headset. |
+| English | ✅ | All UI and captions are in English. Characters appear only as ink on the paper; readings are romanized (ichi, yi). |
+| No logos, brands or identifiable people | ✅ | Models are built in Blender by our own script; the grand piano has no maker's name. The seal is an abstract mark. The 360-degree photographs contain no people and no signage brands. Credits are text only. |
+| Original, not a wrapper ("take it away" test) | ✅ | No third-party service at all: scoring, choreography, ink, piano and sound all run locally. Photos, music and samples are bundled CC0 / CC-BY files. |
 | Hosted URL that works logged out | ⚠ to do | Deploy with Vercel. Test the production alias logged out and in incognito on the headset. |
 | Public video under 3 minutes | ⚠ to do | Shot list in [SUBMISSION.md](SUBMISSION.md). |
 
@@ -28,18 +28,21 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
 | Guideline | How |
 |---|---|
 | Seated, 2 ft radius ("airplane seat test") | Everything sits on the desk in front of you. The paper is about 0.4 m ahead, the menu about 0.33 m to the off-hand side. No locomotion. |
-| Easy in and out ("one bus stop test") | One button to start. A first lesson (一) takes about 1 minute; a complete character set about 5 to 8 minutes. Progress saves automatically. Pausing for the Quest system menu freezes the lesson and resumes it. |
+| Easy in and out ("one bus stop test") | One button to start. A first lesson (一) takes about 1 minute, a song about 1 to 2 minutes; a complete character set about 5 to 8 minutes. Progress saves automatically. Pausing for the Quest system menu freezes the lesson and resumes it. |
 | Satisfying in 10 minutes or less | The first gold "lock-in" and the seal stamp happen within the first lesson, about 60 to 90 seconds in. |
 
 ## Criterion 1: Innovation & Creativity
 - **Ghost-hand apprenticeship on your real desk.** The master's hand writes beside yours in your own room, and you learn by moving with it, not by reading instructions.
 - **Lock-in moment.** Matching the master's timing and path blends the ghost onto your own tracked hand and turns it gold. This only works with tracked hands in passthrough.
 - **Skill-adaptive guidance.** The ghost and the tracing guide fade as your best score rises. This follows the CHI '26 finding that skill-adaptive ghost instructors beat static ones for retention, which also names calligraphy as a target domain.
+- **Two crafts, one idea.** The same apprenticeship works for the piano: the master's hand plays each phrase on a keyboard on your real table, then waits on the next key while you play it.
+- **You travel to where the craft lives.** After the paper lands on your real table, your room dissolves like ink soaking into washi into the place the craft belongs to: Kennin-ji's moss garden veranda for Japanese, a classical garden for Chinese, a white music room with a concert grand for piano. A desk stands exactly where your real table is, so your fingertip still touches something real.
 - **Lane check:** research of 2026 entries and prior art found no hands-only calligraphy tutor. Pen-based (MX Ink) and controller-based apps exist; see the kit's research notes.
 - **Repeat usage:** a daily streak, best score per character, unlockable stars, and the adaptive guide, which makes the next session visibly different.
 
 ## Criterion 2: Experience Design
-- **Purposeful passthrough.** The real table is the writing surface: you touch the real desk to put ink down, which gives physical feedback hand tracking can't. Turn passthrough off and the core interaction loses its tactile surface.
+- **Purposeful passthrough, then presence.** Placement happens in passthrough, so the paper or keyboard lands on your real table. Then the room dissolves into the place, and the virtual desk sits on your real table's surface: you still touch the real desk to put ink down or press a key, which gives physical feedback hand tracking can't. The Scene button dissolves back to your room at any time. Only one world shows at a time, never a mix.
+- **The place stays quiet.** The panorama is softened (slight blur, muted colour, warm haze) so the paper stays the focus, and calligraphy is turned to face the moss garden rather than the busy corridor.
 - **Onboarding without a wall of text.** Each step is demonstrated before you're asked to do it:
   1. The paper unrolls.
   2. The master demonstrates.
@@ -51,7 +54,8 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
   - a hover ring that tightens as your fingertip approaches the paper;
   - a paper "scratch" sound that follows brush speed;
   - a bell on lock-in, a wood block on UI presses, a low thud for the seal;
-  - gold ink when you were in unison.
+  - gold ink when you were in unison;
+  - piano: a sampled grand piano note on every press, a glowing next key, a note that floats up from each key (gold on the beat), and a music sheet that marks each note as you play it.
 - **Specific, kind corrections:** "Other direction. Watch where the master begins.", "Stay closer to the master's path.", "Slower. Let the brush travel with the master." Accidental touches (a hand dropping to your lap through the paper) are discarded silently.
 - **FoV-aware layout:**
   - The paper sits where you naturally look down.
@@ -64,6 +68,8 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
   - tempo from 30 to 100%;
   - guide modes (adaptive / always / off);
   - captions for every instruction and result, so it works without sound;
+  - a larger-text option and a music on/off switch;
+  - a gentle break reminder after a long session;
   - hit targets about 2.6 cm tall (the guideline is 2.2 cm or more);
   - light text on dark panels.
 
@@ -84,6 +90,8 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
   - A skinned WebXR generic hand driven by a procedural 25-joint pose solver built from IWER's point pose.
   - A Fresnel shader with a depth pre-pass, and a fingertip glow.
   - Per-joint position and rotation blending onto the learner's real hand for lock-in.
+- **Piano key detection:** for each hand, the lowest extended fingertip over a key presses it (down at 12 mm above the key top, up at 19 mm, with 120 ms per-key debounce). Curled and tucked fingers are ignored, so a resting hand doesn't play. Rhythm is judged against the beat (gold within a third of a beat); the score is 65% accuracy, 35% rhythm.
+- **Places:** a 4096 x 2048 panorama on a sphere that follows your head (no parallax). One shader does the soft-focus "calm" treatment with a mip bias, and the ink-bleed dissolve with two octaves of noise and an ink rim.
 - **Rendering budget:**
   - preallocated ribbon geometry (no per-frame allocation while writing);
   - shared materials;
@@ -100,19 +108,20 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
   - Real-device performance not yet captured.
 
 ## Criterion 4: Polish & Presentation
-- **One coherent art direction:** a Japanese shodo desk. Dark felt mat, washi with fibres and a vermilion practice grid, a paperweight, an inkstone, vermilion teacher's ink, sumi-black learner's ink, and gold for unison.
+- **One coherent art direction:** a "washi" design system (Merriweather titles, Inter body, warm paper panels, vermilion and gold accents) across both crafts. Calligraphy: a dark felt mat, washi with fibres and a vermilion practice grid, a brush on its rest, an inkstone, a water dropper, a seal set, vermilion teacher's ink, sumi-black learner's ink, and gold for unison. Piano: a black concert grand with its lid up in a white music room.
 - **Motion:**
   - The paper unrolls on arrival.
   - The master's strokes press, travel and settle with an ease-in-out profile.
   - The ghost "breathes" while waiting.
   - The seal lands with a scale-in and a thud.
-- **Sound:** synthesized in code (Web Audio), so there are no licensing issues and no loading.
+- **Sound:** CC0 music chosen per place (koto, shamisen and shakuhachi plus a quiet ambient piano for Japanese; an Asian ensemble with koto and strings for Chinese; silence for piano so you hear your own playing), Salamander grand piano samples, and synthesized effects through one compressor.
+- **Transitions:** the ink-bleed dissolve between your room and the place, about 2.4 s.
 - **Submission material:** see [SUBMISSION.md](SUBMISSION.md).
 
 ## Special awards fit
 | Award | Fit |
 |---|---|
-| Best Reason to Come Back | Daily streak, best score and stars per character, a ladder of six characters, and the master fading as you improve |
+| Best Reason to Come Back | Daily streak, best score and stars per character and song, two languages and two crafts to work through, and the master fading as you improve |
 | Boldest Original Concept | Learning a physical craft by moving inside a master's hands on your own desk depends on hand tracking, passthrough and real-world scale |
 | Best Accessibility Forward | One-handed play, auto left-handed mode, adjustable tempo, guide modes, full captions, large hit targets |
 | Best First Five Minutes | Writing within about 30 seconds of entry, taught by demonstration rather than text, with gold and the seal stamp as payoff |

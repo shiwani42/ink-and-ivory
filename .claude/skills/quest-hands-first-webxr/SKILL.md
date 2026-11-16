@@ -113,4 +113,9 @@ Minimum test matrix before calling it done:
 | A translucent hand reads backwards | Seen end-on from the user's eyes | Angle it like a real arm (from the user's side), raise the body fill, add a tip glow |
 | Test waits forever | `browser logs` count over 200 (error goes to stderr), or line-index bookkeeping | count ≤ 200, timestamp marks, capture stderr |
 | XR session ends mid-test | Hot reload from editing `src/` | Edit only between runs |
+| A 360-degree photo shows a vertical seam | Default clamp wrapping at u = 0/1 | `wrapS = RepeatWrapping` with mipmaps (patterns §13) |
+| Users call the place "busy" or "distracting" | A crisp photo competes with the task | Calm shader (mip-bias blur, desaturate, haze) and face the calmest view |
+| Users dislike seeing the room and the place at once | A partial overlay | One world at a time with a dissolve; place content in passthrough first |
+| Wikimedia downloads fail with HTTP 429 | Rate limit | `curl`, 3 to 4 s apart, thumbnail URLs |
+| `metavr asset search` returns "Invalid API response" | Server-side gate on Meta's asset API (Nov 2026) | Use Poly Haven, ambientCG, Commons and Blender scripts instead |
 | Real fingers vanish under virtual paper | No depth occlusion | Accept the IWSDK hand outline, or test `DepthOccludable` on device. Surfaces within mm of real ones flicker |

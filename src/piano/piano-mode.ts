@@ -98,6 +98,7 @@ export class PianoMode {
   private readonly sheet = new MusicSheet();
   private readonly floating = new FloatingNotes();
   private played: number[] = [];
+  private legs?: Object3D;
 
   constructor(
     private readonly hooks: {
@@ -149,9 +150,20 @@ export class PianoMode {
       label.position.copy(p);
       k.mesh.add(label);
     }
-    // The music sheet rests on the back rail, tilted toward the player.
-    this.sheet.group.position.set(0, 0.078, -0.098);
-    this.sheet.group.rotation.x = -0.28;
+    // The concert grand around the playable keys (decorative keys either side).
+    const grand = AssetManager.getGLTF('model-grand-piano');
+    if (grand) {
+      this.root.add(grand.scene);
+      this.legs = grand.scene.getObjectByName('legs') ?? undefined;
+      // The keyboard's own walnut case sits inside the grand's lacquer case.
+      this.root.traverse((o) => {
+        if (o.name.startsWith('case_')) o.visible = false;
+      });
+    }
+    // The score rests on the piano's music desk, tilted back.
+    this.sheet.group.position.set(0, 0.175, -0.188);
+    this.sheet.group.rotation.x = -0.24;
+    this.sheet.group.scale.setScalar(1.7);
     this.root.add(this.sheet.group);
     this.root.add(this.floating.group);
   }
@@ -159,6 +171,13 @@ export class PianoMode {
   private drawSheet(): void {
     const current = this.phase === 'play' || this.phase === 'watch' ? this.noteIndex : -1;
     this.sheet.draw(this.song, current < this.song.notes.length ? current : -1, this.played);
+  }
+
+  /** Stretch the piano's legs so they reach the floor (desk height in metres above it). */
+  fitToFloor(deskHeight: number): void {
+    if (!this.legs) return;
+    // Legs are modelled 0.7 m long, starting 0.28 m below the keys.
+    this.legs.scale.y = Math.max(0.2, (deskHeight - 0.28) / 0.7);
   }
 
   get beatSeconds(): number {

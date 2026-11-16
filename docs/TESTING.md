@@ -8,6 +8,7 @@ npm run dev                                   # or: npx iwsdk dev up --headless
 python3 tools/e2e.py --lessons 6 --negative   # full run, about 6 minutes
 python3 tools/e2e.py --lessons 2 --hand left  # left-handed writer
 python3 tools/e2e.py --jitter 6               # noisier fingertip (mm)
+python3 tools/e2e.py --lessons 6 --negative --piano 4 --jitter 3   # everything, about 15 minutes
 ```
 
 **What it covers:**
@@ -21,13 +22,16 @@ python3 tools/e2e.py --jitter 6               # noisier fingertip (mm)
    - a stroke **4.5 cm off** the path: "Stay closer to the master's path";
    - a **rushed** stroke: passes, with "Slower" advice.
 7. **Menu.** "Next lesson" and "Write it again" are pressed with a **fingertip poke** by the other hand.
-8. **Screenshots** go to `artifacts/e2e-*.png`.
+8. **Piano** (with `--piano N`). Pokes the Piano craft chip, waits for the keyboard layout and the master's demonstration, then plays N songs note by note with the writing hand's index fingertip, in time with the song, from the key positions the app logs (`piano-layout {json}`). Each song must pass.
+9. **Screenshots** go to `artifacts/e2e-*.png`.
 
 The app writes `[hoam] ...` lines to the console **in dev builds only**. The driver reads them through `iwsdk browser logs`; production builds strip them.
 
-### Latest results (16 Nov 2026, Linux, Chromium via IWSDK CLI)
+### Latest results (17 Nov 2026, Linux, Chromium via IWSDK CLI)
 | Run | Result |
 |---|---|
+| **Everything:** 6 lessons, `--negative`, 4 piano songs, 3 mm jitter, places and dissolve on (final code) | **PASS**. Lessons: one 88, two 88, ten 90, person 86, big 91, eternity 93. Songs: Five fingers 96, Twinkle 92, Ode to Joy 93, Sakura 85. Negative cases 3 of 3 |
+| 1 lesson + 2 songs after merging the grand piano | PASS (88; 96, 92) |
 | Right hand, 6 lessons, `--negative`, 4 mm jitter (final code) | **PASS**: all 15 strokes on the first try. Lesson averages: one 90, two 88, ten 90, person 88, big 91, eternity 92 |
 | Right hand, 6 lessons, 2 mm jitter | PASS. Lesson averages: one 88, two 92, ten 92, person 91, big 94, eternity 94 |
 | Right hand, 3 lessons, 5 mm jitter | PASS. All strokes 85 to 87 on the first try |
@@ -58,13 +62,15 @@ The emulated room reports 15 planes (floor, ceiling, walls, two tables, couches,
 ## 2. Performance
 | Measurement | Value |
 |---|---|
-| Draw calls in XR (watch / practice / complete) | 50 to 64 |
-| Triangles in XR | about 30 to 31k (most are the two tracked hands plus the ghost) |
+| Draw calls in XR, calligraphy (watch / practice / complete) | 80 to 110 |
+| Draw calls in XR, piano | 96 to 112 (was 280 before the grand piano's 93 parts were merged into 7) |
+| Triangles in XR | 40 to 57k calligraphy, about 62k piano (the tracked hands, the ghost, the grand piano at 10k) |
+| Note | The emulator renders each eye separately, so XR draw calls are counted twice. On Quest, IWSDK uses multiview and draws both eyes at once |
 | Draw calls / triangles on the 2D page | 34 / 6.9k |
 | Desktop emulator frame time | p50 16.7 ms, p95 16.8 ms, 0 dropped frames (vsync-bound) |
 | Production bundle | 3.8 MB `dist/` (main JS 2.46 MB, about 676 kB gzip) |
 
-**Design budget:** the plan targets 100 draw calls or fewer and 100 to 300k triangles. The app requests 72 Hz and sets foveation to 0.4. It uses no shadow maps, no post-processing, preallocated ribbon geometry, and canvas textures generated once.
+**Design budget:** the plan targets 100 draw calls per eye or fewer and 100 to 300k triangles. The app requests 72 Hz and sets foveation to 0.4. It uses no shadow maps, no post-processing, preallocated ribbon geometry, and canvas textures generated once.
 
 ⚠ Desktop numbers do not predict Quest performance. Capture on the device: `metavr` perf trace, or the `hz-perfetto-debug` skill from Meta's agentic-tools plugin.
 
@@ -90,26 +96,24 @@ Connect over USB from Linux: `adb reverse tcp:8081 tcp:8081`, then open `https:/
 - **The master's motion is procedural** (a pointing pose that follows the stroke path), not a recording of a real calligrapher.
 - **No gaze interactions.**
 
-## Final regression (16 Nov 2026, final code)
+## Final regression (17 Nov 2026, final code)
 ```
-$ python3 tools/e2e.py --lessons 6 --negative --jitter 4
-  negative reversed: 13  Try again - Other direction. Watch where the master begins.  -> OK
-  negative off path: 13  Try again - Stay closer to the master's path.                -> OK
-  negative rushed:   81  Good stroke - Slower. Let the brush travel with the master.   -> OK
-  one       strokes [90]                  average 90
-  two       strokes [87, 89]              average 88
-  ten       strokes [90, 89]              average 90
-  person    strokes [86, 90]              average 88
-  big       strokes [90, 94, 88]          average 91
-  eternity  strokes [91, 93, 90, 92, 92]  average 92
+$ python3 tools/e2e.py --lessons 6 --negative --piano 4 --jitter 3
+  one       strokes [88]                  average 88
+  two       strokes [85, 90]              average 88
+  ten       strokes [86, 94]              average 90
+  person    strokes [84, 88]              average 86
+  big       strokes [86, 95, 91]          average 91
+  eternity  strokes [89, 95, 93, 91, 95]  average 93
+  piano-five    [96]   (accuracy 1.00)
+  piano-twinkle [92]
+  piano-ode     [93]   (accuracy 1.00, rhythm 0.79)
+  piano-sakura  [85]
   negative cases: 3/3 gave the expected hint
 PASS
-
-$ python3 tools/e2e.py --lessons 2 --hand left --jitter 4
-  one       strokes [86]       average 86
-  two       strokes [86, 92]   average 89
-PASS
 ```
+Earlier (16 Nov, calligraphy only): left hand, 2 lessons, PASS (86, 89).
+
 Also passing:
 - `npm run typecheck`;
 - `npm run build`;

@@ -113,6 +113,15 @@ export class Sfx {
     }
   }
 
+  /** Start the playlist again from its first track (after `tracks` changed). */
+  restartMusic(): void {
+    this.trackIndex = 0;
+    if (this.musicEl && this.tracks.length) {
+      this.musicEl.src = this.tracks[0];
+    }
+    this.startMusic();
+  }
+
   stopMusic(fade = 1.2): void {
     if (!this.ctx || !this.musicGain || !this.musicEl) return;
     this.musicGain.gain.setTargetAtTime(0, this.ctx.currentTime, fade / 3);

@@ -1,6 +1,12 @@
 # Hands of a Master
 
-**Mixed reality calligraphy for Meta Quest, hands only.** A master's translucent "ghost" hand appears on your real desk and writes beside you, stroke by stroke. You follow it with your own fingertip on real paper-sized space. Stay in step and the two hands lock together in gold. As you improve, the master fades away and lets you write alone.
+**Learn a craft inside a master's hands. Meta Quest, hands only.** A master's translucent "ghost" hand works beside yours on your real desk. Follow it with your own fingertip; stay in step and the two hands lock together in gold. As you improve, the master fades away and lets you work alone.
+
+Two crafts and three places:
+- **Calligraphy** in **Japanese** (on the veranda of Kennin-ji, Kyoto's oldest Zen temple) or **Chinese** (a classical garden). Each has its own characters, readings and music.
+- **Piano** at a black concert grand in a white music room. Four public-domain melodies, no background music.
+
+You start in your own room: the paper or keyboard lands on your real table. Then your room **dissolves into the place like ink soaking into washi**. A desk stands exactly where your real table is, so every touch is still real. The menu's **Scene** button dissolves back to your room.
 
 ![Writing on a real table](docs/media/02-real-table-watch.png)
 
@@ -10,7 +16,7 @@
 
 - **Platform:** WebXR in Meta Quest Browser (Quest 3 / 3S), built with the Immersive Web SDK (IWSDK) 1.1.0. No install: judges open a URL.
 - **Competition:** Meta VR Start Developer Competition 2026. Suggested track: Productivity (learning a skill). Division: New Experience.
-- **Status (16 Nov 2026):** the full loop is built and passes an automated end-to-end test in the IWSDK emulator. It has not yet been run on a physical headset; see [docs/TESTING.md](docs/TESTING.md).
+- **Status (17 Nov 2026):** both crafts are built and pass an automated end-to-end test in the IWSDK emulator. It has not yet been run on a physical headset; see [docs/TESTING.md](docs/TESTING.md).
 
 ## The experience (about 5 to 10 minutes)
 1. **Start at my desk.** In the browser page, press the button (or the browser's Enter XR). You stay seated, and passthrough shows your real room.
@@ -25,6 +31,8 @@
    - Each stroke is scored on path, direction, order, speed and sync, with a specific hint when it misses ("Other direction", "Stay closer to the master's path", "Slower").
 6. **Seal it.** The master's seal is stamped onto the page and your score and daily streak are saved. Then choose "Next lesson" or "Write it again".
 
+**Piano.** Choose Piano on the menu. A small keyboard (A3 to C5, letters on the white keys) lands on your table and the room dissolves into a white music room with a black concert grand. A music sheet shows the song as note names. The master's hand plays each phrase, then waits on the next key, which glows. Press with any fingertip; a note floats up from each key, gold if you were on the beat. Songs: Five fingers, Twinkle, Ode to Joy, Sakura. Scored on accuracy (65%) and rhythm (35%).
+
 **Lessons:** 一 one, 二 two, 十 ten, 人 person, 大 big, 永 eternity. 永 is the classic teaching character whose five strokes contain the Eight Principles of the brush.
 
 **Coming back:** best score per character, stars, and a daily practice streak. Your best score also drives the **adaptive guide**: the ghost and tracing outline fade as you improve ("the master lets go").
@@ -37,6 +45,9 @@
   - tempo (30 to 100%);
   - watch again;
   - guide mode (adaptive / always / off);
+  - craft (Calligraphy / Piano) and language (Japanese / Chinese);
+  - music on or off, larger text;
+  - Scene: the place, or your own room;
   - "Move paper in front of me" (places the paper again).
 - Left-handed writers are detected automatically. The ghost becomes a left hand and the menu moves to the right side.
 
@@ -72,7 +83,11 @@ npm run build     # static site in dist/ (deploy to Vercel; vercel.json is inclu
 | `src/ink/ink-ribbon.ts` | Preallocated brush-stroke ribbons: taper, speed-based width, dry-brush alpha |
 | `src/lessons/` | Lessons, stroke timing (`master-path.ts`), scoring and hints (`scoring.ts`), generated `strokes.json` |
 | `src/desk/desk.ts` | Writing set: mat, paper texture with practice grid, paperweight, inkstone, seal, hover cursor, virtual table |
-| `src/common/` | One Euro filter, synthesized sound (Web Audio, no audio files), 72 Hz + foveation |
+| `src/common/` | One Euro filter, sound (music playlist, compressor bus, synthesized effects, sampled piano), 72 Hz + foveation |
+| `src/env/environment.ts` | 360-degree places, ink-bleed dissolve between your room and the place, "calm" soft-focus treatment |
+| `src/piano/` | Songs, keyboard and fingertip key detection, music sheet, floating notes |
+| `src/fx/sparks.ts` | Pooled gold sparks (one draw call, additive) |
+| `tools/blender/` | `build_assets.py` (all models), `preview.py` (still-life render for review) |
 | `src/progress.ts` | localStorage progress: best scores, attempts, streak |
 | `tools/build-data.mjs` | `npm run data`: KanjiVG SVGs to `strokes.json`; IWER point pose to `point-pose.json` |
 | `tools/e2e.py` | Emulator end-to-end test (see docs/TESTING.md) |
@@ -80,8 +95,17 @@ npm run build     # static site in dist/ (deploy to Vercel; vercel.json is inclu
 To add a character, drop its KanjiVG SVG into `tools/kanjivg/`, run `npm run data`, and add a line to `LESSONS` in `src/lessons/lessons.ts`. The pipeline works for any stroke-ordered script.
 
 ## Credits
+- **Places (360-degree photographs):**
+  - Kennin-ji moss garden veranda, by AsPJT, **CC0**, via Wikimedia Commons.
+  - Chinese Garden and Ballroom HDRIs, **Poly Haven**, CC0.
+- **Music:**
+  - "Yoiyami Core Theme" and "Oriental Somber" (opengameart.org/node/155193), both CC0.
+  - "Asianoriental1" and "Asianoriental2" by Tozan, CC0.
+  - All via OpenGameArt; re-encoded to 96 kbps MP3 with a 2 s fade-in.
+- **Piano:** Salamander Grand Piano samples by Alexander Holm, **CC-BY 3.0** (via Tone.js).
+- **Models:** writing set, keyboard and grand piano built in Blender by `tools/blender/build_assets.py`. Textures: Poly Haven and ambientCG, CC0.
 - **Stroke order and shapes:** [KanjiVG](https://kanjivg.tagaini.net), CC BY-SA 3.0, (c) Ulrich Apel and contributors. The derived `src/lessons/strokes.json` is under the same license.
 - **Hand mesh:** [WebXR Input Profiles](https://github.com/immersive-web/webxr-input-profiles) generic hand, MIT.
 - **Base hand pose:** [IWER](https://github.com/meta-quest/immersive-web-emulation-runtime) point pose, MIT, (c) Meta Platforms.
-- **Built with:** the [Immersive Web SDK](https://github.com/facebook/immersive-web-sdk) (MIT) and three.js (super-three). Sounds are synthesized in code.
+- **Built with:** the [Immersive Web SDK](https://github.com/facebook/immersive-web-sdk) (MIT) and three.js (super-three). Sound effects are synthesized in code.
 - **Common plan for all six team projects:** `../meta-vr-start-2026-kit/research/common-build-plan.md`.

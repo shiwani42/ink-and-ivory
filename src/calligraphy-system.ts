@@ -38,7 +38,8 @@ import { Sparks } from './fx/sparks.js';
 import { type FingerTip, PianoMode } from './piano/piano-mode.js';
 import { SONGS } from './piano/songs.js';
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
-import { LESSONS, type Lesson } from './lessons/lessons.js';
+import { Environment, SCENES } from './env/environment.js';
+import { type Language, LANGUAGES, LESSON_SETS, LESSONS, type Lesson } from './lessons/lessons.js';
 import { StrokePath } from './lessons/master-path.js';
 import { PASS_SCORE, scoreStroke, type StrokeScore } from './lessons/scoring.js';
 import {
@@ -137,6 +138,10 @@ export class CalligraphySystem extends createSystem({
   private sparks = new Sparks();
   private sparkClock = 0;
   private craft: Craft = 'calligraphy';
+  private language: Language = 'japanese';
+  private env = new Environment(); // the place you practise in (real 360 photographs)
+  private immersive = true; // surroundings on (false = your own room)
+  private onRealDesk = false;
   private piano!: PianoMode;
   private tips: FingerTip[] = Array.from({ length: 10 }, () => ({ x: 0, y: 0, z: 0, valid: false, extended: false }));
   private handJoints = [new Float32Array(JOINT_COUNT * 16), new Float32Array(JOINT_COUNT * 16)];
@@ -277,9 +282,7 @@ export class CalligraphySystem extends createSystem({
       this.cleanupFuncs.push(() => window.removeEventListener('keydown', onKey));
     }
     this.progress = loadProgress();
-    this.sfx.tracks = ['audio/practice-yoiyami.mp3', 'audio/practice-somber.mp3'].map(
-      (f) => `${import.meta.env.BASE_URL}${f}`,
-    );
+    this.sfx.tracks = SCENES.japan.tracks.map((f) => `${import.meta.env.BASE_URL}${f}`);
     // Image-based lighting from a real studio HDRI (Poly Haven, CC0): glazes,
     // brass and wet ink pick up believable reflections. Hidden as a sky in AR.
     this.cleanupFuncs.push(
@@ -296,12 +299,13 @@ export class CalligraphySystem extends createSystem({
         }
         if (level && !level.hasComponent(IBLTexture)) {
           level.addComponent(IBLTexture, {
-            src: `${import.meta.env.BASE_URL}env/studio_1k.hdr`,
+            src: `${import.meta.env.BASE_URL}${SCENES.japan.light}`,
             intensity: 0.85,
           });
         }
       }),
     );
+    this.world.createTransformEntity(this.env.mesh, { persistent: true });
     this.desk = createDeskSet();
     this.deskEntity = this.world.createTransformEntity(this.desk.root, { persistent: true });
     // Effects live on their own layer at paper height, visible in both crafts.
@@ -412,6 +416,13 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'btn-place', () => this.beginPlacing());
     on(this.menu, 'btn-text', () => this.toggleTextSize());
     on(this.menu, 'craft-cal', () => this.setCraft('calligraphy'));
+    on(this.menu, 'lang-japanese', () => this.setLanguage('japanese'));
+    on(this.menu, 'lang-chinese', () => this.setLanguage('chinese'));
+    on(this.menu, 'btn-scene', () => {
+      this.immersive = !this.immersive;
+      this.text(this.menu, 'btn-scene-label', this.immersive ? 'Scene: on' : 'Scene: my room');
+      this.applyScene();
+    });
     on(this.menu, 'craft-piano', () => this.setCraft('piano'));
     on(this.menu, 'btn-music', () => {
       if (this.craft === 'piano') this.sfx.musicOn = !this.sfx.musicOn; // stays silent at the piano
@@ -442,7 +453,7 @@ export class CalligraphySystem extends createSystem({
     if (!b.panel.visible) return false;
     if (b.id === 'btn-next' || b.id === 'btn-again') {
       if (!this.captionActionsShown) return false;
-      if (b.id === 'btn-next' && this.lessonIndex === LESSONS.length - 1) return false;
+      if (b.id === 'btn-next' && this.lessonIndex === this.lessonCount() - 1) return false;
     }
     return true;
   }
@@ -514,15 +525,23 @@ export class CalligraphySystem extends createSystem({
       this.desk.root.updateWorldMatrix(true, false);
       eye.copy(this.desk.root.worldToLocal(this.head.clone()));
     }
+    const piano = this.craft === 'piano';
     if (this.menu) {
       this.menu.scale.setScalar(MENU_SCALE * this.textScale);
-      this.menu.position.set(side * (0.39 + 0.04 * (this.textScale - 1)), 0.2, 0.0);
+      // At the piano the menu floats in front of the bass keys, clear of the lid.
+      if (piano) this.menu.position.set(side * 0.43, 0.27, 0.13);
+      else this.menu.position.set(side * (0.39 + 0.04 * (this.textScale - 1)), 0.2, 0.0);
       this.aimPanelAt(this.menu, eye);
     }
     if (this.caption) {
       this.caption.scale.setScalar(CAPTION_SCALE * this.textScale);
-      // On the line from the eyes over the paper's far edge, about 0.9 m out.
-      this.caption.position.set(0, eye.y - 0.32 - 0.04 * (this.textScale - 1), eye.z - 0.86);
+      if (piano) {
+        // Above the music desk, where a pianist already looks.
+        this.caption.position.set(0.05, 0.5 + 0.04 * (this.textScale - 1), -0.42);
+      } else {
+        // On the line from the eyes over the paper's far edge, about 0.9 m out.
+        this.caption.position.set(0, eye.y - 0.32 - 0.04 * (this.textScale - 1), eye.z - 0.86);
+      }
       this.aimPanelAt(this.caption, eye);
     }
   }
@@ -570,7 +589,7 @@ export class CalligraphySystem extends createSystem({
   }
 
   private lessonEyebrow(): string {
-    return `LESSON ${this.lessonIndex + 1} OF ${LESSONS.length}  -  ${this.lesson.meaning.toUpperCase()} (${this.lesson.reading})`;
+    return `${LANGUAGES[this.language].name.toUpperCase()}  -  LESSON ${this.lessonIndex + 1} OF ${this.lessons().length}  -  ${this.lesson.meaning.toUpperCase()} (${this.lesson.reading})`;
   }
 
   private refreshMenu(): void {
@@ -578,7 +597,7 @@ export class CalligraphySystem extends createSystem({
     const piano = this.craft === 'piano';
     const items = piano
       ? SONGS.map((s) => ({ id: s.id, name: s.name }))
-      : LESSONS.map((l) => ({ id: l.id, name: cap(l.meaning) }));
+      : this.lessons().map((l) => ({ id: l.id, name: cap(l.meaning) }));
     for (let i = 0; i < 6; i++) {
       const tile = this.menu.getElementById(`lesson-${i}`);
       const item = items[i];
@@ -591,11 +610,16 @@ export class CalligraphySystem extends createSystem({
       // The current lesson's tile is highlighted in warm gold.
       tile?.setProperties({ backgroundColor: i === this.lessonIndex ? '#e6cf9f' : '#ebe1cf' });
     }
-    this.text(this.menu, 'menu-title', piano ? 'Piano songs' : 'Calligraphy');
-    this.menu.getElementById('craft-cal')?.setProperties({ backgroundColor: piano ? '#ebe1cf' : '#1d1813' });
-    this.menu.getElementById('craft-piano')?.setProperties({ backgroundColor: piano ? '#1d1813' : '#ebe1cf' });
-    this.menu.getElementById<UIKit.Text>('craft-cal-label')?.setProperties({ color: piano ? '#1d1813' : '#f4ede0' });
-    this.menu.getElementById<UIKit.Text>('craft-piano-label')?.setProperties({ color: piano ? '#f4ede0' : '#1d1813' });
+    this.text(this.menu, 'menu-title', piano ? 'Piano songs' : `${LANGUAGES[this.language].name} calligraphy`);
+    this.menu.getElementById('languages')?.setProperties({ display: piano ? 'none' : 'flex' });
+    // Selected chips get a vermilion border and label (hover cannot override a border).
+    const select = (id: string, on: boolean) => {
+      this.menu?.getElementById(id)?.setProperties({ borderWidth: on ? 3 : 0, borderColor: '#a8231a' });
+      this.menu?.getElementById<UIKit.Text>(`${id}-label`)?.setProperties({ color: on ? '#a8231a' : '#5e5246' });
+    };
+    for (const lang of ['japanese', 'chinese'] as Language[]) select(`lang-${lang}`, lang === this.language);
+    select('craft-cal', !piano);
+    select('craft-piano', piano);
     this.text(this.menu, 'tempo', `Tempo ${Math.round(this.tempo * 100)}%`);
     const guide = { adaptive: 'Guide: adaptive', always: 'Guide: always', off: 'Guide: off' }[this.guideMode];
     this.text(this.menu, 'btn-guide-label', guide);
@@ -616,6 +640,7 @@ export class CalligraphySystem extends createSystem({
   private enter2D(): void {
     this.mode = 'demo2d';
     this.sfx.stopMusic();
+    this.applyScene();
     this.calibrated = false;
     this.desk.root.visible = true;
     this.arrival = 1;
@@ -627,8 +652,8 @@ export class CalligraphySystem extends createSystem({
     // A seated over-the-desk view for the browser page.
     this.setDeskWorldPose(this.v.set(0, 0.74, -0.42), 0);
     this.desk.virtualTable.visible = true;
-    this.camera.position.set(0, 1.16, 0.02);
-    this.camera.lookAt(0, 0.82, -0.5);
+    this.camera.position.set(0, 1.2, 0.12);
+    this.camera.lookAt(0, 0.98, -0.6);
     this.loadLesson(LESSONS.length - 1);
     this.ghost.visible = true;
     this.ghost.opacity = 0.75;
@@ -639,7 +664,10 @@ export class CalligraphySystem extends createSystem({
 
   private enterXR(): void {
     this.sfx.unlock();
-    if (this.craft === 'calligraphy') this.sfx.startMusic();
+    // Start in your own room: the place dissolves in once the paper is on your desk.
+    this.env.snapToRoom();
+    this.desk.virtualTable.visible = false;
+    // Music and surroundings start once the desk is placed (applyScene).
     this.progress = loadProgress();
     void this.sfx.loadPiano(import.meta.env.BASE_URL);
     this.lessonIndex = this.firstUnpassed();
@@ -672,7 +700,10 @@ export class CalligraphySystem extends createSystem({
   private finishPlacing(realDesk: boolean): void {
     this.log(`placed on ${realDesk ? 'detected table' : 'virtual desk'}`);
     this.desk.root.visible = true;
-    this.desk.virtualTable.visible = !realDesk;
+    this.desk.virtualTable.visible = !realDesk && this.craft !== 'piano';
+    this.onRealDesk = realDesk;
+    this.desk.root.updateWorldMatrix(true, false);
+    this.piano.fitToFloor(this.desk.root.matrixWorld.elements[13]);
     if (!this.anchored) {
       // Keep the paper locked to the room even if tracking drifts.
       this.deskEntity.addComponent(XRAnchor);
@@ -682,6 +713,7 @@ export class CalligraphySystem extends createSystem({
     this.sfx.chime(0, 0.12);
     if (!this.sessionStart) this.sessionStart = this.clock;
     this.layoutPanels(); // face the writer's actual head, seated or standing
+    this.applyScene();
     this.startLesson(this.lessonIndex, true);
     if (!realDesk) {
       this.setCaption(
@@ -770,7 +802,7 @@ export class CalligraphySystem extends createSystem({
 
   private loadLesson(index: number): void {
     this.lessonIndex = index;
-    this.lesson = LESSONS[index];
+    this.lesson = this.lessons()[index];
     this.paths = this.lesson.strokes.map((s) => new StrokePath(s));
     const disposeAll = (list: InkRibbon[]) => {
       for (const r of list) {
@@ -1443,7 +1475,7 @@ export class CalligraphySystem extends createSystem({
     this.desk.sealRing.visible = false;
 
     const stars = '*'.repeat(this.stars(score)) || '-';
-    const isLast = this.lessonIndex === LESSONS.length - 1;
+    const isLast = this.lessonIndex === this.lessonCount() - 1;
     const body = improved && prevBest > 0
       ? `New best (was ${prevBest}). The master's guide will fade a little more next time.`
       : isLast
@@ -1462,12 +1494,51 @@ export class CalligraphySystem extends createSystem({
 
   // ---------------------------------------------------------------- crafts
 
+  private lessons(): Lesson[] {
+    return LESSON_SETS[this.language];
+  }
+
+  /** The surroundings and music for the current craft and language. */
+  private applyScene(): void {
+    const scene = this.craft === 'piano' ? SCENES.music : SCENES[LANGUAGES[this.language].scene];
+    if (this.immersive) void this.env.show(scene, import.meta.env.BASE_URL);
+    else this.env.hide();
+    // In the place, a desk stands exactly where your real table is (the real
+    // one is hidden); at the piano the grand takes its place.
+    this.desk.virtualTable.visible = this.craft !== 'piano' && (this.immersive || !this.onRealDesk);
+    // Light the objects with the same place they sit in.
+    const level = this.world.activeLevel.peek();
+    if (level?.hasComponent(IBLTexture)) {
+      level.setValue(IBLTexture, 'src', `${import.meta.env.BASE_URL}${this.immersive ? scene.light : 'env/studio_1k.hdr'}`);
+      level.setValue(IBLTexture, '_needsUpdate', true);
+    }
+    const tracks = scene.tracks.map((t) => `${import.meta.env.BASE_URL}${t}`);
+    if (this.mode === 'demo2d') return;
+    if (this.craft === 'piano' || tracks.length === 0) {
+      this.sfx.stopMusic(0.8);
+    } else if (this.sfx.tracks.join() !== tracks.join()) {
+      this.sfx.stopMusic(0.6);
+      this.sfx.tracks = tracks;
+      setTimeout(() => this.sfx.restartMusic(), 700);
+    } else {
+      this.sfx.startMusic();
+    }
+  }
+
+  private setLanguage(language: Language): void {
+    if (language === this.language || this.mode === 'demo2d' || this.mode === 'placing') return;
+    this.language = language;
+    if (this.craft !== 'calligraphy') this.setCraft('calligraphy');
+    else this.startLesson(this.firstUnpassed(), true);
+    this.applyScene();
+  }
+
   private lessonCount(): number {
-    return this.craft === 'piano' ? SONGS.length : LESSONS.length;
+    return this.craft === 'piano' ? SONGS.length : this.lessons().length;
   }
 
   private lessonIds(): string[] {
-    return this.craft === 'piano' ? SONGS.map((s) => s.id) : LESSONS.map((l) => l.id);
+    return this.craft === 'piano' ? SONGS.map((s) => s.id) : this.lessons().map((l) => l.id);
   }
 
   private firstUnpassed(): number {
@@ -1482,9 +1553,14 @@ export class CalligraphySystem extends createSystem({
     const piano = craft === 'piano';
     this.desk.callig.visible = !piano;
     this.piano.root.visible = piano;
-    // Background music would compete with the notes: silence it at the piano.
-    if (piano) this.sfx.stopMusic(0.8);
-    else this.sfx.startMusic();
+    // At the piano the grand replaces any fallback table.
+    this.desk.virtualTable.visible = !piano && !this.onRealDesk;
+    this.desk.root.updateWorldMatrix(true, false);
+    this.piano.fitToFloor(this.desk.root.matrixWorld.elements[13]);
+    // New surroundings; background music is silenced at the piano (it would
+    // compete with the notes).
+    this.applyScene();
+    this.layoutPanels();
     // The calibration seal sits on the paper, or beside the keyboard.
     this.calX = piano ? 0.215 : SEAL_X;
     this.calZ = piano ? 0.085 : SEAL_Z;
@@ -1723,6 +1799,10 @@ export class CalligraphySystem extends createSystem({
       this.desk.body.position.y = 0.04 * (1 - e);
     }
     this.updateHanko(dt);
+    // Surroundings follow the head: infinitely far, no parallax.
+    if (this.mode === 'demo2d') this.camera.getWorldPosition(this.head);
+    else this.player.head.getWorldPosition(this.head);
+    this.env.update(dt, this.head.x, this.head.y, this.head.z);
     this.sparks.update(dt);
     if (this.locked && this.penDown && this.tipValid) {
       this.sparkClock += dt;

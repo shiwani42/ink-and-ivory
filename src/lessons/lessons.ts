@@ -64,6 +64,13 @@ const def = (
   teaching: string,
 ): Lesson => ({ id, glyph, reading, meaning, teaching, strokes: strokesOf(glyph) });
 
+export type Language = 'japanese' | 'chinese';
+
+export const LANGUAGES: Record<Language, { name: string; scene: string; note: string }> = {
+  japanese: { name: 'Japanese', scene: 'japan', note: 'Shodo, the way of writing' },
+  chinese: { name: 'Chinese', scene: 'china', note: 'Shufa, the art of the brush' },
+};
+
 export const LESSONS: Lesson[] = [
   def('one', '一', 'ichi', 'one', 'One horizontal line. Press in, travel, settle.'),
   def('two', '二', 'ni', 'two', 'Short above, long below. Top to bottom.'),
@@ -78,3 +85,23 @@ export const LESSONS: Lesson[] = [
     'Five strokes that hold all eight principles of the brush.',
   ),
 ];
+
+/** Chinese uses the same characters and stroke order, with Mandarin readings. */
+const CHINESE_READINGS: Record<string, [string, string]> = {
+  one: ['yi', 'One horizontal line, the first lesson of every child in China.'],
+  two: ['er', 'Short above, long below. Top to bottom.'],
+  ten: ['shi', 'Horizontal first, then the vertical through it.'],
+  person: ['ren', 'Two strokes leaning on each other: a person.'],
+  big: ['da', 'A person with arms spread wide.'],
+  eternity: ['yong', 'Yong: the eight principles of the brush in one character.'],
+};
+
+export const LESSON_SETS: Record<Language, Lesson[]> = {
+  japanese: LESSONS,
+  chinese: LESSONS.map((l) => ({
+    ...l,
+    id: `zh-${l.id}`,
+    reading: CHINESE_READINGS[l.id][0],
+    teaching: CHINESE_READINGS[l.id][1],
+  })),
+};

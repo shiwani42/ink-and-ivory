@@ -450,3 +450,190 @@ try:
 except Exception as e:
     import traceback; traceback.print_exc(); print('FAILED build_keyboard', e)
 print('KEYBOARD_DONE')
+
+# ---------------------------------------------------------------- 9. grand piano body around the playable keyboard
+# Blender Z up, +Y away from the player. The playable keyboard (A3-C5, centred
+# at x=0, key fronts at y=-0.06, tops at z=0.012) sits inside this case; the
+# rest of the 88 keys are decorative so it reads as a full concert grand.
+def build_grand_piano():
+    reset(); M = mats()
+    lacquer = material('lacquer', (0.012, 0.012, 0.014), 0.07)
+    ivory = material('ivory', (0.93, 0.9, 0.84), 0.32)
+    ebony = material('ebony', (0.025, 0.022, 0.02), 0.18)
+    brass = M['brass']
+    felt = material('felt_red', (0.42, 0.05, 0.04), 0.95)
+    spruce = material('soundboard', (0.78, 0.62, 0.4), 0.55)
+    objs = []
+    # Decorative keys: A0..G3 to the left, D5..C8 to the right (same 30 mm pitch).
+    names = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+    white = []
+    octave, i = 0, 0
+    while True:
+        n = names[i % 7]
+        if n == 'C' and i > 0:
+            octave += 1
+        white.append(f'{n}{octave}')
+        if white[-1] == 'C8':
+            break
+        i += 1
+    ia3 = white.index('A3')
+    x0 = -5 * KW + KW / 2  # x of A3's centre in the playable keyboard (10 whites centred at 0)
+    sharps_after = {'A', 'C', 'D', 'F', 'G'}
+    for j, note in enumerate(white):
+        x = x0 + (j - ia3) * KW
+        if white.index('A3') <= j <= white.index('C5'):
+            continue  # playable keys come from keyboard.glb
+        k = box(f'deco_{note}', KW - KGAP, KL, KH)
+        k.location = (x, 0.0, KH / 2)
+        bevel(k, 0.0012, 2); assign(k, ivory); objs.append(k)
+        if note[0] in sharps_after and note != 'C8' and not (white.index('G3') < j < white.index('C5')):
+            b = box(f'deco_{note}s', BW, BL, BH)
+            b.location = (x + KW / 2, (KL - BL) / 2, KH + BH / 2)
+            bevel(b, 0.0015, 2); assign(b, ebony); objs.append(b)
+    xl = x0 - ia3 * KW - KW / 2 - 0.035
+    xr = x0 + (len(white) - 1 - ia3) * KW + KW / 2 + 0.035
+    # Key bed and key slip under/in front of all keys.
+    bed = box('keybed', xr - xl, KL + 0.03, 0.05, -0.05)
+    bed.location = ((xl + xr) / 2, 0.0, -0.025)
+    assign(bed, lacquer); objs.append(bed)
+    slip = box('keyslip', xr - xl, 0.02, 0.035, -0.03)
+    slip.location = ((xl + xr) / 2, -KL / 2 - 0.012, -0.0125)
+    bevel(slip, 0.003, 2); assign(slip, lacquer); objs.append(slip)
+    for x in (xl + 0.0175, xr - 0.0175):
+        cheek = box('cheek', 0.035, KL + 0.05, 0.11, -0.05)
+        cheek.location = (x, 0.005, 0.005)
+        bevel(cheek, 0.006, 3); smooth(cheek, 35); assign(cheek, lacquer); objs.append(cheek)
+    # Fallboard (behind the keys) with a thin felt strip.
+    fall = box('fallboard', xr - xl - 0.07, 0.03, 0.07, 0.0)
+    fall.location = ((xl + xr) / 2, KL / 2 + 0.02, 0.035)
+    bevel(fall, 0.004, 3); smooth(fall, 35); assign(fall, lacquer); objs.append(fall)
+    strip = box('fall_felt', xr - xl - 0.08, 0.004, 0.006, 0.012)
+    strip.location = ((xl + xr) / 2, KL / 2 + 0.003, 0.015)
+    assign(strip, felt); objs.append(strip)
+
+    # The case outline (top view): straight bass side, curved bentside, round tail.
+    W = xr - xl
+    import math as _m
+    def outline():
+        pts = []
+        y0 = KL / 2 + 0.04
+        L = 1.85
+        pts.append((xl, y0))
+        pts.append((xl, y0 + L * 0.86))
+        for t in range(0, 11):  # rounded tail
+            a = _m.pi - t / 10 * _m.pi * 0.62
+            pts.append((xl + 0.32 + 0.32 * _m.cos(a), y0 + L * 0.86 + 0.15 * _m.sin(a)))
+        for t in range(1, 15):  # bentside: concave S toward the treble cheek
+            u = t / 14
+            x = xl + 0.62 + (W - 0.62) * u
+            y = y0 + L * 0.9 * (1 - u) ** 1.6 + 0.08 * _m.sin(u * _m.pi) * (1 - u)
+            pts.append((x, max(y, y0)))
+        pts.append((xr, y0))
+        return pts
+    pts = outline()
+    def prism(name, pts, z0, z1, mat, inset=0.0):
+        bm = bmesh.new()
+        cx = sum(p[0] for p in pts) / len(pts); cy = sum(p[1] for p in pts) / len(pts)
+        q = [(p[0] + (cx - p[0]) * inset, p[1] + (cy - p[1]) * inset) for p in pts]
+        bot = [bm.verts.new((x, y, z0)) for x, y in q]
+        top = [bm.verts.new((x, y, z1)) for x, y in q]
+        bm.faces.new(list(reversed(bot)))
+        bm.faces.new(top)
+        for k in range(len(q)):
+            a, b = k, (k + 1) % len(q)
+            bm.faces.new((bot[a], bot[b], top[b], top[a]))
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+        o = bpy.data.objects.new(name, me); bpy.context.collection.objects.link(o)
+        assign(o, mat)
+        return o
+    rim = prism('rim', pts, -0.28, 0.10, lacquer)
+    bevel(rim, 0.006, 3); smooth(rim, 30); objs.append(rim)
+    board = prism('soundboard', pts, 0.06, 0.065, spruce, inset=0.03)
+    objs.append(board)
+    # Lid: hinged on the bass side, propped open about 35 degrees.
+    lid = prism('lid', pts, 0.0, 0.018, lacquer, inset=0.0)
+    for v in lid.data.vertices:
+        v.co.x -= xl
+    lid.location = (xl, 0, 0.10)
+    lid.rotation_euler = (0, -_m.radians(35), 0)
+    bevel(lid, 0.004, 2); smooth(lid, 30); objs.append(lid)
+    # Prop stick from the treble rim up to the lid's underside.
+    px = xr - 0.32
+    pz = (px - xl) * _m.tan(_m.radians(35))
+    prop = box('lid_prop', 0.014, 0.014, pz * 0.97)
+    prop.location = (px, 0.9, 0.10 + pz * 0.97 / 2)
+    assign(prop, lacquer); objs.append(prop)
+    # Music desk, slanted back, where the score sits.
+    desk = box('music_desk', 0.62, 0.02, 0.22, 0.0)
+    desk.location = (0.0, 0.2, 0.17)
+    desk.rotation_euler = (_m.radians(-14), 0, 0)
+    bevel(desk, 0.004, 2); assign(desk, lacquer); objs.append(desk)
+    ledge = box('music_ledge', 0.62, 0.035, 0.012, 0.0)
+    ledge.location = (0.0, 0.17, 0.06)
+    assign(ledge, lacquer); objs.append(ledge)
+    # Legs and pedal lyre under one node, scaled at runtime to reach the floor.
+    legs_root = bpy.data.objects.new('legs', None)
+    bpy.context.collection.objects.link(legs_root)
+    legs_root.location = (0, 0, -0.28)
+    for (x, y) in ((xl + 0.12, 0.35), (xr - 0.14, 0.42), (xl + 0.42, 1.75)):
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.045, depth=0.7, location=(x, y, -0.28 - 0.35), vertices=16)
+        leg = bpy.context.active_object; leg.name = 'leg'
+        bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        for v in leg.data.vertices:  # taper toward the floor
+            if v.co.z < 0:
+                v.co.x *= 0.62; v.co.y *= 0.62
+        smooth(leg, 50); assign(leg, lacquer)
+        cup = box('caster', 0.05, 0.05, 0.02)
+        cup.location = (x, y, -0.28 - 0.70); assign(cup, brass)
+        leg.parent = legs_root; cup.parent = legs_root
+        leg.matrix_parent_inverse = legs_root.matrix_world.inverted()
+        cup.matrix_parent_inverse = legs_root.matrix_world.inverted()
+        objs += [leg, cup]
+    lyre = box('lyre', 0.16, 0.05, 0.62)
+    lyre.location = (0.0, 0.25, -0.28 - 0.31); bevel(lyre, 0.01, 2); assign(lyre, lacquer)
+    lyre.parent = legs_root; lyre.matrix_parent_inverse = legs_root.matrix_world.inverted()
+    objs.append(lyre)
+    for dx in (-0.045, 0.0, 0.045):
+        ped = box('pedal', 0.022, 0.07, 0.008)
+        ped.location = (dx, 0.2, -0.28 - 0.62); assign(ped, brass)
+        ped.parent = legs_root; ped.matrix_parent_inverse = legs_root.matrix_world.inverted()
+        objs.append(ped)
+    objs.append(legs_root)
+    export('grand_piano', merge_by_material(objs, 'grand'))
+
+
+def merge_by_material(objs, prefix):
+    """Join meshes that share a parent and material: one draw call per material
+    instead of one per part (93 parts -> about 10 draws on Quest)."""
+    meshes = [o for o in objs if o.type == 'MESH']
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in meshes:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = meshes[0]
+    bpy.ops.object.make_single_user(object=True, obdata=True)
+    bpy.ops.object.convert(target='MESH')  # apply bevels and other modifiers
+    groups = {}
+    for o in meshes:
+        key = (o.parent.name if o.parent else '', tuple(s.material.name for s in o.material_slots if s.material))
+        groups.setdefault(key, []).append(o)
+    out = [o for o in objs if o.type != 'MESH']
+    for (parent, mat_names), grp in groups.items():
+        bpy.ops.object.select_all(action='DESELECT')
+        for o in grp:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = grp[0]
+        if len(grp) > 1:
+            bpy.ops.object.join()
+        grp[0].name = f"{prefix}_{parent or 'body'}_{'_'.join(mat_names) or 'none'}"
+        out.append(grp[0])
+    print(f'MERGED {prefix}: {len(meshes)} meshes -> {len(groups)}')
+    return out
+
+
+try:
+    build_grand_piano()
+except Exception as e:
+    import traceback; traceback.print_exc(); print('FAILED build_grand_piano', e)
+print('GRAND_DONE')

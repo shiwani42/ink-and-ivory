@@ -137,3 +137,19 @@ if (import.meta.env.DEV) console.info(`[tag] layout ${JSON.stringify({ targets: 
 // Shift+R: localStorage.clear(); location.reload();   (registered only in DEV)
 // every 3 s in DEV: renderer.info.render.calls / .triangles
 ```
+
+## 13. Immersive places from public 360-degree photos (one world at a time)
+- **Sources, all CC0:** Poly Haven HDRIs (download the 4k tonemapped JPG for the backdrop and a 1k HDR for lighting), and Wikimedia Commons equirectangular photos (filter by license; check for people and brand signage). Commons rate-limits hard (HTTP 429): use `curl`, one request every 3 to 4 s, and fetch the `upload.wikimedia.org` thumbnail URL at 4096 px.
+- **Backdrop:** an inside-out `SphereGeometry(40, 64, 32)`, `BackSide`, `depthWrite:false`, `renderOrder:-100`, `frustumCulled:false`, and move it to the head position every frame (no parallax, reads as infinitely far). Sample the texture yourself from the view direction so you can rotate it with a `uYaw` uniform.
+- **Seam:** set `wrapS = RepeatWrapping`, mipmaps on, `LinearMipmapLinearFilter`; otherwise a vertical line shows where the photo wraps.
+- **Keep it quiet behind the task ("calm"):** in the same fragment shader, `texture2D(map, uv, bias)` with a mip bias of about 3 (cheap blur), 50% desaturation, mix 30% toward a warm haze colour, dim about 8%. Users said a crisp busy photo was distracting; this fixed it. Choose the yaw so the user faces the calmest part of the photo.
+- **Never mix passthrough and a place.** Users found the room plus a partial world confusing. Place content in passthrough (so it lands on the real table), then dissolve fully into the place, with a menu button back to the room.
+- **Ink-bleed dissolve:** alpha = `smoothstep(n-0.05, n+0.05, t*1.25-0.12)` where `n` is two octaves of 3D value noise on the view direction and `t` goes 0 to 1 over about 2.4 s; add a dark rim where `abs(edge-n)` is small. When switching places, dissolve out, load, dissolve in, and guard with a load ticket so a fast double switch can't show the wrong place.
+- **Keep the touch real:** when the place is showing, draw a virtual tabletop at the real table's plane so the user's fingers still land on the real surface.
+- **Music per place:** OpenGameArt filtered by CC0; re-encode to 96 kbps MP3 with `ffmpeg -af afade=t=in:d=2`. Mute music where the user makes the sound (piano).
+
+## 14. Pressing keys with tracked fingertips (piano)
+- For each hand, take only **extended** fingers (tip more than 6 cm from its own base joint; curled tips tuck in close. The thumb needs 4.5 cm and must not be tucked against the side of the hand), then the **lowest** extended tip over a key presses it. Resting or curled fingers never play.
+- Hysteresis: down when the tip is 12 mm above the key top, up at 19 mm; 120 ms debounce per key.
+- Sampled notes: Salamander Grand Piano (CC-BY 3.0) MP3s, one sample every minor third, pitch-shifted with `playbackRate = 2^(semitones/12)`.
+- Score accuracy and rhythm separately (we used 65/35); call a note "on the beat" within a third of a beat and show it in gold.

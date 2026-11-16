@@ -45,6 +45,10 @@
     <div id="craft-piano" class="craft"><div id="craft-piano-label" class="craft-label">Piano</div></div>
   </div>
   <div id="menu-title" class="title">Lessons</div>
+  <div id="languages" class="crafts">
+    <div id="lang-japanese" class="craft"><div id="lang-japanese-label" class="craft-label">Japanese</div></div>
+    <div id="lang-chinese" class="craft"><div id="lang-chinese-label" class="craft-label">Chinese</div></div>
+  </div>
   <div id="streak" class="meta">First lesson</div>
   <div id="menu-actions" class="actions" style="display: none">
     <div id="btn-next" class="primary"><div class="primary-label">Next lesson</div></div>
@@ -73,7 +77,8 @@
     <div id="btn-music" class="btn grow"><div id="btn-music-label" class="btn-label">Music: on</div></div>
   </div>
   <div class="row">
+    <div id="btn-scene" class="btn grow"><div id="btn-scene-label" class="btn-label">Scene: on</div></div>
     <div id="btn-place" class="btn grow"><div class="btn-label">Move paper here</div></div>
   </div>
-  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0. Hand: WebXR Input Profiles, MIT. Light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
+  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
 </div>
