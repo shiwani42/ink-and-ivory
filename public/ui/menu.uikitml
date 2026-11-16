@@ -1,50 +1,70 @@
 <!--
-  Lesson menu, parented to the desk on the writer's off-hand side.
-  Poke (index fingertip) or pinch-ray to press. Hit targets are at least 2.4 cm.
+  Lesson menu ("washi" design system), within seated reach on the writer's
+  off-hand side, aimed at the writer. Poke with a fingertip or pinch with the ray.
+  Every target is at least 76 units tall: about 47 mm at the runtime scale.
+  Type: Merriweather Bold (title, tile numbers), Inter (labels).
 -->
 <style>
-  .root { flex-direction: column; width: 330px; }
-  .content { flex-direction: column; gap: 6px; padding-left: 18px; padding-right: 18px; padding-top: 16px; padding-bottom: 8px; }
-  .eyebrow { color: #a3361f; font-size: 13px; font-weight: 700; letter-spacing: 1.4px; }
-  .eyebrow:dark { color: #ff8a65; }
-  .heading { color: #1c1d20; font-size: 24px; font-weight: 700; }
-  .heading:dark { color: #fafaf7; }
-  .meta { color: #55565c; font-size: 15px; }
-  .meta:dark { color: #c9cbd1; }
-  .list { flex-direction: column; gap: 5px; padding-left: 14px; padding-right: 14px; padding-bottom: 6px; }
-  .lesson { justify-content: flex-start; }
-  .row { flex-direction: row; gap: 6px; padding-left: 14px; padding-right: 14px; padding-bottom: 6px; align-items: center; }
+  .card { flex-direction: column; width: 380px; background-color: #f4ede0; border-radius: 22px; border-width: 2px; border-color: #d8ccb4; padding-left: 16px; padding-right: 16px; padding-top: 16px; padding-bottom: 12px; gap: 8px; }
+  .eyebrow { color: #a8231a; font-family: inter; font-size: 14px; font-weight: 700; letter-spacing: 2.2px; padding-left: 4px; }
+  .title { color: #1d1813; font-family: merriweather; font-size: 30px; font-weight: 700; padding-left: 4px; }
+  .meta { color: #5e5246; font-family: inter; font-size: 17px; font-weight: 500; padding-left: 4px; }
+  .actions { flex-direction: row; gap: 8px; }
+  .primary { flex-grow: 1; height: 80px; border-radius: 16px; background-color: #1d1813; align-items: center; justify-content: center; cursor: pointer; }
+  .primary:hover { background-color: #3a2f25; }
+  .primary:active { background-color: #a8231a; }
+  .primary-label { color: #f4ede0; font-family: inter; font-size: 20px; font-weight: 700; }
+  .grid { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .tile { flex-direction: column; width: 110px; height: 84px; border-radius: 16px; background-color: #ebe1cf; padding-left: 10px; padding-top: 6px; cursor: pointer; }
+  .tile:hover { background-color: #e0d2b8; }
+  .tile:active { background-color: #d2bf9c; }
+  .tile-num { color: #1d1813; font-family: merriweather; font-size: 24px; font-weight: 700; }
+  .tile-name { color: #1d1813; font-family: inter; font-size: 16px; font-weight: 600; }
+  .tile-best { color: #7a520a; font-family: inter; font-size: 14px; font-weight: 700; }
+  .divider { height: 2px; background-color: #ddd1bb; margin-top: 2px; margin-bottom: 2px; }
+  .row { flex-direction: row; gap: 8px; align-items: center; }
+  .btn { height: 76px; border-radius: 16px; background-color: #ebe1cf; padding-left: 14px; padding-right: 14px; align-items: center; justify-content: center; cursor: pointer; }
+  .btn:hover { background-color: #e0d2b8; }
+  .btn:active { background-color: #d2bf9c; }
+  .square { width: 76px; }
   .grow { flex-grow: 1; }
-  .label { color: #1c1d20; font-size: 15px; }
-  .label:dark { color: #e9eaee; }
-  .credits { color: #6a6b70; font-size: 10px; line-height: 14px; padding-left: 18px; padding-right: 18px; padding-bottom: 14px; }
-  .credits:dark { color: #8d8f96; }
+  .btn-label { color: #1d1813; font-family: inter; font-size: 17px; font-weight: 700; }
+  .sym { color: #1d1813; font-family: inter; font-size: 32px; font-weight: 700; }
+  .tempo { color: #3d342c; font-family: inter; font-size: 18px; font-weight: 600; flex-grow: 1; text-align: center; }
+  .credits { color: #85776a; font-family: inter; font-size: 11px; font-weight: 500; line-height: 15px; margin-top: 2px; padding-left: 4px; }
 </style>
-<Panel class="root">
-  <div class="content">
-    <div class="eyebrow">HANDS OF A MASTER</div>
-    <div class="heading">Lessons</div>
-    <div id="streak" class="meta">Day 1 of practice</div>
+<div class="card">
+  <div class="eyebrow">HANDS OF A MASTER</div>
+  <div class="title">Lessons</div>
+  <div id="streak" class="meta">First lesson</div>
+  <div id="menu-actions" class="actions" style="display: none">
+    <div id="btn-next" class="primary"><div class="primary-label">Next lesson</div></div>
+    <div id="btn-again" class="primary"><div class="primary-label">Write it again</div></div>
   </div>
-  <div class="list">
-    <Button id="lesson-0" class="lesson"><ButtonLabel><span id="lesson-0-label">1  One</span></ButtonLabel></Button>
-    <Button id="lesson-1" class="lesson"><ButtonLabel><span id="lesson-1-label">2  Two</span></ButtonLabel></Button>
-    <Button id="lesson-2" class="lesson"><ButtonLabel><span id="lesson-2-label">3  Ten</span></ButtonLabel></Button>
-    <Button id="lesson-3" class="lesson"><ButtonLabel><span id="lesson-3-label">4  Person</span></ButtonLabel></Button>
-    <Button id="lesson-4" class="lesson"><ButtonLabel><span id="lesson-4-label">5  Big</span></ButtonLabel></Button>
-    <Button id="lesson-5" class="lesson"><ButtonLabel><span id="lesson-5-label">6  Eternity</span></ButtonLabel></Button>
+  <div class="grid">
+    <div id="lesson-0" class="tile"><div class="tile-num">1</div><div id="lesson-0-label" class="tile-name">One</div><div id="lesson-0-best" class="tile-best"> </div></div>
+    <div id="lesson-1" class="tile"><div class="tile-num">2</div><div id="lesson-1-label" class="tile-name">Two</div><div id="lesson-1-best" class="tile-best"> </div></div>
+    <div id="lesson-2" class="tile"><div class="tile-num">3</div><div id="lesson-2-label" class="tile-name">Ten</div><div id="lesson-2-best" class="tile-best"> </div></div>
+    <div id="lesson-3" class="tile"><div class="tile-num">4</div><div id="lesson-3-label" class="tile-name">Person</div><div id="lesson-3-best" class="tile-best"> </div></div>
+    <div id="lesson-4" class="tile"><div class="tile-num">5</div><div id="lesson-4-label" class="tile-name">Big</div><div id="lesson-4-best" class="tile-best"> </div></div>
+    <div id="lesson-5" class="tile"><div class="tile-num">6</div><div id="lesson-5-label" class="tile-name">Eternity</div><div id="lesson-5-best" class="tile-best"> </div></div>
+  </div>
+  <div class="divider"></div>
+  <div class="row">
+    <div id="btn-slower" class="btn square"><div class="sym">-</div></div>
+    <div id="tempo" class="tempo">Tempo 60%</div>
+    <div id="btn-faster" class="btn square"><div class="sym">+</div></div>
   </div>
   <div class="row">
-    <Button id="btn-slower"><ButtonLabel>Slower</ButtonLabel></Button>
-    <div id="tempo" class="label grow">Tempo 60%</div>
-    <Button id="btn-faster"><ButtonLabel>Faster</ButtonLabel></Button>
+    <div id="btn-watch" class="btn grow"><div class="btn-label">Watch again</div></div>
+    <div id="btn-guide" class="btn grow"><div id="btn-guide-label" class="btn-label">Guide: adaptive</div></div>
   </div>
   <div class="row">
-    <Button id="btn-watch" class="grow"><ButtonLabel>Watch again</ButtonLabel></Button>
-    <Button id="btn-guide" class="grow"><ButtonLabel><span id="btn-guide-label">Guide: adaptive</span></ButtonLabel></Button>
+    <div id="btn-text" class="btn grow"><div id="btn-text-label" class="btn-label">Larger text</div></div>
+    <div id="btn-music" class="btn grow"><div id="btn-music-label" class="btn-label">Music: on</div></div>
   </div>
   <div class="row">
-    <Button id="btn-place" class="grow"><ButtonLabel>Move paper in front of me</ButtonLabel></Button>
+    <div id="btn-place" class="btn grow"><div class="btn-label">Move paper here</div></div>
   </div>
-  <div class="credits">Stroke data: KanjiVG, CC BY-SA 3.0 (Ulrich Apel). Hand model: WebXR Input Profiles, MIT. Built with the Immersive Web SDK.</div>
-</Panel>
+  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0. Hand: WebXR Input Profiles, MIT. Light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0.</div>
+</div>

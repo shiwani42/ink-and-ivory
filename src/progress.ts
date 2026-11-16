@@ -15,6 +15,7 @@ export interface Progress {
   streak: { lastDay: string; days: number };
   strokes: number;
   calibratedOffset?: number;
+  seenLock?: boolean; // the gold lock-in has been explained once
 }
 
 const KEY = 'hands-of-a-master.v1';

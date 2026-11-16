@@ -1,5 +1,11 @@
 /**
- * Small synthesized sound set (Web Audio, no audio files to license or load).
+ * Sound for Hands of a Master.
+ *
+ * - Music: two CC0 tracks from OpenGameArt ("Yoiyami Core Theme - Deep Blue
+ *   Ambient Piano" by Yoiyami, "Oriental Somber" by Tozan), streamed through
+ *   an <audio> element and alternated so long sessions never loop audibly.
+ *   The music dips while ink is flowing and swells gently on lock-in.
+ * - Effects: synthesized in code (no files):
  * Hand tracking has no haptics, so every interaction gets an audible answer:
  * a paper "scratch" while ink flows, a bell for success, a wood block for UI.
  *
@@ -15,7 +21,15 @@ export class Sfx {
   private scratchGain?: GainNode;
   private scratchFilter?: BiquadFilterNode;
   private noise?: AudioBuffer;
+  private bus?: DynamicsCompressorNode;
+  private musicGain?: GainNode;
+  private musicEl?: HTMLAudioElement;
+  private trackIndex = 0;
+  private musicLevel = 0.32;
   muted = false;
+  musicOn = true;
+  /** Track URLs, set by the app (built from import.meta.env.BASE_URL). */
+  tracks: string[] = [];
 
   /** Call from a user-gesture handler or once an XR session has started. */
   unlock(): void {
@@ -27,9 +41,18 @@ export class Sfx {
             .webkitAudioContext;
         if (!Ctor) return;
         this.ctx = new Ctor();
+        // Everything goes through one compressor so layered sounds never clip
+        // on the headset's speakers.
+        this.bus = this.ctx.createDynamicsCompressor();
+        this.bus.threshold.value = -16;
+        this.bus.knee.value = 12;
+        this.bus.ratio.value = 4;
+        this.bus.attack.value = 0.004;
+        this.bus.release.value = 0.2;
+        this.bus.connect(this.ctx.destination);
         this.master = this.ctx.createGain();
         this.master.gain.value = 0.7;
-        this.master.connect(this.ctx.destination);
+        this.master.connect(this.bus);
         this.noise = this.makeNoise(2);
         this.startScratchBed();
       }
@@ -60,6 +83,60 @@ export class Sfx {
     this.scratchGain.gain.value = 0;
     src.connect(this.scratchFilter).connect(this.scratchGain).connect(this.master!);
     src.start();
+  }
+
+  /** Start (or resume) the music playlist. Call after unlock(). */
+  startMusic(): void {
+    if (!this.ctx || !this.bus || this.tracks.length === 0) return;
+    try {
+      if (!this.musicEl) {
+        const el = new Audio();
+        el.crossOrigin = 'anonymous';
+        el.preload = 'auto';
+        el.addEventListener('ended', () => {
+          this.trackIndex = (this.trackIndex + 1) % this.tracks.length;
+          el.src = this.tracks[this.trackIndex];
+          void el.play().catch(() => undefined);
+        });
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.value = 0;
+        this.ctx.createMediaElementSource(el).connect(this.musicGain).connect(this.bus);
+        el.src = this.tracks[this.trackIndex];
+        this.musicEl = el;
+      }
+      if (this.musicOn) {
+        void this.musicEl.play().catch(() => undefined);
+        this.setMusicLevel(this.musicLevel, 2.5);
+      }
+    } catch {
+      // music is optional
+    }
+  }
+
+  stopMusic(fade = 1.2): void {
+    if (!this.ctx || !this.musicGain || !this.musicEl) return;
+    this.musicGain.gain.setTargetAtTime(0, this.ctx.currentTime, fade / 3);
+    const el = this.musicEl;
+    setTimeout(() => el.pause(), fade * 1000);
+  }
+
+  setMusicOn(on: boolean): void {
+    this.musicOn = on;
+    if (on) this.startMusic();
+    else this.stopMusic(0.6);
+  }
+
+  /** Mix moments: 'calm' (default), 'writing' (dip under the brush), 'unison' (gentle swell). */
+  setMusicMood(mood: 'calm' | 'writing' | 'unison'): void {
+    const level = mood === 'writing' ? 0.2 : mood === 'unison' ? 0.4 : 0.32;
+    if (level === this.musicLevel) return;
+    this.musicLevel = level;
+    if (this.musicOn) this.setMusicLevel(level, mood === 'unison' ? 0.8 : 0.5);
+  }
+
+  private setMusicLevel(level: number, seconds: number): void {
+    if (!this.ctx || !this.musicGain) return;
+    this.musicGain.gain.setTargetAtTime(this.muted ? 0 : level, this.ctx.currentTime, seconds / 3);
   }
 
   /** Continuous brush-on-paper texture. `speed` in m/s, 0 = silent. */

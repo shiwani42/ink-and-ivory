@@ -1,5 +1,9 @@
 import {
   createSystem,
+  DomeGradient,
+  FollowBehavior,
+  Follower,
+  IBLTexture,
   Matrix4,
   type Object3D,
   PokeInteractable,
@@ -17,14 +21,19 @@ import { OneEuroFilter3 } from './common/one-euro.js';
 import { Sfx } from './common/sfx.js';
 import {
   createDeskSet,
+  HANKO_HOME,
   PAPER_D,
   PAPER_W,
   SEAL_X,
   SEAL_Z,
+  STAMP_X,
+  STAMP_Z,
+  SURFACE_Y,
   type DeskSet,
 } from './desk/desk.js';
 import { GhostHand, JointBlender } from './ghost/ghost-hand.js';
 import { GhostPoseBuilder, JOINT_COUNT, type Handedness } from './ghost/ghost-pose.js';
+import { Sparks } from './fx/sparks.js';
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
 import { LESSONS, type Lesson } from './lessons/lessons.js';
 import { StrokePath } from './lessons/master-path.js';
@@ -86,6 +95,9 @@ const UP_H = 0.024;
 const LOCK_DIST = 0.024;
 const UNLOCK_DIST = 0.045;
 const PLACE_TIMEOUT = 2.5;
+const MENU_SCALE = 0.056; // 380 units -> 21 cm wide; 76-unit targets -> 43 mm
+const CAPTION_SCALE = 0.085; // 520 units -> 44 cm wide; 25-unit body -> about 1 degree at 0.9 m
+const BREAK_AFTER_S = 25 * 60;
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 const smooth = (t: number): number => t * t * (3 - 2 * t);
@@ -118,6 +130,13 @@ export class CalligraphySystem extends createSystem({
   private lastTriggerId = '';
   private lastTriggerAt = 0;
   private captionActionsShown = false;
+  private sparks = new Sparks();
+  private sparkClock = 0;
+  private status?: UIKitMLAsset; // body-locked card shown while finding the desk
+  private statusEntity?: Entity;
+  private textScale = 1;
+  private sessionStart = 0;
+  private breakShown = false;
 
   // lesson state
   private lessonIndex = LESSONS.length - 1;
@@ -146,6 +165,7 @@ export class CalligraphySystem extends createSystem({
   private placingClock = 0;
   private arrival = 1;
   private stampAnim = 1;
+  private hankoAnim = -1; // seconds into the stamping move, -1 = idle
 
   // tracked fingertip (paper-local), filtered
   private tipFilter = new OneEuroFilter3();
@@ -246,8 +266,34 @@ export class CalligraphySystem extends createSystem({
       this.cleanupFuncs.push(() => window.removeEventListener('keydown', onKey));
     }
     this.progress = loadProgress();
+    this.sfx.tracks = ['audio/practice-yoiyami.mp3', 'audio/practice-somber.mp3'].map(
+      (f) => `${import.meta.env.BASE_URL}${f}`,
+    );
+    // Image-based lighting from a real studio HDRI (Poly Haven, CC0): glazes,
+    // brass and wet ink pick up believable reflections. Hidden as a sky in AR.
+    this.cleanupFuncs.push(
+      this.world.activeLevel.subscribe((level) => {
+        if (level && !level.hasComponent(DomeGradient)) {
+          // Browser page only (domes are hidden in AR): a warm, dim study.
+          level.addComponent(DomeGradient, {
+            sky: [0.11, 0.09, 0.075, 1],
+            equator: [0.2, 0.16, 0.13, 1],
+            ground: [0.07, 0.055, 0.045, 1],
+            intensity: 1,
+            dither: true,
+          });
+        }
+        if (level && !level.hasComponent(IBLTexture)) {
+          level.addComponent(IBLTexture, {
+            src: `${import.meta.env.BASE_URL}env/studio_1k.hdr`,
+            intensity: 0.85,
+          });
+        }
+      }),
+    );
     this.desk = createDeskSet();
     this.deskEntity = this.world.createTransformEntity(this.desk.root, { persistent: true });
+    this.desk.paper.add(this.sparks.points);
     this.ghost = new GhostHand();
     this.world.createTransformEntity(this.ghost.root, { persistent: true });
     this.poses = { left: new GhostPoseBuilder('left'), right: new GhostPoseBuilder('right') };
@@ -283,9 +329,24 @@ export class CalligraphySystem extends createSystem({
     try {
       const [w, mnu, cap] = await Promise.all([
         make('welcome-panel', 0.09),
-        make('menu-panel', 0.062),
-        make('caption-panel', 0.068),
+        make('menu-panel', MENU_SCALE),
+        make('caption-panel', CAPTION_SCALE),
       ]);
+      // A second reading card follows the head loosely (body-locked, never
+      // head-locked) while the desk is being found, when the desk is hidden.
+      const st = await this.world.assets.instantiate<UIKitMLAsset>('caption-panel');
+      st.scale.setScalar(0.075);
+      this.status = st;
+      this.statusEntity = this.world.createTransformEntity(st, { persistent: true });
+      this.statusEntity.addComponent(Follower, {
+        target: this.player.head,
+        offsetPosition: [0, -0.12, -0.85],
+        behavior: FollowBehavior.FaceTarget,
+        maxAngle: 25,
+        tolerance: 0.25,
+        speed: 2,
+      });
+      st.visible = false;
       this.welcome = w.panel;
       this.welcomeEntity = w.entity;
       this.menu = mnu.panel;
@@ -297,14 +358,10 @@ export class CalligraphySystem extends createSystem({
       return;
     }
 
-    // Welcome: above the far edge of the paper, facing the 2D camera.
-    this.welcome.position.set(0, 0.2, -0.32);
-    this.welcome.rotation.set(-0.12, 0, 0);
-    // Menu: off-hand side, turned toward the writer and tilted back.
-    this.layoutMenu('right');
-    // Caption: beyond the far edge, tilted up toward the writer's eyes.
-    this.caption.position.set(0, 0.11, -0.27);
-    this.caption.rotation.set(-0.5, 0, 0);
+    // Welcome: above the far edge of the paper, aimed at the 2D camera.
+    this.welcome.position.set(0, 0.22, -0.34);
+    this.aimPanelAt(this.welcome, this.v.set(0, 1.16, 0.02));
+    this.layoutPanels();
 
     // Every button runs through one debounced trigger, whether it is clicked by
     // a ray pinch, a mouse, UIKit's own touch pointer, or our fingertip poke.
@@ -328,10 +385,15 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'btn-watch', () => this.startLesson(this.lessonIndex, true));
     on(this.menu, 'btn-guide', () => this.cycleGuide());
     on(this.menu, 'btn-place', () => this.beginPlacing());
-    on(this.caption, 'btn-next', () =>
+    on(this.menu, 'btn-text', () => this.toggleTextSize());
+    on(this.menu, 'btn-music', () => {
+      this.sfx.setMusicOn(!this.sfx.musicOn);
+      this.text(this.menu, 'btn-music-label', this.sfx.musicOn ? 'Music: on' : 'Music: off');
+    });
+    on(this.menu, 'btn-next', () =>
       this.startLesson(Math.min(LESSONS.length - 1, this.lessonIndex + 1), true),
     );
-    on(this.caption, 'btn-again', () => this.startLesson(this.lessonIndex, false));
+    on(this.menu, 'btn-again', () => this.startLesson(this.lessonIndex, false));
 
     this.refreshMenu();
     this.applyPanelVisibility();
@@ -350,7 +412,7 @@ export class CalligraphySystem extends createSystem({
 
   private buttonActive(b: PokeButton): boolean {
     if (!b.panel.visible) return false;
-    if (b.panel === this.caption) {
+    if (b.id === 'btn-next' || b.id === 'btn-again') {
       if (!this.captionActionsShown) return false;
       if (b.id === 'btn-next' && this.lessonIndex === LESSONS.length - 1) return false;
     }
@@ -408,12 +470,50 @@ export class CalligraphySystem extends createSystem({
     }
   }
 
-  private layoutMenu(writingHand: Handedness): void {
-    if (!this.menu) return;
-    const side = writingHand === 'right' ? -1 : 1;
-    this.menu.position.set(side * 0.33, 0.12, 0.02);
-    this.menu.rotation.order = 'YXZ';
-    this.menu.rotation.set(-0.35, -side * 0.62, 0);
+  /**
+   * Panel layout, in desk-local metres, following Meta's immersive design
+   * guidance: the touchable menu within seated reach (about 0.55 m from the
+   * eyes, never closer than 0.5 m) on the off-hand side; the read-only caption
+   * about 0.9 m away and 15-25 degrees below eye level; both turned to face the
+   * writer's actual head position, so they read square-on seated or standing.
+   */
+  private layoutPanels(): void {
+    const side = this.ghost?.handedness === 'left' ? 1 : -1;
+    // Where the writer's eyes are, in desk-local space (default: seated, 0.38 m back).
+    const eye = this.v2.set(0, 0.44, 0.4);
+    if (this.mode !== 'demo2d') {
+      this.player.head.getWorldPosition(this.head);
+      this.desk.root.updateWorldMatrix(true, false);
+      eye.copy(this.desk.root.worldToLocal(this.head.clone()));
+    }
+    if (this.menu) {
+      this.menu.scale.setScalar(MENU_SCALE * this.textScale);
+      this.menu.position.set(side * (0.39 + 0.04 * (this.textScale - 1)), 0.2, 0.0);
+      this.aimPanelAt(this.menu, eye);
+    }
+    if (this.caption) {
+      this.caption.scale.setScalar(CAPTION_SCALE * this.textScale);
+      // On the line from the eyes over the paper's far edge, about 0.9 m out.
+      this.caption.position.set(0, eye.y - 0.32 - 0.04 * (this.textScale - 1), eye.z - 0.86);
+      this.aimPanelAt(this.caption, eye);
+    }
+  }
+
+  /** Turn a +Z-facing panel so it faces a point (both in its parent's space). */
+  private aimPanelAt(panel: { position: Vector3; rotation: { order: string; x: number; y: number; z: number } }, target: Vector3): void {
+    const dx = target.x - panel.position.x;
+    const dy = target.y - panel.position.y;
+    const dz = target.z - panel.position.z;
+    panel.rotation.order = 'YXZ';
+    panel.rotation.y = Math.atan2(dx, dz);
+    panel.rotation.x = -Math.atan2(dy, Math.hypot(dx, dz));
+    panel.rotation.z = 0;
+  }
+
+  private toggleTextSize(): void {
+    this.textScale = this.textScale > 1 ? 1 : 1.25;
+    this.text(this.menu, 'btn-text-label', this.textScale > 1 ? 'Normal text' : 'Larger text');
+    this.layoutPanels();
   }
 
   private text(panel: UIKitMLAsset | undefined, id: string, value: string): void {
@@ -424,7 +524,8 @@ export class CalligraphySystem extends createSystem({
     const xr = this.mode !== 'demo2d';
     if (this.welcome) this.welcome.visible = !xr;
     if (this.menu) this.menu.visible = xr && this.mode !== 'placing';
-    if (this.caption) this.caption.visible = xr;
+    if (this.caption) this.caption.visible = xr && this.mode !== 'placing';
+    if (this.status) this.status.visible = this.mode === 'placing';
     this.welcomeEntity?.object3D && (this.welcomeEntity.object3D.visible = !xr);
   }
 
@@ -437,7 +538,7 @@ export class CalligraphySystem extends createSystem({
 
   private showCaptionActions(show: boolean): void {
     this.captionActionsShown = show;
-    this.caption?.getElementById('cap-actions')?.setProperties({ display: show ? 'flex' : 'none' });
+    this.menu?.getElementById('menu-actions')?.setProperties({ display: show ? 'flex' : 'none' });
   }
 
   private lessonEyebrow(): string {
@@ -448,10 +549,13 @@ export class CalligraphySystem extends createSystem({
     if (!this.menu) return;
     LESSONS.forEach((l, i) => {
       const p = this.progress.lessons[l.id];
-      const stars = p?.passed ? ' ' + '*'.repeat(this.stars(p.best)) : '';
-      const status = p?.best ? `  best ${p.best}${stars}` : '';
-      const marker = i === this.lessonIndex ? '> ' : '';
-      this.text(this.menu, `lesson-${i}-label`, `${marker}${i + 1}  ${cap(l.meaning)}${status}`);
+      const stars = p?.passed ? '*'.repeat(this.stars(p.best)) : '';
+      this.text(this.menu, `lesson-${i}-label`, cap(l.meaning));
+      this.text(this.menu, `lesson-${i}-best`, p?.best ? `${stars} ${p.best}` : ' ');
+      // The current lesson's row is highlighted in warm gold.
+      this.menu
+        ?.getElementById(`lesson-${i}`)
+        ?.setProperties({ backgroundColor: i === this.lessonIndex ? '#e6cf9f' : '#ebe1cf' });
     });
     this.text(this.menu, 'tempo', `Tempo ${Math.round(this.tempo * 100)}%`);
     const guide = { adaptive: 'Guide: adaptive', always: 'Guide: always', off: 'Guide: off' }[this.guideMode];
@@ -472,6 +576,7 @@ export class CalligraphySystem extends createSystem({
 
   private enter2D(): void {
     this.mode = 'demo2d';
+    this.sfx.stopMusic();
     this.calibrated = false;
     this.desk.root.visible = true;
     this.arrival = 1;
@@ -495,6 +600,7 @@ export class CalligraphySystem extends createSystem({
 
   private enterXR(): void {
     this.sfx.unlock();
+    this.sfx.startMusic();
     this.progress = loadProgress();
     const resume = this.progress.lessons;
     // Resume at the first lesson not yet passed.
@@ -510,12 +616,19 @@ export class CalligraphySystem extends createSystem({
     this.ghost.visible = false;
     this.desk.root.visible = false;
     this.showCaptionActions(false);
-    this.setCaption(
-      'HANDS OF A MASTER',
+    this.setStatus(
+      'STEP 1 OF 3  -  YOUR DESK',
       'Finding your desk',
-      'Sit comfortably at a table. Good light helps the headset see your hands.',
+      'Sit at a table and look at the spot where you want to write. Good light helps the headset see your hands.',
     );
     this.applyPanelVisibility();
+  }
+
+  private setStatus(eyebrow: string, title: string, body: string): void {
+    this.text(this.status, 'cap-eyebrow', eyebrow);
+    this.text(this.status, 'cap-title', title);
+    this.text(this.status, 'cap-body', body);
+    this.text(this.status, 'cap-score', ' ');
   }
 
   private finishPlacing(realDesk: boolean): void {
@@ -529,12 +642,14 @@ export class CalligraphySystem extends createSystem({
     }
     this.arrival = 0;
     this.sfx.chime(0, 0.12);
+    if (!this.sessionStart) this.sessionStart = this.clock;
+    this.layoutPanels(); // face the writer's actual head, seated or standing
     this.startLesson(this.lessonIndex, true);
     if (!realDesk) {
       this.setCaption(
         this.lessonEyebrow(),
         'Watch the master',
-        'No table found, so the paper rests on a virtual desk. Writing just above it works too. At a real table, press "Move paper in front of me".',
+        'No table found, so the paper rests on a virtual desk. At a real table, press "Move paper here" on the menu.',
       );
     }
   }
@@ -547,6 +662,8 @@ export class CalligraphySystem extends createSystem({
     this.loadLesson(index);
     this.showCaptionActions(false);
     this.desk.stamp.visible = false;
+    this.hankoAnim = -1;
+    this.desk.hanko.position.set(HANKO_HOME.x - 0.04, 0, HANKO_HOME.z);
     this.applyGuideStrength();
     if (watchFirst) {
       this.mode = 'watch';
@@ -554,7 +671,7 @@ export class CalligraphySystem extends createSystem({
       this.setCaption(
         this.lessonEyebrow(),
         'Watch the master',
-        `${this.lesson.teaching} ${this.lesson.strokes.length} stroke${this.lesson.strokes.length > 1 ? 's' : ''}.`,
+        `${this.lesson.teaching} ${this.lesson.strokes.length} stroke${this.lesson.strokes.length > 1 ? 's' : ''}. Just watch for now.`,
       );
     } else {
       this.beginPractice();
@@ -574,9 +691,9 @@ export class CalligraphySystem extends createSystem({
       this.calibHold = 0;
       this.ghostTarget(SEAL_X + 0.03, HOVER_Y + 0.02, SEAL_Z + 0.02);
       this.setCaption(
-        this.lessonEyebrow(),
+        'STEP 2 OF 3  -  TOUCH',
         'Touch the red seal',
-        'Rest your index fingertip on the red seal for a moment. This teaches the paper how high your desk is.',
+        'Like the master: rest your index fingertip on the red seal for a moment. This tells the paper where your desk is.',
       );
       return;
     }
@@ -590,12 +707,13 @@ export class CalligraphySystem extends createSystem({
 
   private promptStroke(): void {
     const s = this.lesson.strokes[this.strokeIndex];
+    const first = this.strokeIndex === 0 && !this.progress.strokes;
     this.setCaption(
-      this.lessonEyebrow(),
-      `Stroke ${this.strokeIndex + 1} of ${this.lesson.strokes.length}: ${s.name}`,
-      this.strokeIndex === 0 && !this.progress.strokes
-        ? 'Touch the paper where the master waits, then follow the ghost hand. Lift to finish the stroke.'
-        : 'Begin at the glowing point and move with the master.',
+      first ? 'STEP 3 OF 3  -  WRITE' : this.lessonEyebrow(),
+      first ? 'Your turn' : `Stroke ${this.strokeIndex + 1} of ${this.lesson.strokes.length}: ${s.name}`,
+      first
+        ? 'Touch the paper inside the glowing ring, then move with the master. Lift your finger to finish.'
+        : 'Begin inside the glowing ring and move with the master.',
     );
   }
 
@@ -970,7 +1088,7 @@ export class CalligraphySystem extends createSystem({
     const atPaper = this.tipOnPaper() && this.tip.y < 0.06;
     if (hand !== this.ghost.handedness && atPaper && !this.penDown && this.phase === 'ready') {
       this.ghost.setHandedness(hand);
-      this.layoutMenu(hand);
+      this.layoutPanels();
     }
   }
 
@@ -1039,6 +1157,15 @@ export class CalligraphySystem extends createSystem({
         this.phase = 'ready';
         this.promptStroke();
       }
+    }
+
+    if (this.phase === 'ready' && !this.breakShown && this.sessionStart && this.clock - this.sessionStart > BREAK_AFTER_S) {
+      this.breakShown = true;
+      this.setCaption(
+        this.lessonEyebrow(),
+        'Time for a short break',
+        'You have practised for 25 minutes. Rest your hand and eyes for a moment; your progress is saved.',
+      );
     }
 
     if (this.phase === 'ready') {
@@ -1116,6 +1243,7 @@ export class CalligraphySystem extends createSystem({
 
   private penDownStart(): void {
     this.penDown = true;
+    this.sfx.setMusicMood('writing');
     this.fellThrough = false;
     this.phase = 'drawing';
     this.capX = [this.tip.x];
@@ -1134,12 +1262,26 @@ export class CalligraphySystem extends createSystem({
   private setLocked(on: boolean): void {
     if (on === this.locked) return;
     this.locked = on;
-    if (on) this.sfx.chime(this.strokeIndex + 2, 0.13);
+    if (on) {
+      this.sfx.chime(this.strokeIndex + 2, 0.13);
+      this.sparks.burst(this.tip.x, 0.004, this.tip.z, 18, 0.16);
+    }
+    this.sfx.setMusicMood(on ? 'unison' : this.penDown ? 'writing' : 'calm');
+    if (on && !this.progress.seenLock) {
+      this.progress.seenLock = true;
+      saveProgress(this.progress);
+      this.setCaption(
+        this.lessonEyebrow(),
+        'In unison',
+        "Your hand is moving with the master's. While you stay together, your ink turns gold.",
+      );
+    }
     if (this.current) this.current.material.color.copy(on ? GOLD : INK_COLOR);
   }
 
   private penUp(): void {
     this.penDown = false;
+    this.sfx.setMusicMood('calm');
     this.needLift = true;
     this.sfx.setScratch(0);
     const ribbon = this.current;
@@ -1238,10 +1380,15 @@ export class CalligraphySystem extends createSystem({
     const days = markPracticeDay(this.progress);
     saveProgress(this.progress);
 
-    this.desk.stamp.visible = true;
-    this.stampAnim = 0;
-    this.sfx.stamp();
-    setTimeout(() => this.sfx.fanfare(), 250);
+    // The jade seal stamps the page: lift, dip in paste, press, return.
+    this.hankoAnim = 0;
+    // A shower of gold rises off every stroke the learner wrote.
+    for (const p of this.paths) {
+      for (let k = 0; k <= 6; k++) {
+        p.sampleAtFraction(k / 6, this.sample);
+        this.sparks.burst(this.sample.x, 0.003, this.sample.z, 3, 0.14);
+      }
+    }
     this.ghostTarget(this.restTip[0], this.restTip[1], this.restTip[2]);
     this.desk.sealRing.visible = false;
 
@@ -1251,16 +1398,57 @@ export class CalligraphySystem extends createSystem({
       ? `New best (was ${prevBest}). The master's guide will fade a little more next time.`
       : isLast
         ? 'You have written all eight principles of the brush in one character.'
-        : 'The seal is yours. Ready for the next character?';
+        : `The seal is yours. "Next lesson" is on the menu to your ${this.ghost.handedness === 'left' ? 'right' : 'left'}.`;
     this.setCaption(
       this.lessonEyebrow(),
       `${cap(this.lesson.meaning)} complete  ${stars}`,
       body,
       `Score ${score}  -  ${days > 1 ? `${days}-day streak` : 'practised today'}`,
     );
-    this.caption?.getElementById('btn-next')?.setProperties({ display: isLast ? 'none' : 'flex' });
+    this.menu?.getElementById('btn-next')?.setProperties({ display: isLast ? 'none' : 'flex' });
     this.showCaptionActions(true);
     this.refreshMenu();
+  }
+
+  private updateHanko(dt: number): void {
+    if (this.hankoAnim < 0) return;
+    const t = (this.hankoAnim += dt);
+    const h = this.desk.hanko.position;
+    const homeX = HANKO_HOME.x - 0.04;
+    const homeZ = HANKO_HOME.z;
+    const dishX = HANKO_HOME.x;
+    const lerp = (a: number, b: number, k: number) => a + (b - a) * smooth(clamp01(k));
+    if (t < 0.35) {
+      // lift and slide over the paste dish
+      h.set(lerp(homeX, dishX, t / 0.35), lerp(0, 0.05, t / 0.35), homeZ);
+    } else if (t < 0.6) {
+      // dip into the paste
+      const k = (t - 0.35) / 0.25;
+      h.set(dishX, 0.05 - 0.04 * Math.sin(Math.PI * k), homeZ);
+    } else if (t < 1.1) {
+      // arc over to the page corner
+      const k = (t - 0.6) / 0.5;
+      h.set(lerp(dishX, STAMP_X, k), 0.05 + Math.sin(Math.PI * smooth(k)) * 0.04, lerp(homeZ, STAMP_Z, k));
+    } else if (t < 1.3) {
+      // press
+      const k = (t - 1.1) / 0.2;
+      h.set(STAMP_X, lerp(0.05, SURFACE_Y, k), STAMP_Z);
+      if (k >= 0.99 && !this.desk.stamp.visible) {
+        this.desk.stamp.visible = true;
+        this.stampAnim = 0;
+        this.sfx.stamp();
+        setTimeout(() => this.sfx.fanfare(), 200);
+      }
+    } else if (t < 1.55) {
+      const k = (t - 1.3) / 0.25;
+      h.set(STAMP_X, lerp(SURFACE_Y, 0.06, k), STAMP_Z);
+    } else if (t < 2.2) {
+      const k = (t - 1.55) / 0.65;
+      h.set(lerp(STAMP_X, homeX, k), 0.06 * (1 - smooth(clamp01(k))), lerp(STAMP_Z, homeZ, k));
+    } else {
+      h.set(homeX, 0, homeZ);
+      this.hankoAnim = -1;
+    }
   }
 
   private fadeOut(ribbon: InkRibbon, dur: number): void {
@@ -1293,7 +1481,16 @@ export class CalligraphySystem extends createSystem({
       this.desk.body.scale.set(1, 1, 0.04 + 0.96 * e);
       this.desk.body.position.y = 0.04 * (1 - e);
     }
-    // Seal stamp lands.
+    this.updateHanko(dt);
+    this.sparks.update(dt);
+    if (this.locked && this.penDown && this.tipValid) {
+      this.sparkClock += dt;
+      if (this.sparkClock > 0.05) {
+        this.sparkClock = 0;
+        this.sparks.burst(this.tip.x, 0.003, this.tip.z, 2, 0.08);
+      }
+    }
+    // Seal imprint appears.
     if (this.stampAnim < 1) {
       this.stampAnim = Math.min(1, this.stampAnim + dt / 0.35);
       const e = smooth(this.stampAnim);
@@ -1348,7 +1545,13 @@ export class CalligraphySystem extends createSystem({
         this.beginPractice();
       }
     } else if (this.mode === 'calibrate') {
-      this.stepChoreo(dt, false);
+      // The master demonstrates: a slow tap on the seal, then a pause.
+      if (!this.stepChoreo(dt, false)) {
+        const cycle = (this.clock % 2.4) / 2.4;
+        const tap = cycle < 0.45 ? Math.sin((cycle / 0.45) * Math.PI) : 0;
+        this.ghostTip.set(SEAL_X + 0.004, TIP_CONTACT_Y + (1 - tap) * 0.035, SEAL_Z);
+        this.easeLean(0, 0, dt);
+      }
       this.updateCalibrate(dt);
     } else if (this.mode === 'practice') {
       this.ghost.visible = this.guideMode !== 'off' || this.lockBlend > 0.01;

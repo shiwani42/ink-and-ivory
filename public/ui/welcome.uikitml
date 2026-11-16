@@ -1,35 +1,26 @@
 <!--
-  2D landing panel, shown in the browser before entering mixed reality.
-  Plain ASCII copy only (the panel font has no CJK glyphs).
+  2D landing card ("washi" design system), shown in the browser before entering
+  mixed reality. Type: Merriweather Bold title, Inter body and button.
 -->
 <style>
-  .root { flex-direction: column; width: 440px; }
-  .content { flex-direction: column; gap: 8px; padding-left: 26px; padding-right: 26px; padding-top: 24px; padding-bottom: 10px; }
-  .eyebrow { color: #a3361f; font-size: 14px; font-weight: 700; letter-spacing: 1.6px; }
-  .eyebrow:dark { color: #ff8a65; }
-  .heading { color: #1c1d20; font-size: 34px; font-weight: 700; line-height: 40px; }
-  .heading:dark { color: #fafaf7; }
-  .body { color: #3a3b40; font-size: 19px; line-height: 26px; }
-  .body:dark { color: #dddfe3; }
-  .small { color: #6a6b70; font-size: 13px; line-height: 18px; }
-  .small:dark { color: #9a9ca3; }
-  .button { justify-content: flex-start; margin-left: 26px; margin-right: 26px; margin-bottom: 12px; }
-  .foot { padding-left: 26px; padding-right: 26px; padding-bottom: 22px; }
+  .card { flex-direction: column; width: 480px; background-color: #f4ede0; border-radius: 24px; border-width: 2px; border-color: #d8ccb4; padding-left: 32px; padding-right: 32px; padding-top: 28px; padding-bottom: 26px; gap: 10px; }
+  .eyebrow { color: #a8231a; font-family: inter; font-size: 14px; font-weight: 700; letter-spacing: 2.6px; }
+  .title { color: #1d1813; font-family: merriweather; font-size: 40px; font-weight: 700; line-height: 48px; }
+  .rule { height: 3px; width: 56px; background-color: #a8231a; margin-top: 2px; margin-bottom: 4px; }
+  .body { color: #3d342c; font-family: inter; font-size: 19px; font-weight: 500; line-height: 27px; }
+  .cta { flex-direction: row; align-items: center; justify-content: center; margin-top: 10px; height: 62px; border-radius: 16px; background-color: #1d1813; cursor: pointer; }
+  .cta:hover { background-color: #3a2f25; }
+  .cta:active { background-color: #a8231a; }
+  .cta-label { color: #f4ede0; font-family: inter; font-size: 19px; font-weight: 700; letter-spacing: 0.4px; }
+  .note { color: #6f6255; font-family: inter; font-size: 14px; font-weight: 500; line-height: 20px; margin-top: 4px; }
 </style>
-<Panel class="root">
-  <div class="content">
-    <div class="eyebrow">MIXED REALITY CALLIGRAPHY</div>
-    <div class="heading">Hands of a Master</div>
-    <div class="body">A master's hands appear over your own, on your real desk.</div>
-    <div class="body">Follow them stroke by stroke. As you improve, the master lets go.</div>
+<div class="card">
+  <div class="eyebrow">MIXED REALITY CALLIGRAPHY</div>
+  <div class="title">Hands of a Master</div>
+  <div class="rule"></div>
+  <div class="body">A master's hand appears beside yours on your real desk. Follow it stroke by stroke. As you improve, the master lets go.</div>
+  <div id="xr-button" class="cta">
+    <div class="cta-label">Begin at my desk</div>
   </div>
-  <Button id="xr-button" class="button">
-    <ButtonIcon>
-      <RectangleGoggles></RectangleGoggles>
-    </ButtonIcon>
-    <ButtonLabel>Start at my desk</ButtonLabel>
-  </Button>
-  <div class="foot">
-    <div id="xr-note" class="small">Sit at a desk or table in good light. Hands only: no controllers needed.</div>
-  </div>
-</Panel>
+  <div id="xr-note" class="note">Sit at a table in good light. Hands only, no controllers needed.</div>
+</div>

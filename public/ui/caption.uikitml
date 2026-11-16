@@ -1,29 +1,21 @@
 <!--
-  Caption card beyond the paper's far edge, tilted toward the writer.
-  Every instruction and result appears here, so the app works without sound.
+  Reading card ("washi" design system). Read-only: it sits about 0.9 m away,
+  slightly below eye level, beyond the paper, and is aimed at the writer's head
+  at placement time. Sizes follow Meta's immersive design guidance: body text at
+  roughly 1 degree or more of visual angle, medium/bold weights only (thin
+  strokes shimmer), short line length, ink-on-cream contrast about 15:1.
+  Type: Merriweather Bold (titles), Inter Medium/Semi-Bold/Bold (everything else).
 -->
 <style>
-  .root { flex-direction: column; width: 440px; }
-  .content { flex-direction: column; gap: 6px; padding-left: 22px; padding-right: 22px; padding-top: 16px; padding-bottom: 16px; }
-  .eyebrow { color: #a3361f; font-size: 14px; font-weight: 700; letter-spacing: 1.4px; }
-  .eyebrow:dark { color: #ff8a65; }
-  .title { color: #1c1d20; font-size: 27px; font-weight: 700; line-height: 33px; }
-  .title:dark { color: #fafaf7; }
-  .body { color: #3a3b40; font-size: 19px; line-height: 25px; }
-  .body:dark { color: #dddfe3; }
-  .score { color: #8a5a00; font-size: 19px; font-weight: 700; }
-  .score:dark { color: #f2bf4a; }
-  .row { flex-direction: row; gap: 8px; padding-left: 22px; padding-right: 22px; padding-bottom: 16px; }
+  .card { flex-direction: column; width: 520px; background-color: #f4ede0; border-radius: 24px; border-width: 2px; border-color: #d8ccb4; padding-left: 30px; padding-right: 30px; padding-top: 22px; padding-bottom: 24px; gap: 8px; }
+  .eyebrow { color: #a8231a; font-family: inter; font-size: 17px; font-weight: 700; letter-spacing: 2.2px; }
+  .title { color: #1d1813; font-family: merriweather; font-size: 38px; font-weight: 700; line-height: 46px; }
+  .body { color: #3d342c; font-family: inter; font-size: 25px; font-weight: 500; line-height: 34px; }
+  .score { color: #7a520a; font-family: inter; font-size: 23px; font-weight: 700; margin-top: 2px; }
 </style>
-<Panel class="root">
-  <div class="content">
-    <div id="cap-eyebrow" class="eyebrow">HANDS OF A MASTER</div>
-    <div id="cap-title" class="title">Finding your desk</div>
-    <div id="cap-body" class="body">Sit comfortably. Good light helps the headset see your hands.</div>
-    <div id="cap-score" class="score"> </div>
-  </div>
-  <div id="cap-actions" class="row" style="display: none">
-    <Button id="btn-next"><ButtonLabel>Next lesson</ButtonLabel></Button>
-    <Button id="btn-again"><ButtonLabel>Write it again</ButtonLabel></Button>
-  </div>
-</Panel>
+<div class="card">
+  <div id="cap-eyebrow" class="eyebrow">HANDS OF A MASTER</div>
+  <div id="cap-title" class="title">Finding your desk</div>
+  <div id="cap-body" class="body">Sit at a table in good light.</div>
+  <div id="cap-score" class="score"> </div>
+</div>
