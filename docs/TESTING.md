@@ -112,7 +112,12 @@ $ python3 tools/e2e.py --lessons 6 --negative --piano 4 --jitter 3
   negative cases: 3/3 gave the expected hint
 PASS
 ```
-Earlier (16 Nov, calligraphy only): left hand, 2 lessons, PASS (86, 89).
+```
+$ python3 tools/e2e.py --lessons 2 --hand left --jitter 3
+  one       strokes [88]       average 88
+  two       strokes [91, 90]   average 90
+PASS
+```
 
 Also passing:
 - `npm run typecheck`;
