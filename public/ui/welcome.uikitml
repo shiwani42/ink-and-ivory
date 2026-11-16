@@ -12,15 +12,22 @@
   .cta:hover { background-color: #3a2f25; }
   .cta:active { background-color: #a8231a; }
   .cta-label { color: #f4ede0; font-family: inter; font-size: 19px; font-weight: 700; letter-spacing: 0.4px; }
+  .secondary { height: 52px; margin-top: 6px; background-color: #ebe1cf; border-width: 2px; border-color: #d8ccb4; }
+  .secondary:hover { background-color: #e6cf9f; }
+  .secondary-label { color: #1d1813; font-size: 17px; }
   .note { color: #6f6255; font-family: inter; font-size: 14px; font-weight: 500; line-height: 20px; margin-top: 4px; }
 </style>
 <div class="card">
-  <div class="eyebrow">MIXED REALITY CALLIGRAPHY</div>
+  <div class="eyebrow">CALLIGRAPHY AND PIANO</div>
   <div class="title">Hands of a Master</div>
   <div class="rule"></div>
-  <div class="body">A master's hand appears beside yours on your real desk. Follow it stroke by stroke. As you improve, the master lets go.</div>
+  <div class="body">A master's hand appears beside yours on your real desk. Follow it stroke by stroke or note by note. As you improve, the master lets go.</div>
   <div id="xr-button" class="cta">
     <div class="cta-label">Begin at my desk</div>
   </div>
   <div id="xr-note" class="note">Sit at a table in good light. Hands only, no controllers needed.</div>
+  <div id="midi-button" class="cta secondary">
+    <div class="cta-label secondary-label">Add your own piano song (MIDI)</div>
+  </div>
+  <div id="midi-note" class="note">Any MIDI file works; the master learns its melody. Free public-domain pieces: mutopiaproject.org. Or play your own tune to the master at the piano.</div>
 </div>

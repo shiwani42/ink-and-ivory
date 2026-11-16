@@ -395,11 +395,11 @@ for fn in (build_brush, build_brush_rest, build_inkstone, build_water_dropper, b
         print('FAILED', fn.__name__, e)
 print('ALL_DONE')
 
-# ---------------------------------------------------------------- 8. keyboard (A3 to C5), keys as named nodes
+# ---------------------------------------------------------------- 8. keyboard (A3 to E5), keys as named nodes
 # Keyboard-local (Blender Z up): x along the keys, -y away from the player
 # (glTF: +z toward the player), key tops at z = 0.012 (white) / 0.022 (black).
-WHITE = ['A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']
-BLACK_AFTER = {'A3': 'As3', 'C4': 'Cs4', 'D4': 'Ds4', 'F4': 'Fs4', 'G4': 'Gs4', 'A4': 'As4'}
+WHITE = ['A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5']  # A3-E5: Für Elise fits in its own key
+BLACK_AFTER = {'A3': 'As3', 'C4': 'Cs4', 'D4': 'Ds4', 'F4': 'Fs4', 'G4': 'Gs4', 'A4': 'As4', 'C5': 'Cs5', 'D5': 'Ds5'}
 KW, KGAP, KL, KH = 0.030, 0.0012, 0.12, 0.012     # white key width, gap, length, height
 BW, BL, BH = 0.017, 0.075, 0.010                    # black key width, length, height above white
 
@@ -452,7 +452,7 @@ except Exception as e:
 print('KEYBOARD_DONE')
 
 # ---------------------------------------------------------------- 9. grand piano body around the playable keyboard
-# Blender Z up, +Y away from the player. The playable keyboard (A3-C5, centred
+# Blender Z up, +Y away from the player. The playable keyboard (A3-E5, centred
 # at x=0, key fronts at y=-0.06, tops at z=0.012) sits inside this case; the
 # rest of the 88 keys are decorative so it reads as a full concert grand.
 def build_grand_piano():
@@ -464,7 +464,7 @@ def build_grand_piano():
     felt = material('felt_red', (0.42, 0.05, 0.04), 0.95)
     spruce = material('soundboard', (0.78, 0.62, 0.4), 0.55)
     objs = []
-    # Decorative keys: A0..G3 to the left, D5..C8 to the right (same 30 mm pitch).
+    # Decorative keys: A0..G3 to the left, F5..C8 to the right (same 30 mm pitch).
     names = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
     white = []
     octave, i = 0, 0
@@ -477,16 +477,16 @@ def build_grand_piano():
             break
         i += 1
     ia3 = white.index('A3')
-    x0 = -5 * KW + KW / 2  # x of A3's centre in the playable keyboard (10 whites centred at 0)
+    x0 = -6 * KW + KW / 2  # x of A3's centre in the playable keyboard (12 whites centred at 0)
     sharps_after = {'A', 'C', 'D', 'F', 'G'}
     for j, note in enumerate(white):
         x = x0 + (j - ia3) * KW
-        if white.index('A3') <= j <= white.index('C5'):
+        if white.index('A3') <= j <= white.index('E5'):
             continue  # playable keys come from keyboard.glb
         k = box(f'deco_{note}', KW - KGAP, KL, KH)
         k.location = (x, 0.0, KH / 2)
         bevel(k, 0.0012, 2); assign(k, ivory); objs.append(k)
-        if note[0] in sharps_after and note != 'C8' and not (white.index('G3') < j < white.index('C5')):
+        if note[0] in sharps_after and note != 'C8' and not (white.index('G3') < j < white.index('E5')):
             b = box(f'deco_{note}s', BW, BL, BH)
             b.location = (x + KW / 2, (KL - BL) / 2, KH + BH / 2)
             bevel(b, 0.0015, 2); assign(b, ebony); objs.append(b)

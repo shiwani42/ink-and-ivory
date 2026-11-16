@@ -144,6 +144,7 @@ def main():
     ap.add_argument('--negative', action='store_true', help='first try wrong strokes and expect specific hints')
     ap.add_argument('--hand', default='right', choices=['right', 'left'], help='writing hand')
     ap.add_argument('--piano', type=int, default=0, help='also play N piano songs after the calligraphy lessons')
+    ap.add_argument('--compose', action='store_true', help='at the piano, play a tune of our own and check the master learns and teaches it')
     ap.add_argument('--watch', action='store_true', help='keep the emulated head looking at the paper (for a human watching)')
     args = ap.parse_args()
     jitter = args.jitter / 1000
@@ -258,9 +259,10 @@ def main():
             m, _ = wait_for(r'^layout (.*)', m0, 10)
             layout = json.loads(m.group(1))
 
-    if args.piano:
+    if args.piano or args.compose:
         m0 = mark()
         press('craft-piano', other)
+        lay = None
         for song_no in range(args.piano):
             m, _ = wait_for(r'^piano-layout (.*)', m0, 15)
             lay = json.loads(m.group(1))
@@ -279,6 +281,32 @@ def main():
             if song_no < args.piano - 1:
                 m0 = mark()
                 press('btn-next', other)
+
+        if args.compose:
+            if lay is None:
+                m, _ = wait_for(r'^piano-layout (.*)', m0, 15)
+                lay = json.loads(m.group(1))
+            ms = mark()
+            press('btn-record', other)
+            wait_for(r'^listen$', ms, 10)
+            tune = [['C4', 1], ['E4', 1], ['G4', 1], ['E4', 0.5], ['D4', 0.5], ['C4', 2]]
+            print(f'6. compose: play our own tune ({len(tune)} notes) to the master')
+            play_song({'beat': 0.6, 'notes': tune, 'keys': lay['keys']}, writer)
+            m, _ = wait_for(r'^learned (\d+) notes bpm (\d+)', ms, 15)
+            print(f'     the master learned {m.group(1)} notes at {m.group(2)} bpm')
+            m, _ = wait_for(r'^piano-layout (.*)', ms, 10)
+            learned = json.loads(m.group(1))
+            heard = [n for n, _ in learned['notes']]
+            expect = [n for n, _ in tune]
+            print(f'     notes {heard} (played {expect})')
+            wait_for(r'^practice$', ms, 60)
+            mp = mark()
+            play_song(learned, writer)
+            m, _ = wait_for(r'lesson complete score (\d+)', mp, 20)
+            score = int(m.group(1)) if heard == expect else 0
+            print(f'     played it back with the master: score {m.group(1)}')
+            results.append(('your-tune', [score]))
+            shot('piano-your-tune')
 
     print('\nRESULTS')
     ok = True

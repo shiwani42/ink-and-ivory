@@ -150,14 +150,14 @@ export class Sfx {
 
   // ------------------------------------------------------------ sampled piano
   // Salamander Grand Piano (Alexander Holm, CC-BY 3.0), six samples spread a
-  // minor third apart and pitch-shifted to every key in A3 to C5.
+  // minor third apart and pitch-shifted to every key in A3 to E5.
   private pianoSamples: { midi: number; buffer: AudioBuffer }[] = [];
   private pianoLoading = false;
 
   async loadPiano(baseUrl: string): Promise<void> {
     if (!this.ctx || this.pianoLoading || this.pianoSamples.length) return;
     this.pianoLoading = true;
-    const files: [string, number][] = [['A3', 57], ['C4', 60], ['Ds4', 63], ['Fs4', 66], ['A4', 69], ['C5', 72]];
+    const files: [string, number][] = [['A3', 57], ['C4', 60], ['Ds4', 63], ['Fs4', 66], ['A4', 69], ['C5', 72], ['Ds5', 75]];
     const ctx = this.ctx;
     const loaded = await Promise.all(
       files.map(async ([name, midi]) => {

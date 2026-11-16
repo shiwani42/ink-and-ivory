@@ -49,6 +49,9 @@
     <div id="lang-japanese" class="craft"><div id="lang-japanese-label" class="craft-label">Japanese</div></div>
     <div id="lang-chinese" class="craft"><div id="lang-chinese-label" class="craft-label">Chinese</div></div>
   </div>
+  <div id="piano-row" class="crafts" style="display: none">
+    <div id="btn-record" class="craft"><div id="btn-record-label" class="craft-label">Play your own tune</div></div>
+  </div>
   <div id="streak" class="meta">First lesson</div>
   <div id="menu-actions" class="actions" style="display: none">
     <div id="btn-next" class="primary"><div class="primary-label">Next lesson</div></div>

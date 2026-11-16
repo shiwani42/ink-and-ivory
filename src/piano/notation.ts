@@ -168,7 +168,8 @@ export class MusicSheet {
     // Notes, scrolled so the current note stays in view.
     const unit = 70; // px per beat
     const gap = 10;
-    const widths = song.notes.map((n) => Math.max(48, n.beats * unit - gap));
+    // Every bubble fits its letter ("D#" too), however short the note.
+    const widths = song.notes.map((n) => Math.max(LETTER(n.note).length > 1 ? 76 : 60, n.beats * unit - gap));
     const starts: number[] = [];
     let x = 0;
     for (const w of widths) {
@@ -190,8 +191,9 @@ export class MusicSheet {
       ctx.roundRect(px, 125, w, 100, 22);
       ctx.fill();
       ctx.fillStyle = isCurrent || state === 1 ? '#f4ede0' : '#1d1813';
-      ctx.font = 'bold 54px Georgia, "Noto Serif", serif';
-      ctx.fillText(LETTER(n.note), px + w / 2, 177);
+      const label = LETTER(n.note);
+      ctx.font = `bold ${label.length > 1 ? 44 : 54}px Georgia, "Noto Serif", serif`;
+      ctx.fillText(label, px + w / 2, 177);
     });
     this.texture.needsUpdate = true;
   }

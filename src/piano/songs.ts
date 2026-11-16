@@ -1,6 +1,8 @@
 /**
- * Piano lessons: short public-domain melodies within one keyboard (A3 to C5),
+ * Piano lessons: short public-domain melodies within one keyboard (A3 to E5),
  * right hand, played one note at a time. Beats are quarter notes.
+ * The first song is the one most people want to play the moment they sit at
+ * a piano: the opening of Für Elise.
  */
 
 export interface PianoNote {
@@ -26,6 +28,15 @@ const seq = (spec: string): PianoNote[] =>
     });
 
 export const SONGS: PianoSong[] = [
+  {
+    // Beethoven, 1810 (public domain). The opening phrase with its second
+    // ending, right hand, in its own key and octave.
+    id: 'piano-elise',
+    name: 'Für Elise',
+    teaching: 'Beethoven, 1810. Rock between E and D-sharp, then walk down to A.',
+    bpm: 60,
+    notes: seq('E5:0.5 Ds5:0.5 E5:0.5 Ds5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:2'),
+  },
   {
     id: 'piano-five',
     name: 'Five fingers',
@@ -55,6 +66,17 @@ export const SONGS: PianoSong[] = [
     notes: seq('A4 A4 B4:2 A4 A4 B4:2 A4 B4 C5 B4 A4 B4:0.5 A4:0.5 F4:2 E4 C4 E4 F4 E4 E4:0.5 C4:0.5 B3:2'),
   },
 ];
+
+/** Playable range of the keyboard (MIDI). */
+export const LOW_MIDI = 57; // A3
+export const HIGH_MIDI = 76; // E5
+
+const NOTE_NAMES = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
+
+/** Key id for a MIDI number, e.g. 61 -> 'Cs4'. */
+export function idOf(midi: number): string {
+  return `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
+}
 
 const NOTE_INDEX: Record<string, number> = { C: 0, Cs: 1, D: 2, Ds: 3, E: 4, F: 5, Fs: 6, G: 7, Gs: 8, A: 9, As: 10, B: 11 };
 

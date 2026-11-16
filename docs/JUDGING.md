@@ -35,7 +35,8 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
 - **Ghost-hand apprenticeship on your real desk.** The master's hand writes beside yours in your own room, and you learn by moving with it, not by reading instructions.
 - **Lock-in moment.** Matching the master's timing and path blends the ghost onto your own tracked hand and turns it gold. This only works with tracked hands in passthrough.
 - **Skill-adaptive guidance.** The ghost and the tracing guide fade as your best score rises. This follows the CHI '26 finding that skill-adaptive ghost instructors beat static ones for retention, which also names calligraphy as a target domain.
-- **Two crafts, one idea.** The same apprenticeship works for the piano: the master's hand plays each phrase on a keyboard on your real table, then waits on the next key while you play it.
+- **Two crafts, one idea.** The same apprenticeship works for the piano: the master's hand plays each phrase on a keyboard on your real table, then waits on the next key while you play it. It starts with Für Elise, the piece everyone wants to play.
+- **The master learns from you.** Play your own tune and the master listens, learns it and teaches it back; or add any MIDI file and the master takes its melody.
 - **You travel to where the craft lives.** After the paper lands on your real table, your room dissolves like ink soaking into washi into the place the craft belongs to: Kennin-ji's moss garden veranda for Japanese, a classical garden for Chinese, a white music room with a concert grand for piano. A desk stands exactly where your real table is, so your fingertip still touches something real.
 - **Lane check:** research of 2026 entries and prior art found no hands-only calligraphy tutor. Pen-based (MX Ink) and controller-based apps exist; see the kit's research notes.
 - **Repeat usage:** a daily streak, best score per character, unlockable stars, and the adaptive guide, which makes the next session visibly different.
@@ -121,7 +122,7 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
 ## Special awards fit
 | Award | Fit |
 |---|---|
-| Best Reason to Come Back | Daily streak, best score and stars per character and song, two languages and two crafts to work through, and the master fading as you improve |
+| Best Reason to Come Back | Daily streak, best score and stars per character and song, two languages and two crafts, your own songs (played or from MIDI), and the master fading as you improve |
 | Boldest Original Concept | Learning a physical craft by moving inside a master's hands on your own desk depends on hand tracking, passthrough and real-world scale |
 | Best Accessibility Forward | One-handed play, auto left-handed mode, adjustable tempo, guide modes, full captions, large hit targets |
 | Best First Five Minutes | Writing within about 30 seconds of entry, taught by demonstration rather than text, with gold and the seal stamp as payoff |

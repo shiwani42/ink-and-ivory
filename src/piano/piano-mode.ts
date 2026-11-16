@@ -9,12 +9,13 @@ import {
 } from '@iwsdk/core';
 import { SURFACE_Y } from '../desk/desk.js';
 import { FloatingNotes, keyLabel, MusicSheet } from './notation.js';
+import { songFromRecording } from './custom-song.js';
 import { midiOf, SONGS, type PianoSong } from './songs.js';
 
 /**
  * Piano lessons on the learner's real desk.
  *
- * - The keyboard (A3 to C5, built in Blender) lies where the paper was. Keys
+ * - The keyboard (A3 to E5, built in Blender) lies where the paper was. Keys
  *   are a little larger than a real piano's (30 mm whites) so hand tracking
  *   can tell neighbours apart.
  * - Every fingertip of both hands can play. A key goes down when a fingertip
@@ -61,6 +62,8 @@ export type PianoEvent =
   | { type: 'none' }
   | { type: 'watch-done' }
   | { type: 'note'; correct: boolean; inTime: boolean; index: number }
+  | { type: 'heard'; count: number }
+  | { type: 'learned'; song: PianoSong }
   | { type: 'complete'; score: number; accuracy: number; rhythm: number };
 
 const DOWN_H = 0.012; // fingertip joint height above the desk when "touching"
@@ -75,7 +78,7 @@ export class PianoMode {
   private readonly keyById = new Map<string, Key>();
   song: PianoSong = SONGS[0];
   songIndex = 0;
-  phase: 'idle' | 'watch' | 'play' | 'complete' = 'idle';
+  phase: 'idle' | 'watch' | 'play' | 'listen' | 'complete' = 'idle';
   noteIndex = 0;
   tempo = 0.8;
   /** Where the master's fingertip should be (paper-local). */
@@ -99,6 +102,10 @@ export class PianoMode {
   private readonly floating = new FloatingNotes();
   private played: number[] = [];
   private legs?: Object3D;
+  /** Listening to the learner's own tune: key presses and their times. */
+  private taps: { midi: number; t: number }[] = [];
+  private static readonly LISTEN_END = 3; // seconds of quiet that end a tune
+  private static readonly LISTEN_MAX = 40; // notes
 
   constructor(
     private readonly hooks: {
@@ -191,9 +198,9 @@ export class PianoMode {
     return out.set((k.x0 + k.x1) / 2, k.top - SURFACE_Y, z);
   }
 
-  loadSong(index: number): void {
+  loadSong(index: number, song: PianoSong = SONGS[index]): void {
     this.songIndex = index;
-    this.song = SONGS[index];
+    this.song = song;
     this.phase = 'idle';
     this.noteIndex = 0;
     this.played = this.song.notes.map(() => 0);
@@ -229,6 +236,56 @@ export class PianoMode {
     this.fingerDown.fill(true); // require a lift before the first note
     this.played = this.song.notes.map(() => 0);
     this.drawSheet();
+  }
+
+  /** Listen to the learner play their own tune; the master learns it when they stop. */
+  startListen(index: number): void {
+    this.songIndex = index;
+    this.phase = 'listen';
+    this.taps = [];
+    this.fingerDown.fill(true); // require a lift first
+    for (const k of this.keys) k.glow = 0;
+    // The master's hand rests above the middle of the keyboard, listening.
+    this.keyCentre('E4', this.target);
+  }
+
+  /**
+   * A new key press by any hand, or undefined. Songs are one note at a time,
+   * so per hand only the lowest extended fingertip can play: curled
+   * neighbours that dip near the desk as the hand comes down must not sound
+   * the keys beside it.
+   */
+  private detectPress(tips: FingerTip[], surfaceOffset: number): Key | undefined {
+    this.lowest[0] = this.lowest[1] = -1;
+    for (let f = 0; f < tips.length; f++) {
+      if (!tips[f].valid || !tips[f].extended || !this.keyAt(tips[f].x, tips[f].z)) continue;
+      const hand = f < 5 ? 0 : 1;
+      const best = this.lowest[hand];
+      if (best < 0 || tips[f].y < tips[best].y) this.lowest[hand] = f;
+    }
+    for (let f = 0; f < tips.length; f++) {
+      const tip = tips[f];
+      if (!tip.valid) {
+        this.fingerDown[f] = false;
+        continue;
+      }
+      if (f !== this.lowest[0] && f !== this.lowest[1]) {
+        if (tip.y - surfaceOffset > UP_H) this.fingerDown[f] = false;
+        continue;
+      }
+      const h = tip.y - surfaceOffset;
+      if (this.fingerDown[f]) {
+        if (h > UP_H) this.fingerDown[f] = false;
+        continue;
+      }
+      if (h >= DOWN_H || h < -0.06) continue;
+      const key = this.keyAt(tip.x, tip.z);
+      if (!key) continue;
+      this.fingerDown[f] = true;
+      if (this.clock - key.lastHit < 0.12) continue;
+      return key;
+    }
+    return undefined;
   }
 
   private hit(k: Key, velocity: number, color: Color): void {
@@ -268,36 +325,8 @@ export class PianoMode {
     if (this.phase === 'play') {
       const expected = this.song.notes[this.noteIndex];
       this.keyCentre(expected.note, this.target);
-      // Detect presses. Songs are one note at a time, so per hand only the
-      // lowest fingertip can play: curled neighbours that dip near the desk
-      // as the hand comes down must not sound the keys beside it.
-      this.lowest[0] = this.lowest[1] = -1;
-      for (let f = 0; f < tips.length; f++) {
-        if (!tips[f].valid || !tips[f].extended || !this.keyAt(tips[f].x, tips[f].z)) continue;
-        const hand = f < 5 ? 0 : 1;
-        const best = this.lowest[hand];
-        if (best < 0 || tips[f].y < tips[best].y) this.lowest[hand] = f;
-      }
-      for (let f = 0; f < tips.length; f++) {
-        const tip = tips[f];
-        if (!tip.valid) {
-          this.fingerDown[f] = false;
-          continue;
-        }
-        if (f !== this.lowest[0] && f !== this.lowest[1]) {
-          if (tip.y - surfaceOffset > UP_H) this.fingerDown[f] = false;
-          continue;
-        }
-        const h = tip.y - surfaceOffset;
-        if (this.fingerDown[f]) {
-          if (h > UP_H) this.fingerDown[f] = false;
-          continue;
-        }
-        if (h >= DOWN_H || h < -0.06) continue;
-        const key = this.keyAt(tip.x, tip.z);
-        if (!key) continue;
-        this.fingerDown[f] = true;
-        if (this.clock - key.lastHit < 0.12) continue;
+      const key = this.detectPress(tips, surfaceOffset);
+      if (key) {
         const correct = key.id === expected.note;
         if (correct) {
           const beat = this.beatSeconds;
@@ -328,7 +357,6 @@ export class PianoMode {
           this.wrong++;
           event = { type: 'note', correct: false, inTime: false, index: this.noteIndex };
         }
-        break;
       }
       // The expected key breathes so the eye always finds it.
       const k = this.keyById.get(expected.note)!;
@@ -338,8 +366,27 @@ export class PianoMode {
       }
     }
 
+    if (this.phase === 'listen') {
+      const key = this.detectPress(tips, surfaceOffset);
+      if (key) {
+        this.hit(key, 0.85, GOLD);
+        this.taps.push({ midi: key.midi, t: this.clock });
+        this.keyCentre(key.id, this.target); // the master's hand follows yours
+        event = { type: 'heard', count: this.taps.length };
+      }
+      const last = this.taps[this.taps.length - 1];
+      const done =
+        this.taps.length >= PianoMode.LISTEN_MAX ||
+        (this.taps.length >= 3 && last && this.clock - last.t > PianoMode.LISTEN_END);
+      if (done) {
+        const song = songFromRecording(this.taps);
+        this.phase = 'idle';
+        if (song) event = { type: 'learned', song };
+      }
+    }
+
     // The master's fingertip: hover over the target key, tap on each note.
-    if (this.phase === 'watch' || this.phase === 'play') {
+    if (this.phase === 'watch' || this.phase === 'play' || this.phase === 'listen') {
       const tap = this.tapClock < 0.22 ? Math.sin((this.tapClock / 0.22) * Math.PI) : 0;
       const hover = 0.03 + Math.sin(this.clock * 2.4) * 0.003;
       this.tmp.set(this.target.x, this.target.y + 0.0085 + hover * (1 - tap), this.target.z);

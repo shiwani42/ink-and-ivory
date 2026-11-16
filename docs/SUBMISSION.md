@@ -28,7 +28,7 @@ Crafts of the hand, like calligraphy and the piano, are learned by watching a ma
 - **Feedback.** Each stroke is scored on path, direction, order, speed and sync, with a plain-language correction when it misses.
 - **Completion.** Finish a character and the master's seal is stamped on your page.
 
-- **Piano.** Switch craft and a keyboard lands on your table, then you're in a white music room at a black concert grand. The master's hand plays each phrase, then waits on the next key, which glows. Press with any fingertip and a note floats up, gold if you were on the beat. Four public-domain melodies: Five fingers, Twinkle, Ode to Joy and Sakura.
+- **Piano.** Switch craft and a keyboard lands on your table, then you're in a white music room at a black concert grand. The master's hand plays each phrase, then waits on the next key, which glows. Press with any fingertip and a note floats up, gold if you were on the beat. It starts with Für Elise, then Five fingers, Twinkle, Ode to Joy and Sakura. Or bring your own: play a tune to the master and it learns it and teaches it back, or add a MIDI file on the start page.
 
 Calligraphy comes in Japanese and Chinese, each with its own readings, place and music. There are six characters, ending with 永 ("eternity"), whose five strokes contain the Eight Principles of the brush. Your best scores and daily streak are saved. As your best score rises, the master's hand and the tracing guide fade: the master lets go.
 
@@ -68,6 +68,7 @@ Hands-first design is mostly about feedback and forgiveness. The real desk gives
 - Record real masters' hands. The ghost can already play any 25-joint recording.
 - More scripts: Devanagari, Arabic and Latin copperplate, using the same stroke pipeline.
 - More crafts that fit on a desk: pottery trimming, knots, sign language.
+- Two-handed piano pieces, and the master learning a song from a recording of a real pianist's hands.
 - Lessons on stroke variation (the Eight Principles one by one), a review mode that overlays your best attempt, and an optional real pen with a stylus-tracking fallback.
 - **Target launch:** a public web release in Q1 2027, and a Meta Horizon Store PWA after that.
 
@@ -112,7 +113,8 @@ Use `docs/media/` for now and replace them with headset captures later:
   - Enter, then the paper lands on a real desk.
   - Watch, calibrate, write 一, lock-in, seal.
   - The room dissolves into the place, and back with Scene.
-  - Piano: keyboard placement, every key presses, a resting hand doesn't play, samples sound.
+  - Piano: keyboard placement, every key presses (A3 to E5), a resting hand doesn't play, samples sound.
+  - Für Elise first; "Play your own tune" and a MIDI file from the start page (Quest Browser's file picker).
   - "Next lesson" by poke.
   - Pinch-ray presses.
   - Left hand.

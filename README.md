@@ -4,7 +4,7 @@
 
 Two crafts and three places:
 - **Calligraphy** in **Japanese** (on the veranda of Kennin-ji, Kyoto's oldest Zen temple) or **Chinese** (a classical garden). Each has its own characters, readings and music.
-- **Piano** at a black concert grand in a white music room. Four public-domain melodies, no background music.
+- **Piano** at a black concert grand in a music room, starting with **Für Elise**. Four more public-domain melodies, and **your own song**: play a tune to the master and it learns it, or add any MIDI file on the start page. No background music.
 
 You start in your own room: the paper or keyboard lands on your real table. Then your room **dissolves into the place like ink soaking into washi**. A desk stands exactly where your real table is, so every touch is still real. The menu's **Scene** button dissolves back to your room.
 
@@ -31,7 +31,14 @@ You start in your own room: the paper or keyboard lands on your real table. Then
    - Each stroke is scored on path, direction, order, speed and sync, with a specific hint when it misses ("Other direction", "Stay closer to the master's path", "Slower").
 6. **Seal it.** The master's seal is stamped onto the page and your score and daily streak are saved. Then choose "Next lesson" or "Write it again".
 
-**Piano.** Choose Piano on the menu. A small keyboard (A3 to C5, letters on the white keys) lands on your table and the room dissolves into a white music room with a black concert grand. A music sheet shows the song as note names. The master's hand plays each phrase, then waits on the next key, which glows. Press with any fingertip; a note floats up from each key, gold if you were on the beat. Songs: Five fingers, Twinkle, Ode to Joy, Sakura. Scored on accuracy (65%) and rhythm (35%).
+**Piano.** Choose Piano on the menu. A small keyboard (A3 to E5, letters on the white keys) lands on your table and the room dissolves into a white music room with a black concert grand. A music sheet shows the song as note names. The master's hand plays each phrase, then waits on the next key, which glows. Press with any fingertip; a note floats up from each key, gold if you were on the beat. Songs: **Für Elise** first (the opening phrase, in its own key), then Five fingers, Twinkle, Ode to Joy and Sakura. Scored on accuracy (65%) and rhythm (35%).
+
+**Your own song** (tile 6):
+- **Play your own tune** on the menu: play any keys, one at a time. Stop for three seconds and the master learns it (timing rounded to half beats), plays it back, then teaches it to you like any other song.
+- **Add your own piano song (MIDI)** on the start page, or drag a `.mid` file onto it. The master takes the melody (the top note of each chord, up to 40 notes), moved by octaves to fit the keyboard. Free public-domain MIDI: [Mutopia Project](https://www.mutopiaproject.org).
+- It is saved in the browser, so it is still there next time.
+
+**Languages:** you start in Japanese. After your first character the master invites you to try the other language; the language chips are on the menu at any time.
 
 **Lessons:** 一 one, 二 two, 十 ten, 人 person, 大 big, 永 eternity. 永 is the classic teaching character whose five strokes contain the Eight Principles of the brush.
 
@@ -85,7 +92,7 @@ npm run build     # static site in dist/ (deploy to Vercel; vercel.json is inclu
 | `src/desk/desk.ts` | Writing set: mat, paper texture with practice grid, paperweight, inkstone, seal, hover cursor, virtual table |
 | `src/common/` | One Euro filter, sound (music playlist, compressor bus, synthesized effects, sampled piano), 72 Hz + foveation |
 | `src/env/environment.ts` | 360-degree places, ink-bleed dissolve between your room and the place, "calm" soft-focus treatment |
-| `src/piano/` | Songs, keyboard and fingertip key detection, music sheet, floating notes |
+| `src/piano/` | Songs, keyboard and fingertip key detection, listening to your own tune, MIDI import (`custom-song.ts`), music sheet, floating notes |
 | `src/fx/sparks.ts` | Pooled gold sparks (one draw call, additive) |
 | `tools/blender/` | `build_assets.py` (all models), `preview.py` (still-life render for review) |
 | `src/progress.ts` | localStorage progress: best scores, attempts, streak |

@@ -36,7 +36,8 @@ import { GhostHand, JointBlender } from './ghost/ghost-hand.js';
 import { GhostPoseBuilder, JOINT_COUNT, type Handedness } from './ghost/ghost-pose.js';
 import { Sparks } from './fx/sparks.js';
 import { type FingerTip, PianoMode } from './piano/piano-mode.js';
-import { SONGS } from './piano/songs.js';
+import { CUSTOM_ID, loadCustomSong, saveCustomSong, songFromMidi } from './piano/custom-song.js';
+import { SONGS, type PianoSong } from './piano/songs.js';
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
 import { Environment, SCENES } from './env/environment.js';
 import { type Language, LANGUAGES, LESSON_SETS, LESSONS, type Lesson } from './lessons/lessons.js';
@@ -148,6 +149,9 @@ export class CalligraphySystem extends createSystem({
   private calX = SEAL_X; // calibration target (moves beside the keyboard in piano mode)
   private calZ = SEAL_Z;
   private pianoHintAt = -10;
+  /** The learner's own song (played to the master, or from a MIDI file). */
+  private customSong: PianoSong | undefined = loadCustomSong();
+  private midiInput?: HTMLInputElement;
   private status?: UIKitMLAsset; // body-locked card shown while finding the desk
   private statusEntity?: Entity;
   private textScale = 1;
@@ -424,6 +428,21 @@ export class CalligraphySystem extends createSystem({
       this.applyScene();
     });
     on(this.menu, 'craft-piano', () => this.setCraft('piano'));
+    on(this.menu, 'btn-record', () => this.startListening());
+    on(this.welcome, 'midi-button', () => this.pickMidi());
+    const onDragOver = (e: DragEvent) => e.preventDefault();
+    const onDrop = (e: DragEvent) => {
+      const file = e.dataTransfer?.files?.[0];
+      if (!file || !/\.midi?$/i.test(file.name)) return;
+      e.preventDefault();
+      void this.addMidi(file);
+    };
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('drop', onDrop);
+    this.cleanupFuncs.push(() => {
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('drop', onDrop);
+    });
     on(this.menu, 'btn-music', () => {
       if (this.craft === 'piano') this.sfx.musicOn = !this.sfx.musicOn; // stays silent at the piano
       else this.sfx.setMusicOn(!this.sfx.musicOn);
@@ -436,6 +455,40 @@ export class CalligraphySystem extends createSystem({
 
     this.refreshMenu();
     this.applyPanelVisibility();
+  }
+
+  /** Start page: choose a MIDI file to learn as "your song" (also accepts drag and drop). */
+  private pickMidi(): void {
+    if (!this.midiInput) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.mid,.midi,audio/midi,audio/x-midi';
+      input.style.display = 'none';
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (file) void this.addMidi(file);
+        input.value = '';
+      });
+      document.body.appendChild(input);
+      this.midiInput = input;
+      this.cleanupFuncs.push(() => input.remove());
+    }
+    this.midiInput.click();
+  }
+
+  private async addMidi(file: File): Promise<void> {
+    const result = songFromMidi(await file.arrayBuffer(), file.name);
+    if (typeof result === 'string') {
+      this.text(this.welcome, 'midi-note', result);
+      return;
+    }
+    this.customSong = result;
+    saveCustomSong(result);
+    delete this.progress.lessons[CUSTOM_ID];
+    saveProgress(this.progress);
+    this.text(this.welcome, 'midi-note', `Added "${result.name}" (${result.notes.length} notes). In the headset: Piano, song ${SONGS.length + 1}.`);
+    this.log(`midi ${result.name} ${result.notes.length} notes bpm ${result.bpm}`);
+    this.refreshMenu();
   }
 
   private trigger(id: string, fn: () => void): void {
@@ -596,7 +649,7 @@ export class CalligraphySystem extends createSystem({
     if (!this.menu) return;
     const piano = this.craft === 'piano';
     const items = piano
-      ? SONGS.map((s) => ({ id: s.id, name: s.name }))
+      ? this.songs().map((s) => ({ id: s.id, name: s.name }))
       : this.lessons().map((l) => ({ id: l.id, name: cap(l.meaning) }));
     for (let i = 0; i < 6; i++) {
       const tile = this.menu.getElementById(`lesson-${i}`);
@@ -612,6 +665,8 @@ export class CalligraphySystem extends createSystem({
     }
     this.text(this.menu, 'menu-title', piano ? 'Piano songs' : `${LANGUAGES[this.language].name} calligraphy`);
     this.menu.getElementById('languages')?.setProperties({ display: piano ? 'none' : 'flex' });
+    this.menu.getElementById('piano-row')?.setProperties({ display: piano ? 'flex' : 'none' });
+    this.text(this.menu, 'btn-record-label', this.customSong ? 'Play a new tune' : 'Play your own tune');
     // Selected chips get a vermilion border and label (hover cannot override a border).
     const select = (id: string, on: boolean) => {
       this.menu?.getElementById(id)?.setProperties({ borderWidth: on ? 3 : 0, borderColor: '#a8231a' });
@@ -1480,7 +1535,9 @@ export class CalligraphySystem extends createSystem({
       ? `New best (was ${prevBest}). The master's guide will fade a little more next time.`
       : isLast
         ? 'You have written all eight principles of the brush in one character.'
-        : `The seal is yours. "Next lesson" is on the menu to your ${this.ghost.handedness === 'left' ? 'right' : 'left'}.`;
+        : this.lessonIndex === 0 && record.attempts === 1
+          ? `The seal is yours. Try it in ${this.language === 'japanese' ? 'Chinese' : 'Japanese'} too: choose your language on the menu, or press "Next lesson".`
+          : `The seal is yours. "Next lesson" is on the menu to your ${this.ghost.handedness === 'left' ? 'right' : 'left'}.`;
     this.setCaption(
       this.lessonEyebrow(),
       `${cap(this.lesson.meaning)} complete  ${stars}`,
@@ -1534,11 +1591,11 @@ export class CalligraphySystem extends createSystem({
   }
 
   private lessonCount(): number {
-    return this.craft === 'piano' ? SONGS.length : this.lessons().length;
+    return this.craft === 'piano' ? SONGS.length + 1 : this.lessons().length;
   }
 
   private lessonIds(): string[] {
-    return this.craft === 'piano' ? SONGS.map((s) => s.id) : this.lessons().map((l) => l.id);
+    return this.craft === 'piano' ? this.songs().map((s) => s.id) : this.lessons().map((l) => l.id);
   }
 
   private firstUnpassed(): number {
@@ -1571,13 +1628,42 @@ export class CalligraphySystem extends createSystem({
   }
 
   private pianoEyebrow(): string {
-    return `PIANO  -  SONG ${this.lessonIndex + 1} OF ${SONGS.length}  -  ${this.piano.song.name.toUpperCase()}`;
+    return `PIANO  -  SONG ${this.lessonIndex + 1} OF ${SONGS.length + 1}  -  ${this.piano.song.name.toUpperCase()}`;
+  }
+
+  /** The built-in songs, then the learner's own (or an empty "Your tune" slot). */
+  private songs(): PianoSong[] {
+    return [
+      ...SONGS,
+      this.customSong ?? { id: CUSTOM_ID, name: 'Your tune', teaching: '', bpm: 60, notes: [] },
+    ];
+  }
+
+  /** The master listens while the learner plays their own tune. */
+  private startListening(): void {
+    if (this.craft !== 'piano' || this.mode === 'demo2d' || this.mode === 'placing') return;
+    this.mode = 'piano';
+    this.lessonIndex = SONGS.length;
+    this.showCaptionActions(false);
+    this.piano.startListen(SONGS.length);
+    this.setCaption(
+      'PIANO  -  YOUR TUNE',
+      'Play me your tune',
+      'Play any keys, one at a time: a melody you know, or a new one. Stop for three seconds when you are done and the master will learn it.',
+    );
+    this.refreshMenu();
+    this.log('listen');
   }
 
   private startSong(index: number, watchFirst: boolean): void {
+    const song = this.songs()[index];
+    if (!song.notes.length) {
+      this.startListening();
+      return;
+    }
     this.lessonIndex = index;
     this.piano.tempo = Math.max(0.5, Math.min(1, this.tempo + 0.2));
-    this.piano.loadSong(index);
+    this.piano.loadSong(index, song);
     this.showCaptionActions(false);
     // Clear calligraphy ink so a later switch back starts clean.
     for (const r of this.userRibbons) this.fadeOut(r, 0.3);
@@ -1639,6 +1725,23 @@ export class CalligraphySystem extends createSystem({
         this.pianoHintAt = this.clock;
         this.setCaption(this.pianoEyebrow(), 'Not that key', 'Look for the key that glows red-orange, under the master\'s finger.');
       }
+    } else if (ev.type === 'heard') {
+      if (ev.count === 1 || ev.count % 4 === 0) {
+        this.setCaption('PIANO  -  YOUR TUNE', `Listening: ${ev.count} note${ev.count === 1 ? '' : 's'}`, 'Keep going. Stop for three seconds when your tune is done.');
+      }
+    } else if (ev.type === 'learned') {
+      this.customSong = ev.song;
+      saveCustomSong(ev.song);
+      delete this.progress.lessons[CUSTOM_ID]; // a new tune starts a new record
+      saveProgress(this.progress);
+      this.sfx.chime(0);
+      this.log(`learned ${ev.song.notes.length} notes bpm ${ev.song.bpm}`);
+      this.startSong(SONGS.length, true);
+      this.setCaption(
+        'PIANO  -  YOUR TUNE',
+        'The master learned your tune',
+        `${ev.song.notes.length} notes. Listen to the master play it back, then play it together.`,
+      );
     } else if (ev.type === 'complete') {
       this.completeSong(ev.score, ev.accuracy, ev.rhythm);
     }
@@ -1656,7 +1759,7 @@ export class CalligraphySystem extends createSystem({
     saveProgress(this.progress);
     this.sfx.fanfare();
     for (const k of this.piano.keys) this.sparks.burst((k.x0 + k.x1) / 2, k.top - SURFACE_Y, (k.z0 + k.z1) / 2, 2, 0.14);
-    const isLast = this.lessonIndex === SONGS.length - 1;
+    const isLast = this.lessonIndex === this.lessonCount() - 1;
     const stars = '*'.repeat(this.stars(score)) || '-';
     this.setCaption(
       this.pianoEyebrow(),
