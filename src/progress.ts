@@ -43,6 +43,15 @@ export function loadProgress(): Progress {
   return { lessons: {}, streak: { lastDay: '', days: 0 }, strokes: 0 };
 }
 
+/** Forget everything (the "fresh" shortcut): the next visit is a first-time one. */
+export function clearProgress(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // storage unavailable: nothing to clear
+  }
+}
+
 export function saveProgress(p: Progress): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(p));

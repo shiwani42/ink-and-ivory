@@ -27,6 +27,14 @@ export function loadCustomSong(): PianoSong | undefined {
   }
 }
 
+export function clearCustomSong(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // nothing to clear
+  }
+}
+
 export function saveCustomSong(song: PianoSong): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(song));

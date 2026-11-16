@@ -36,7 +36,8 @@ import { GhostHand, JointBlender } from './ghost/ghost-hand.js';
 import { GhostPoseBuilder, JOINT_COUNT, type Handedness } from './ghost/ghost-pose.js';
 import { Sparks } from './fx/sparks.js';
 import { type FingerTip, PianoMode } from './piano/piano-mode.js';
-import { CUSTOM_ID, loadCustomSong, saveCustomSong, songFromMidi } from './piano/custom-song.js';
+import { clearCustomSong, CUSTOM_ID, loadCustomSong, saveCustomSong, songFromMidi } from './piano/custom-song.js';
+import { parsePreset, type Preset } from './presets.js';
 import { SONGS, type PianoSong } from './piano/songs.js';
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
 import { Environment, SCENES } from './env/environment.js';
@@ -44,6 +45,7 @@ import { type Language, LANGUAGES, LESSON_SETS, LESSONS, type Lesson } from './l
 import { StrokePath } from './lessons/master-path.js';
 import { PASS_SCORE, scoreStroke, type StrokeScore } from './lessons/scoring.js';
 import {
+  clearProgress,
   lessonProgress,
   loadProgress,
   markPracticeDay,
@@ -107,6 +109,22 @@ const BREAK_AFTER_S = 25 * 60;
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 const smooth = (t: number): number => t * t * (3 - 2 * t);
+
+/**
+ * The IWSDK emulator's managed browser drops URL queries, so in dev builds a
+ * shortcut can also come from sessionStorage ('hoam-preset', one shot; set by
+ * tools/goto.mjs). On a headset, use the URL.
+ */
+function devPresetQuery(): string {
+  if (!import.meta.env.DEV) return '';
+  try {
+    const q = sessionStorage.getItem('hoam-preset') ?? '';
+    sessionStorage.removeItem('hoam-preset');
+    return q;
+  } catch {
+    return '';
+  }
+}
 
 export class CalligraphySystem extends createSystem({
   planes: { required: [XRPlane] },
@@ -172,6 +190,8 @@ export class CalligraphySystem extends createSystem({
   private guideMode: GuideMode = 'adaptive';
   private calibrated = false;
   private surfaceOffset = 0;
+  /** A shortcut from the URL (?state=...), applied once after placement. */
+  private preset: Preset | undefined = parsePreset(location.search || devPresetQuery());
 
   // timing / choreography
   private clock = 0;
@@ -284,6 +304,13 @@ export class CalligraphySystem extends createSystem({
       };
       window.addEventListener('keydown', onKey);
       this.cleanupFuncs.push(() => window.removeEventListener('keydown', onKey));
+    }
+    if (this.preset?.state === 'fresh') {
+      clearProgress();
+      clearCustomSong();
+      this.customSong = undefined;
+      this.preset = undefined;
+      this.log('preset fresh: progress cleared');
     }
     this.progress = loadProgress();
     this.sfx.tracks = SCENES.japan.tracks.map((f) => `${import.meta.env.BASE_URL}${f}`);
@@ -769,12 +796,13 @@ export class CalligraphySystem extends createSystem({
     if (!this.sessionStart) this.sessionStart = this.clock;
     this.layoutPanels(); // face the writer's actual head, seated or standing
     this.applyScene();
-    this.startLesson(this.lessonIndex, true);
     // On a virtual desk, Quest can be asked to scan the room so a real table
     // shows up. Only on the learner's press: an automatic scan can wipe
     // saved anchors (IWSDK 1.1.0 removed its own auto-call for that reason).
     const canScan = !realDesk && this.canScanRoom();
     this.text(this.menu, 'btn-place-label', canScan ? 'Scan my room' : 'Move paper here');
+    if (this.applyPreset()) return;
+    this.startLesson(this.lessonIndex, true);
     if (!realDesk) {
       this.setCaption(
         this.lessonEyebrow(),
@@ -784,6 +812,34 @@ export class CalligraphySystem extends createSystem({
           : 'No table found, so the paper rests on a virtual desk. At a real table, press "Move paper here" on the menu.',
       );
     }
+  }
+
+  /** Jump to the moment named in the URL (see presets.ts). Returns false if there is none. */
+  private applyPreset(): boolean {
+    const p = this.preset;
+    if (!p) return false;
+    this.preset = undefined; // once only; "Move paper here" later behaves normally
+    if (p.lang) this.language = p.lang;
+    if (p.scene) {
+      this.immersive = p.scene === 'place';
+      this.text(this.menu, 'btn-scene-label', this.immersive ? 'Scene: on' : 'Scene: my room');
+    }
+    if (p.state === 'practice') {
+      // Skip the seal: use this desk's last calibration (or none).
+      this.surfaceOffset = this.progress.calibratedOffset ?? 0;
+      this.calibrated = true;
+    }
+    this.mode = 'watch'; // placement is over (setCraft ignores requests while placing)
+    if (p.craft === 'piano' && this.craft !== 'piano') this.setCraft('piano');
+    this.applyScene();
+    this.log(`preset ${p.state} craft ${this.craft} lesson ${(p.lesson ?? this.lessonIndex) + 1} lang ${this.language} scene ${this.immersive ? 'place' : 'room'}`);
+    if (p.state === 'listen') {
+      this.startListening();
+      return true;
+    }
+    const index = Math.min(this.lessonCount() - 1, Math.max(0, p.lesson ?? this.lessonIndex));
+    this.startLesson(index, p.state === 'watch');
+    return true;
   }
 
   private canScanRoom(): boolean {

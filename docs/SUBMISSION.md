@@ -98,6 +98,18 @@ Record on the headset (Quest's built-in recorder, or MQDH casting on Windows) at
 | 2:25 to 2:45 | Progression and access: stars and streak, the ghost fainter on a mastered character, left hand, slow tempo, captions, Chinese | "As you improve, the master lets go." |
 | 2:45 to 2:58 | Title card: Hands of a Master. Quest 3 / 3S, open in your browser | (URL) |
 
+**Shortcuts for filming** (add to the URL on the headset; each one applies after the paper or keyboard lands):
+
+| URL ending | Jumps to |
+|---|---|
+| `?state=fresh` | A first-time visitor (clears saved progress): film the onboarding |
+| `?state=practice&lesson=6` | Writing 永 straight away (calibration skipped) |
+| `?state=watch&lesson=6&scene=room` | The master writing 永 in your own room (no dissolve) |
+| `?state=watch&lang=chinese` | Chinese calligraphy |
+| `?state=watch&craft=piano&lesson=1` | The master plays Happy Birthday |
+| `?state=practice&craft=piano&lesson=7` | Play Für Elise now |
+| `?state=listen` | "Play your own tune" |
+
 The dissolve starts right after placement. For the passthrough shots (0:00 to 1:05), press **Scene** on the menu to stay in your room, then press it again to film the dissolve.
 
 ## Screenshots to upload

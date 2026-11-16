@@ -62,6 +62,9 @@ The emulated room reports 15 planes (floor, ceiling, walls, two tables, couches,
 | Fingertip poke on UIKit buttons did not click (emulator touch pointer) | Custom fingertip press test against each button's rectangle, sharing one debounced trigger with ray clicks |
 | Ghost hand read as end-on from the writer's eyes | Re-angled like a right-handed writer's hand, stronger body fill, fingertip glow |
 
+### Shortcuts (`?state=`)
+`src/presets.ts` jumps straight to a moment (see the table in SUBMISSION.md). The parser has a unit test (8 cases, including junk values that must be ignored). In the emulator the managed browser drops URL queries, so `tools/goto.mjs` passes the shortcut through sessionStorage (dev builds only); this needs `npx iwsdk dev restart --headed --open --allow-browser-automation`. Verified: piano practice of song 7, listen, Chinese 永 in your room, calligraphy practice of lesson 2.
+
 ## 2. Performance
 | Measurement | Value |
 |---|---|
