@@ -1,0 +1,33 @@
+# Judging, documentation and submission (Meta VR Start style)
+
+## Constraints to design for
+Hands only, seated, purposeful passthrough, 72 fps target with 60 fps as the hard floor, original or properly licensed assets, no identifiable people or brands.
+
+## Judging map (`docs/JUDGING.md`, written in Phase 1, updated as you go)
+Innovation, Experience Design, Technical, Polish (25% each), plus the special award you are aiming for. For each: the evidence (feature, test, screenshot, measurement) and the gaps, marked honestly.
+
+## Docs per project (updated in the same commit as the feature)
+- `README.md`: pitch, how to play or use, run, test, architecture or code map, decisions, credits.
+- `docs/TESTING.md`: harness, latest results, bugs found and fixed, headset checklist, limits.
+- `docs/SUBMISSION.md`: paste-ready Devpost text, a shot list under 3 minutes, gallery images, the pre-submit checklist.
+- `CREDITS.md` for every asset (assets-and-licensing.md), and credits in the app.
+
+## Trailer
+- Recorded on a Quest in standalone mode; real gameplay only; no AI-generated video.
+- **Hook in the first 20 s** (the sooner the better), the awe moment early, the real room visible so passthrough reads as purposeful.
+- Use `?state=` presets to film each moment without replaying the journey.
+
+## Deploy
+- Deploying creates a public URL: **ask first**, and make no redeploys after the deadline.
+- `npx vercel --prod`; keep `Permissions-Policy: xr-spatial-tracking=*`.
+- Test the production alias logged out on a headset, and give judges a **second tested mirror URL**.
+- Grep `dist/` to confirm dev logs, keys and handles are stripped.
+
+## Time plan
+Reserve the last ~30 hours for headset QA, a 15-minute playtest with someone new to XR, deploy, trailer and forms. Feature work stops there.
+
+## Write-up
+Name known issues and what's next; link any SDK fork or patch you made (it reads as engineering depth); disclose analytics (prefer none); list the asset sources and their licences.
+
+## Pre-submit self-check
+Score yourself on the four criteria; walk the headset-only list in testing.md; confirm every credit against its source page; confirm both URLs work logged out.
