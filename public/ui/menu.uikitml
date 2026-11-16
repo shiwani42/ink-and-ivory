@@ -64,6 +64,9 @@
     <div id="lesson-3" class="tile"><div class="tile-num">4</div><div id="lesson-3-label" class="tile-name">Person</div><div id="lesson-3-best" class="tile-best"> </div></div>
     <div id="lesson-4" class="tile"><div class="tile-num">5</div><div id="lesson-4-label" class="tile-name">Big</div><div id="lesson-4-best" class="tile-best"> </div></div>
     <div id="lesson-5" class="tile"><div class="tile-num">6</div><div id="lesson-5-label" class="tile-name">Eternity</div><div id="lesson-5-best" class="tile-best"> </div></div>
+    <div id="lesson-6" class="tile" style="display: none"><div class="tile-num">7</div><div id="lesson-6-label" class="tile-name"> </div><div id="lesson-6-best" class="tile-best"> </div></div>
+    <div id="lesson-7" class="tile" style="display: none"><div class="tile-num">8</div><div id="lesson-7-label" class="tile-name"> </div><div id="lesson-7-best" class="tile-best"> </div></div>
+    <div id="lesson-8" class="tile" style="display: none"><div class="tile-num">9</div><div id="lesson-8-label" class="tile-name"> </div><div id="lesson-8-best" class="tile-best"> </div></div>
   </div>
   <div class="divider"></div>
   <div class="row">

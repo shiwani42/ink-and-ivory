@@ -28,7 +28,7 @@ Crafts of the hand, like calligraphy and the piano, are learned by watching a ma
 - **Feedback.** Each stroke is scored on path, direction, order, speed and sync, with a plain-language correction when it misses.
 - **Completion.** Finish a character and the master's seal is stamped on your page.
 
-- **Piano.** Switch craft and a keyboard lands on your table, then you're in a white music room at a black concert grand. The master's hand plays each phrase, then waits on the next key, which glows. Press with any fingertip and a note floats up, gold if you were on the beat. It starts with Für Elise, then Five fingers, Twinkle, Ode to Joy and Sakura. Or bring your own: play a tune to the master and it learns it and teaches it back, or add a MIDI file on the start page.
+- **Piano.** Switch craft and a keyboard lands on your table, then you're in a white music room at a black concert grand. The master's hand plays each phrase, then waits on the next key, which glows. Press with any fingertip and a note floats up, gold if you were on the beat. It starts with Happy Birthday, the song everyone knows, then teaches the keyboard itself (white keys, sharps and flats) before Twinkle, Ode to Joy, Für Elise and Sakura. Or bring your own: play a tune to the master and it learns it and teaches it back, or add a MIDI file on the start page.
 
 Calligraphy comes in Japanese and Chinese, each with its own readings, place and music. There are six characters, ending with 永 ("eternity"), whose five strokes contain the Eight Principles of the brush. Your best scores and daily streak are saved. As your best score rises, the master's hand and the tracing guide fade: the master lets go.
 
@@ -114,7 +114,7 @@ Use `docs/media/` for now and replace them with headset captures later:
   - Watch, calibrate, write 一, lock-in, seal.
   - The room dissolves into the place, and back with Scene.
   - Piano: keyboard placement, every key presses (A3 to E5), a resting hand doesn't play, samples sound.
-  - Für Elise first; "Play your own tune" and a MIDI file from the start page (Quest Browser's file picker).
+  - Happy Birthday first, then the white keys, sharps and flats lessons; "Play your own tune" and a MIDI file from the start page (Quest Browser's file picker).
   - "Next lesson" by poke.
   - Pinch-ray presses.
   - Left hand.

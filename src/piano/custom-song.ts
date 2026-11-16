@@ -1,7 +1,7 @@
 import { HIGH_MIDI, idOf, LOW_MIDI, type PianoNote, type PianoSong } from './songs.js';
 
 /**
- * The learner's own song, in the sixth slot of the song list. It comes from
+ * The learner's own song, in the last slot of the piano list. It comes from
  * one of two places:
  * - **Play your own tune:** the learner plays freely on the keyboard; when
  *   they stop, the master "learns" it (timing quantised to half beats) and

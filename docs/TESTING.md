@@ -22,7 +22,7 @@ python3 tools/e2e.py --lessons 6 --negative --piano 4 --jitter 3   # everything,
    - a stroke **4.5 cm off** the path: "Stay closer to the master's path";
    - a **rushed** stroke: passes, with "Slower" advice.
 7. **Menu.** "Next lesson" and "Write it again" are pressed with a **fingertip poke** by the other hand.
-8. **Piano** (with `--piano N`; up to 5 songs, Für Elise first). Pokes the Piano craft chip, waits for the keyboard layout and the master's demonstration, then plays N songs note by note with the writing hand's index fingertip, in time with the song, from the key positions the app logs (`piano-layout {json}`). Each song must pass.
+8. **Piano** (with `--piano N`; up to 8 lessons and songs, Happy Birthday first). Pokes the Piano craft chip, waits for the keyboard layout and the master's demonstration, then plays N songs note by note with the writing hand's index fingertip, in time with the song, from the key positions the app logs (`piano-layout {json}`). Each song must pass.
    **Your tune** (with `--compose`): presses "Play your own tune", plays C E G E D C, waits for the master to learn it, checks the learned notes match, then plays it back with the master.
 9. **Screenshots** go to `artifacts/e2e-*.png`.
 
@@ -31,6 +31,7 @@ The app writes `[hoam] ...` lines to the console **in dev builds only**. The dri
 ### Latest results (17 Nov 2026, Linux, Chromium via IWSDK CLI)
 | Run | Result |
 |---|---|
+| **Piano ladder:** 1 lesson, `--piano 8 --compose`, 3 mm jitter | **PASS**. Happy Birthday 83, white keys 93, sharps 91, flats 78, Twinkle 92, Ode to Joy 93, Für Elise 89, Sakura 85; your tune learned exactly, 79. Every key right in every song; the lower scores are rhythm (the emulated hand travels slower to the black keys) |
 | **Everything + new songs:** 6 lessons, `--negative`, 5 songs, `--compose`, 3 mm jitter (keyboard A3 to E5) | **PASS**. Lessons 87, 88, 90, 91, 90, 92. Songs: Für Elise 89, Five fingers 96, Twinkle 92, Ode to Joy 93, Sakura 85. Your tune: learned C E G E D C exactly, played back 79. Negative 3 of 3 |
 | **Everything:** 6 lessons, `--negative`, 4 piano songs, 3 mm jitter, places and dissolve on (final code) | **PASS**. Lessons: one 88, two 88, ten 90, person 86, big 91, eternity 93. Songs: Five fingers 96, Twinkle 92, Ode to Joy 93, Sakura 85. Negative cases 3 of 3 |
 | 1 lesson + 2 songs after merging the grand piano | PASS (88; 96, 92) |

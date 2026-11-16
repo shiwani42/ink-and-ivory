@@ -9,7 +9,7 @@ import {
   Sprite,
   SpriteMaterial,
 } from '@iwsdk/core';
-import type { PianoSong } from './songs.js';
+import { noteName, type PianoSong } from './songs.js';
 
 /**
  * What the learner sees of the music itself:
@@ -169,7 +169,7 @@ export class MusicSheet {
     const unit = 70; // px per beat
     const gap = 10;
     // Every bubble fits its letter ("D#" too), however short the note.
-    const widths = song.notes.map((n) => Math.max(LETTER(n.note).length > 1 ? 76 : 60, n.beats * unit - gap));
+    const widths = song.notes.map((n) => Math.max(noteName(n.note).length > 1 ? 76 : 60, n.beats * unit - gap));
     const starts: number[] = [];
     let x = 0;
     for (const w of widths) {
@@ -191,7 +191,7 @@ export class MusicSheet {
       ctx.roundRect(px, 125, w, 100, 22);
       ctx.fill();
       ctx.fillStyle = isCurrent || state === 1 ? '#f4ede0' : '#1d1813';
-      const label = LETTER(n.note);
+      const label = noteName(n.note, song.flats);
       ctx.font = `bold ${label.length > 1 ? 44 : 54}px Georgia, "Noto Serif", serif`;
       ctx.fillText(label, px + w / 2, 177);
     });

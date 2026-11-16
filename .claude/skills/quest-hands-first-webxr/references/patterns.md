@@ -153,3 +153,15 @@ if (import.meta.env.DEV) console.info(`[tag] layout ${JSON.stringify({ targets: 
 - Hysteresis: down when the tip is 12 mm above the key top, up at 19 mm; 120 ms debounce per key.
 - Sampled notes: Salamander Grand Piano (CC-BY 3.0) MP3s, one sample every minor third, pitch-shifted with `playbackRate = 2^(semitones/12)`.
 - Score accuracy and rhythm separately (we used 65/35); call a note "on the beat" within a third of a beat and show it in gold.
+
+## 15. The user's own content ("teach the master", file import)
+- **Perform it:** in a `listen` phase, reuse the same press detector as play. Push `{midi, t}` per press and let the master's hand follow the last key. End after 3 s of quiet with 3 or more notes, or at 40 notes. Convert: beat = median gap (clamped 0.3 to 1.2 s), each note's beats = gap / beat rounded to 0.5 (0.5 to 3), last note 2 beats, bpm = 60 / beat. Then play it back in watch mode and teach it like any song. Reference: `hands-of-a-master/src/piano/custom-song.ts` (`songFromRecording`).
+- **Import a MIDI file** on the 2D start page: a UIKit button calls a hidden `<input type="file" accept=".mid,.midi">` (the panel click counts as the user gesture), plus `dragover`/`drop` on `window`. Remove both in `cleanupFuncs`. Parser (`songFromMidi`, about 100 lines, no dependency):
+  - SMF format 0/1, ticks per quarter (reject SMPTE);
+  - running status, first tempo meta;
+  - skip channel 10 drums and note-on with velocity 0;
+  - skyline (highest note per onset within division/16 ticks);
+  - fit into range by whole octaves, then fold;
+  - cap at 40 notes; durations in quarter beats rounded to 0.25.
+- **Storage:** localStorage under a versioned key, wrapped in try/catch. Reset that slot's score whenever its content changes. Show its name on the last tile.
+- **Unit test** the parser with a MIDI written by a few lines of Python (header, a tempo track, chords, a drum note, running status), bundled with esbuild and run in node.

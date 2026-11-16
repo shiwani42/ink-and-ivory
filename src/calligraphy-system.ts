@@ -408,9 +408,9 @@ export class CalligraphySystem extends createSystem({
       this.text(this.welcome, 'xr-note', 'Open this page in Meta Quest Browser to start at your desk.');
     }
     on(this.welcome, 'xr-button', () => this.world.launchXR());
-    LESSONS.forEach((_, i) =>
+    Array.from({ length: 9 }, (_, i) =>
       on(this.menu, `lesson-${i}`, () => {
-        if (i < this.lessonCount()) this.startLesson(i, true); // tiles 5-6 are hidden for piano
+        if (i < this.lessonCount()) this.startLesson(i, true); // tiles 7-9 are piano only
       }),
     );
     on(this.menu, 'btn-slower', () => this.setTempo(this.tempo - 0.1));
@@ -651,7 +651,7 @@ export class CalligraphySystem extends createSystem({
     const items = piano
       ? this.songs().map((s) => ({ id: s.id, name: s.name }))
       : this.lessons().map((l) => ({ id: l.id, name: cap(l.meaning) }));
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 9; i++) {
       const tile = this.menu.getElementById(`lesson-${i}`);
       const item = items[i];
       tile?.setProperties({ display: item ? 'flex' : 'none' });
@@ -663,7 +663,7 @@ export class CalligraphySystem extends createSystem({
       // The current lesson's tile is highlighted in warm gold.
       tile?.setProperties({ backgroundColor: i === this.lessonIndex ? '#e6cf9f' : '#ebe1cf' });
     }
-    this.text(this.menu, 'menu-title', piano ? 'Piano songs' : `${LANGUAGES[this.language].name} calligraphy`);
+    this.text(this.menu, 'menu-title', piano ? 'Piano lessons' : `${LANGUAGES[this.language].name} calligraphy`);
     this.menu.getElementById('languages')?.setProperties({ display: piano ? 'none' : 'flex' });
     this.menu.getElementById('piano-row')?.setProperties({ display: piano ? 'flex' : 'none' });
     this.text(this.menu, 'btn-record-label', this.customSong ? 'Play a new tune' : 'Play your own tune');
@@ -1628,7 +1628,7 @@ export class CalligraphySystem extends createSystem({
   }
 
   private pianoEyebrow(): string {
-    return `PIANO  -  SONG ${this.lessonIndex + 1} OF ${SONGS.length + 1}  -  ${this.piano.song.name.toUpperCase()}`;
+    return `PIANO  -  ${this.lessonIndex + 1} OF ${SONGS.length + 1}  -  ${this.piano.song.name.toUpperCase()}`;
   }
 
   /** The built-in songs, then the learner's own (or an empty "Your tune" slot). */
