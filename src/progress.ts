@@ -1,0 +1,64 @@
+/**
+ * Practice progress kept in localStorage (per browser, per device).
+ * Every access is wrapped: storage can be blocked or empty (private mode),
+ * and the app must still run.
+ */
+
+export interface LessonProgress {
+  best: number; // best character score 0..100
+  attempts: number;
+  passed: boolean;
+}
+
+export interface Progress {
+  lessons: Record<string, LessonProgress>;
+  streak: { lastDay: string; days: number };
+  strokes: number;
+  calibratedOffset?: number;
+}
+
+const KEY = 'hands-of-a-master.v1';
+
+const today = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
+const yesterday = (): string => {
+  const d = new Date(Date.now() - 86_400_000);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
+export function loadProgress(): Progress {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Progress;
+      if (parsed && parsed.lessons && parsed.streak) return parsed;
+    }
+  } catch {
+    // fall through to a fresh record
+  }
+  return { lessons: {}, streak: { lastDay: '', days: 0 }, strokes: 0 };
+}
+
+export function saveProgress(p: Progress): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(p));
+  } catch {
+    // storage unavailable: progress lasts for this session only
+  }
+}
+
+/** Count today as a practice day. Returns the current streak length. */
+export function markPracticeDay(p: Progress): number {
+  const t = today();
+  if (p.streak.lastDay === t) return p.streak.days;
+  p.streak.days = p.streak.lastDay === yesterday() ? p.streak.days + 1 : 1;
+  p.streak.lastDay = t;
+  return p.streak.days;
+}
+
+export function lessonProgress(p: Progress, id: string): LessonProgress {
+  return (p.lessons[id] ??= { best: 0, attempts: 0, passed: false });
+}

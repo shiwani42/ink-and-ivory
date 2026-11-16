@@ -1,0 +1,21 @@
+# Keep LF everywhere so the repo behaves the same on Linux and Windows
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ktx2 binary
+*.glb binary
+*.gltf text
+*.hdr binary
+*.exr binary
+*.mp3 binary
+*.ogg binary
+*.wav binary
+*.mp4 binary
+*.apk binary
+*.wasm binary

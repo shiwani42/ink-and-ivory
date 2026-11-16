@@ -1,0 +1,142 @@
+/**
+ * Small synthesized sound set (Web Audio, no audio files to license or load).
+ * Hand tracking has no haptics, so every interaction gets an audible answer:
+ * a paper "scratch" while ink flows, a bell for success, a wood block for UI.
+ *
+ * The AudioContext is created lazily and resumed on the first user gesture
+ * (entering AR is one), which Quest Browser requires.
+ */
+
+const PENTATONIC = [1, 9 / 8, 5 / 4, 3 / 2, 5 / 3, 2, 9 / 4, 5 / 2];
+
+export class Sfx {
+  private ctx?: AudioContext;
+  private master?: GainNode;
+  private scratchGain?: GainNode;
+  private scratchFilter?: BiquadFilterNode;
+  private noise?: AudioBuffer;
+  muted = false;
+
+  /** Call from a user-gesture handler or once an XR session has started. */
+  unlock(): void {
+    try {
+      if (!this.ctx) {
+        const Ctor =
+          window.AudioContext ??
+          (window as unknown as { webkitAudioContext?: typeof AudioContext })
+            .webkitAudioContext;
+        if (!Ctor) return;
+        this.ctx = new Ctor();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = 0.7;
+        this.master.connect(this.ctx.destination);
+        this.noise = this.makeNoise(2);
+        this.startScratchBed();
+      }
+      if (this.ctx.state === 'suspended') void this.ctx.resume();
+    } catch {
+      // Audio is optional; captions carry every message.
+    }
+  }
+
+  private makeNoise(seconds: number): AudioBuffer {
+    const ctx = this.ctx!;
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    return buffer;
+  }
+
+  private startScratchBed(): void {
+    const ctx = this.ctx!;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise!;
+    src.loop = true;
+    this.scratchFilter = ctx.createBiquadFilter();
+    this.scratchFilter.type = 'bandpass';
+    this.scratchFilter.frequency.value = 2200;
+    this.scratchFilter.Q.value = 0.8;
+    this.scratchGain = ctx.createGain();
+    this.scratchGain.gain.value = 0;
+    src.connect(this.scratchFilter).connect(this.scratchGain).connect(this.master!);
+    src.start();
+  }
+
+  /** Continuous brush-on-paper texture. `speed` in m/s, 0 = silent. */
+  setScratch(speed: number): void {
+    if (!this.ctx || !this.scratchGain || !this.scratchFilter) return;
+    const target = this.muted ? 0 : Math.min(0.09, speed * 0.6);
+    const t = this.ctx.currentTime;
+    this.scratchGain.gain.setTargetAtTime(target, t, 0.04);
+    this.scratchFilter.frequency.setTargetAtTime(1600 + speed * 6000, t, 0.05);
+  }
+
+  private tone(
+    freq: number,
+    start: number,
+    decay: number,
+    gain: number,
+    type: OscillatorType = 'sine',
+  ): void {
+    const ctx = this.ctx!;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(gain, start + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + decay);
+    osc.connect(g).connect(this.master!);
+    osc.start(start);
+    osc.stop(start + decay + 0.05);
+  }
+
+  private ready(): boolean {
+    return !!this.ctx && !this.muted && this.ctx.state === 'running';
+  }
+
+  /** Temple-bell style chime; `step` walks up a pentatonic scale. */
+  chime(step = 0, gain = 0.18): void {
+    if (!this.ready()) return;
+    const t = this.ctx!.currentTime;
+    const f = 660 * PENTATONIC[Math.abs(step) % PENTATONIC.length];
+    this.tone(f, t, 1.6, gain);
+    this.tone(f * 2.76, t, 0.6, gain * 0.25);
+    this.tone(f * 5.4, t, 0.25, gain * 0.08);
+  }
+
+  /** Three rising chimes: lesson complete. */
+  fanfare(): void {
+    if (!this.ready()) return;
+    [0, 2, 4, 5].forEach((s, i) =>
+      setTimeout(() => this.chime(s, 0.16), i * 140),
+    );
+  }
+
+  /** Wooden block: UI presses and gentle "try again". */
+  tok(pitch = 1): void {
+    if (!this.ready()) return;
+    const t = this.ctx!.currentTime;
+    this.tone(520 * pitch, t, 0.09, 0.22, 'triangle');
+    this.tone(1250 * pitch, t, 0.03, 0.06, 'sine');
+  }
+
+  /** Soft low thud: the seal stamp landing on paper. */
+  stamp(): void {
+    if (!this.ready()) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    this.tone(95, t, 0.35, 0.35);
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise!;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 900;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.25, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    src.connect(f).connect(g).connect(this.master!);
+    src.start(t);
+    src.stop(t + 0.15);
+  }
+}

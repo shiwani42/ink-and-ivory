@@ -1,0 +1,116 @@
+# Testing: Hands of a Master
+
+## 1. Automated end-to-end test (emulator, hands only)
+`tools/e2e.py` drives the IWSDK emulator (IWER, Meta Quest 3 profile, "sunlit living room") the way a judge would. It uses only emulated hands.
+
+```bash
+npm run dev                                   # or: npx iwsdk dev up --headless
+python3 tools/e2e.py --lessons 6 --negative   # full run, about 6 minutes
+python3 tools/e2e.py --lessons 2 --hand left  # left-handed writer
+python3 tools/e2e.py --jitter 6               # noisier fingertip (mm)
+```
+
+**What it covers:**
+1. **Reset.** A dev-only Shift+R clears saved progress and reloads, so every run starts as a first-time user.
+2. **Entry.** Enters immersive AR with hand input. Placement must log `placed on ...`.
+3. **Watch.** The master's demonstration runs, and the app logs the stroke layout in world coordinates.
+4. **Calibration.** The fingertip rests on the red seal and the app logs the contact offset.
+5. **Strokes.** For every stroke of every lesson: lift, touch down at the start point, trace the KanjiVG path in time with the master (with random fingertip error), lift. The score must reach the 55-point pass mark.
+6. **Negative cases** (with `--negative`), each of which must produce the specific hint:
+   - a **reversed** stroke: "Other direction";
+   - a stroke **4.5 cm off** the path: "Stay closer to the master's path";
+   - a **rushed** stroke: passes, with "Slower" advice.
+7. **Menu.** "Next lesson" and "Write it again" are pressed with a **fingertip poke** by the other hand.
+8. **Screenshots** go to `artifacts/e2e-*.png`.
+
+The app writes `[hoam] ...` lines to the console **in dev builds only**. The driver reads them through `iwsdk browser logs`; production builds strip them.
+
+### Latest results (16 Nov 2026, Linux, Chromium via IWSDK CLI)
+| Run | Result |
+|---|---|
+| Right hand, 6 lessons, `--negative`, 4 mm jitter (final code) | **PASS**: all 15 strokes on the first try. Lesson averages: one 90, two 88, ten 90, person 88, big 91, eternity 92 |
+| Right hand, 6 lessons, 2 mm jitter | PASS. Lesson averages: one 88, two 92, ten 92, person 91, big 94, eternity 94 |
+| Right hand, 3 lessons, 5 mm jitter | PASS. All strokes 85 to 87 on the first try |
+| Left hand, 2 lessons | PASS (90, 90). The ghost switched to a left hand; the menu moved right |
+| Negative cases | 3 of 3 gave the expected hint |
+
+### Placement scenarios tested in the emulator
+| Scenario | Result |
+|---|---|
+| Standing in the middle of the room, nearest table 1.95 m away | Virtual desk at seated height in front of you (correct: no table within reach) |
+| Seated at the round dining table (0.9 m across) | `placed on detected table`. The writing set is fully on the round top and faces the writer (`docs/media/02-real-table-watch.png`) |
+| "Move paper in front of me" from the menu | Placement runs again, then the lesson restarts |
+
+The emulated room reports 15 planes (floor, ceiling, walls, two tables, couches, door, window, art), and the app ignores everything except table-like horizontal planes at seated height.
+
+### Bugs found by testing and fixed
+| Found | Fix |
+|---|---|
+| UI panels invisible | UIKit units are centimetres: panel scales were 100× too small |
+| Menu jumped to the wrong side | The writing hand was guessed from whichever hand was lowest anywhere. It now switches only when a hand is actually at the paper |
+| Garbage first stroke after calibration | The finger was still on the seal. Now a lift is required before the first stroke |
+| Garbage stroke when the other hand moved to the lap through the paper | Touches shorter than 0.2 s, or that plunge below the surface, are discarded silently |
+| Writing blocked under a virtual desk | A hand resting in the lap (below the paper) was chosen as the writing hand. Hands more than 10 cm below the surface are now ignored, and the current writing hand is preferred |
+| Paper hanging off a round table | The writing set's footprint is checked against the table polygon and slid toward the centroid until it fits |
+| Fingertip poke on UIKit buttons did not click (emulator touch pointer) | Custom fingertip press test against each button's rectangle, sharing one debounced trigger with ray clicks |
+| Ghost hand read as end-on from the writer's eyes | Re-angled like a right-handed writer's hand, stronger body fill, fingertip glow |
+
+## 2. Performance
+| Measurement | Value |
+|---|---|
+| Draw calls in XR (watch / practice / complete) | 50 to 64 |
+| Triangles in XR | about 30 to 31k (most are the two tracked hands plus the ghost) |
+| Draw calls / triangles on the 2D page | 34 / 6.9k |
+| Desktop emulator frame time | p50 16.7 ms, p95 16.8 ms, 0 dropped frames (vsync-bound) |
+| Production bundle | 3.8 MB `dist/` (main JS 2.46 MB, about 676 kB gzip) |
+
+**Design budget:** the plan targets 100 draw calls or fewer and 100 to 300k triangles. The app requests 72 Hz and sets foveation to 0.4. It uses no shadow maps, no post-processing, preallocated ribbon geometry, and canvas textures generated once.
+
+⚠ Desktop numbers do not predict Quest performance. Capture on the device: `metavr` perf trace, or the `hz-perfetto-debug` skill from Meta's agentic-tools plugin.
+
+## 3. On-device checklist (Quest 3 / 3S)
+Connect over USB from Linux: `adb reverse tcp:8081 tcp:8081`, then open `https://localhost:8081` in Quest Browser. For the final check, use the deployed production URL.
+
+- [ ] **Text and hand models render in the headset.** IWSDK 1.1.0 includes the fix for multiview texture uploads (issue #55). The emulator does not use multiview, so only a device proves this.
+- [ ] Hand tracking permission prompt appears, and both hands show.
+- [ ] At a real desk: the paper lands flat on the table and stays put when you lean or look away (anchor).
+- [ ] Seal calibration, then a finger resting on the desk lays ink, and hovering 2 cm or more above it does not.
+- [ ] The hover ring is visible and tracks your fingertip.
+- [ ] Lock-in triggers when following the ghost; ink turns gold.
+- [ ] Poke "Next lesson", tempo and guide buttons with a fingertip; also try a pinch-ray.
+- [ ] Left hand writes; the ghost mirrors.
+- [ ] System menu (palm-up pinch, left hand) pauses; returning resumes.
+- [ ] Room with no table, or in poor light: virtual desk fallback, and the tracking-light tip in the caption.
+- [ ] Performance capture during practice: 72 fps target, never below 60.
+- [ ] Production URL loads logged out or in incognito.
+
+## 4. Known gaps
+- **No depth occlusion.** Real fingers draw under the virtual paper, and the IWSDK hand outline stays on top. Depth occlusion against a surface within millimetres of the real desk would likely flicker, so it is left off pending a device test.
+- **Contact thresholds** (down at 12 mm, up at 24 mm, after calibration) are tuned for the emulator. Tune them on a real desk if needed: `DOWN_H` and `UP_H` in `src/calligraphy-system.ts`.
+- **The master's motion is procedural** (a pointing pose that follows the stroke path), not a recording of a real calligrapher.
+- **No gaze interactions.**
+
+## Final regression (16 Nov 2026, final code)
+```
+$ python3 tools/e2e.py --lessons 6 --negative --jitter 4
+  negative reversed: 13  Try again - Other direction. Watch where the master begins.  -> OK
+  negative off path: 13  Try again - Stay closer to the master's path.                -> OK
+  negative rushed:   81  Good stroke - Slower. Let the brush travel with the master.   -> OK
+  one       strokes [90]                  average 90
+  two       strokes [87, 89]              average 88
+  ten       strokes [90, 89]              average 90
+  person    strokes [86, 90]              average 88
+  big       strokes [90, 94, 88]          average 91
+  eternity  strokes [91, 93, 90, 92, 92]  average 92
+  negative cases: 3/3 gave the expected hint
+PASS
+
+$ python3 tools/e2e.py --lessons 2 --hand left --jitter 4
+  one       strokes [86]       average 86
+  two       strokes [86, 92]   average 89
+PASS
+```
+Also passing:
+- `npm run typecheck`;
+- `npm run build`;
+- `vite preview` serves the page, bundle, hand models, panels and scene (all 200), with dev logs stripped from the bundle.

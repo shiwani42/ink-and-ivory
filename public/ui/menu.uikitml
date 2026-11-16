@@ -1,0 +1,50 @@
+<!--
+  Lesson menu, parented to the desk on the writer's off-hand side.
+  Poke (index fingertip) or pinch-ray to press. Hit targets are at least 2.4 cm.
+-->
+<style>
+  .root { flex-direction: column; width: 330px; }
+  .content { flex-direction: column; gap: 6px; padding-left: 18px; padding-right: 18px; padding-top: 16px; padding-bottom: 8px; }
+  .eyebrow { color: #a3361f; font-size: 13px; font-weight: 700; letter-spacing: 1.4px; }
+  .eyebrow:dark { color: #ff8a65; }
+  .heading { color: #1c1d20; font-size: 24px; font-weight: 700; }
+  .heading:dark { color: #fafaf7; }
+  .meta { color: #55565c; font-size: 15px; }
+  .meta:dark { color: #c9cbd1; }
+  .list { flex-direction: column; gap: 5px; padding-left: 14px; padding-right: 14px; padding-bottom: 6px; }
+  .lesson { justify-content: flex-start; }
+  .row { flex-direction: row; gap: 6px; padding-left: 14px; padding-right: 14px; padding-bottom: 6px; align-items: center; }
+  .grow { flex-grow: 1; }
+  .label { color: #1c1d20; font-size: 15px; }
+  .label:dark { color: #e9eaee; }
+  .credits { color: #6a6b70; font-size: 10px; line-height: 14px; padding-left: 18px; padding-right: 18px; padding-bottom: 14px; }
+  .credits:dark { color: #8d8f96; }
+</style>
+<Panel class="root">
+  <div class="content">
+    <div class="eyebrow">HANDS OF A MASTER</div>
+    <div class="heading">Lessons</div>
+    <div id="streak" class="meta">Day 1 of practice</div>
+  </div>
+  <div class="list">
+    <Button id="lesson-0" class="lesson"><ButtonLabel><span id="lesson-0-label">1  One</span></ButtonLabel></Button>
+    <Button id="lesson-1" class="lesson"><ButtonLabel><span id="lesson-1-label">2  Two</span></ButtonLabel></Button>
+    <Button id="lesson-2" class="lesson"><ButtonLabel><span id="lesson-2-label">3  Ten</span></ButtonLabel></Button>
+    <Button id="lesson-3" class="lesson"><ButtonLabel><span id="lesson-3-label">4  Person</span></ButtonLabel></Button>
+    <Button id="lesson-4" class="lesson"><ButtonLabel><span id="lesson-4-label">5  Big</span></ButtonLabel></Button>
+    <Button id="lesson-5" class="lesson"><ButtonLabel><span id="lesson-5-label">6  Eternity</span></ButtonLabel></Button>
+  </div>
+  <div class="row">
+    <Button id="btn-slower"><ButtonLabel>Slower</ButtonLabel></Button>
+    <div id="tempo" class="label grow">Tempo 60%</div>
+    <Button id="btn-faster"><ButtonLabel>Faster</ButtonLabel></Button>
+  </div>
+  <div class="row">
+    <Button id="btn-watch" class="grow"><ButtonLabel>Watch again</ButtonLabel></Button>
+    <Button id="btn-guide" class="grow"><ButtonLabel><span id="btn-guide-label">Guide: adaptive</span></ButtonLabel></Button>
+  </div>
+  <div class="row">
+    <Button id="btn-place" class="grow"><ButtonLabel>Move paper in front of me</ButtonLabel></Button>
+  </div>
+  <div class="credits">Stroke data: KanjiVG, CC BY-SA 3.0 (Ulrich Apel). Hand model: WebXR Input Profiles, MIT. Built with the Immersive Web SDK.</div>
+</Panel>
