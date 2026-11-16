@@ -181,6 +181,78 @@ def export(name, objects):
     print(f'EXPORTED {name}: {os.path.getsize(path) // 1024} KB, ~{tris} tris')
 
 
+def gltf_output_group():
+    """The node group the glTF exporter reads extra outputs (occlusion) from."""
+    g = bpy.data.node_groups.get('glTF Material Output')
+    if g is None:
+        g = bpy.data.node_groups.new('glTF Material Output', 'ShaderNodeTree')
+        g.interface.new_socket('Occlusion', in_out='INPUT', socket_type='NodeSocketFloat')
+    return g
+
+
+def bake_ao(objs, name, size=512, distance=0.05, samples=48):
+    """Bake ambient occlusion into a second UV map and export it as glTF occlusion
+    (three.js loads it as aoMap on UV channel 1). It darkens crevices, undersides
+    and contact areas under image-based light, at no runtime cost."""
+    meshes = [o for o in objs if o.type == 'MESH' and o.material_slots]
+    if not meshes:
+        return objs
+    sc = bpy.context.scene
+    prev_engine = sc.render.engine
+    sc.render.engine = 'CYCLES'
+    sc.cycles.device = 'CPU'
+    sc.cycles.samples = samples
+    if sc.world is None:
+        sc.world = bpy.data.worlds.new('bake_world')
+    sc.world.light_settings.distance = distance
+    sc.render.bake.margin = 6
+    # Apply modifiers so the bake matches the exported mesh.
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in meshes:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = meshes[0]
+    bpy.ops.object.make_single_user(object=True, obdata=True)
+    bpy.ops.object.convert(target='MESH')
+    group = gltf_output_group()
+    for o in meshes:
+        uv = o.data.uv_layers.new(name='AO')
+        o.data.uv_layers.active = uv
+        bpy.ops.object.select_all(action='DESELECT')
+        o.select_set(True)
+        bpy.context.view_layer.objects.active = o
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.03)
+        bpy.ops.object.mode_set(mode='OBJECT')
+        img = bpy.data.images.new(f'{name}_{o.name}_ao', size, size, alpha=False)
+        img.generated_color = (1, 1, 1, 1)
+        img.colorspace_settings.name = 'Non-Color'
+        texes = []
+        for slot in o.material_slots:
+            m = slot.material.copy()  # one AO texture per object
+            slot.material = m
+            nt = m.node_tree
+            uvn = nt.nodes.new('ShaderNodeUVMap')
+            uvn.uv_map = 'AO'
+            tex = nt.nodes.new('ShaderNodeTexImage')
+            tex.image = img
+            nt.links.new(uvn.outputs['UV'], tex.inputs['Vector'])
+            nt.nodes.active = tex
+            texes.append((nt, tex))
+        bpy.ops.object.bake(type='AO', margin=6, use_clear=True)
+        img.pack()
+        for nt, tex in texes:
+            out = nt.nodes.new('ShaderNodeGroup')
+            out.node_tree = group
+            sep = nt.nodes.new('ShaderNodeSeparateColor')
+            nt.links.new(tex.outputs['Color'], sep.inputs['Color'])
+            nt.links.new(sep.outputs['Red'], out.inputs['Occlusion'])
+        o.data.uv_layers.active_index = 0
+    sc.render.engine = prev_engine
+    print(f'AO BAKED {name}: {len(meshes)} meshes at {size}px')
+    return objs
+
+
 # ---------------------------------------------------------------- materials (recreated per scene)
 def mats():
     return {
@@ -274,7 +346,7 @@ def build_brush_rest():
     bevel(o, 0.002, 3)
     smooth(o, 50)
     assign(o, M['celadon'])
-    export('brush_rest', [o])
+    export('brush_rest', bake_ao([o], 'brush_rest', 512, 0.03))
 
 
 # ---------------------------------------------------------------- 3. inkstone (suzuri) with ink pool
@@ -318,7 +390,7 @@ def build_inkstone():
     band.location = (0.0058, 0.035, H - 0.003 + 0.0046)
     band.rotation_euler.z = math.radians(12)
     assign(band, M['gold'])
-    export('inkstone', [stone, pool, film, stick, band])
+    export('inkstone', bake_ao([stone, pool, film, stick, band], 'inkstone', 512, 0.03))
 
 
 # ---------------------------------------------------------------- 4. water dropper (suiteki)
@@ -351,7 +423,7 @@ def build_seal_set():
     assign(paste, M['vermilion'])
     for o in (dish, paste):
         o.location.x = 0.04
-    export('seal_set', [seal, face, dish, paste])
+    export('seal_set', bake_ao([seal, face, dish, paste], 'seal_set', 512, 0.03))
 
 
 # ---------------------------------------------------------------- 6. paperweight (bunchin): walnut with brass caps
@@ -457,7 +529,11 @@ print('KEYBOARD_DONE')
 # rest of the 88 keys are decorative so it reads as a full concert grand.
 def build_grand_piano():
     reset(); M = mats()
-    lacquer = material('lacquer', (0.012, 0.012, 0.014), 0.07)
+    lacquer = material('lacquer', (0.012, 0.012, 0.014), 0.22)
+    # Piano lacquer: a satin black base under a mirror-like clear coat.
+    coat = lacquer.node_tree.nodes.get('Principled BSDF')
+    coat.inputs['Coat Weight'].default_value = 1.0
+    coat.inputs['Coat Roughness'].default_value = 0.04
     ivory = material('ivory', (0.93, 0.9, 0.84), 0.32)
     ebony = material('ebony', (0.025, 0.022, 0.02), 0.18)
     brass = M['brass']
@@ -601,7 +677,7 @@ def build_grand_piano():
         ped.parent = legs_root; ped.matrix_parent_inverse = legs_root.matrix_world.inverted()
         objs.append(ped)
     objs.append(legs_root)
-    export('grand_piano', merge_by_material(objs, 'grand'))
+    export('grand_piano', bake_ao(merge_by_material(objs, 'grand'), 'grand', 1024, 0.25))
 
 
 def merge_by_material(objs, prefix):

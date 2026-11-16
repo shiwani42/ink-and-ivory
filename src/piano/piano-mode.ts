@@ -98,6 +98,7 @@ export class PianoMode {
   private tapClock = 1; // seconds since the master last tapped
   private target = new Vector3();
   private tmp = new Vector3();
+  private soundPos = new Vector3();
   private readonly sheet = new MusicSheet();
   private readonly floating = new FloatingNotes();
   private played: number[] = [];
@@ -109,7 +110,7 @@ export class PianoMode {
 
   constructor(
     private readonly hooks: {
-      play: (midi: number, velocity: number) => void;
+      play: (midi: number, velocity: number, x: number, y: number, z: number) => void;
       sparks: (x: number, y: number, z: number, n: number) => void;
     },
   ) {
@@ -289,7 +290,10 @@ export class PianoMode {
   }
 
   private hit(k: Key, velocity: number, color: Color): void {
-    this.hooks.play(k.midi, velocity);
+    // The note sounds from its own key (world position for spatial audio).
+    this.soundPos.set((k.x0 + k.x1) / 2, k.top, (k.z0 + k.z1) / 2);
+    this.root.localToWorld(this.soundPos);
+    this.hooks.play(k.midi, velocity, this.soundPos.x, this.soundPos.y, this.soundPos.z);
     this.floating.emit((k.x0 + k.x1) / 2, k.top, (k.z0 + k.z1) / 2, color === GOLD);
     k.press = 1;
     k.glow = 1;

@@ -1,13 +1,15 @@
 /**
  * Sound for Hands of a Master.
  *
- * - Music: two CC0 tracks from OpenGameArt ("Yoiyami Core Theme - Deep Blue
- *   Ambient Piano" by Yoiyami, "Oriental Somber" by Tozan), streamed through
- *   an <audio> element and alternated so long sessions never loop audibly.
+ * - Music: CC0 tracks from OpenGameArt per place (credited in README.md),
+ *   streamed through an <audio> element and alternated so long sessions
+ *   never loop audibly.
  *   The music dips while ink is flowing and swells gently on lock-in.
  * - Effects: synthesized in code (no files):
  * Hand tracking has no haptics, so every interaction gets an audible answer:
  * a paper "scratch" while ink flows, a bell for success, a wood block for UI.
+ * - Spatial: piano notes and the brush scratch come from where they happen
+ *   (HRTF panners), with the listener following the head every frame.
  *
  * The AudioContext is created lazily and resumed on the first user gesture
  * (entering AR is one), which Quest Browser requires.
@@ -20,6 +22,7 @@ export class Sfx {
   private master?: GainNode;
   private scratchGain?: GainNode;
   private scratchFilter?: BiquadFilterNode;
+  private scratchPanner?: PannerNode;
   private noise?: AudioBuffer;
   private bus?: DynamicsCompressorNode;
   private musicGain?: GainNode;
@@ -81,7 +84,8 @@ export class Sfx {
     this.scratchFilter.Q.value = 0.8;
     this.scratchGain = ctx.createGain();
     this.scratchGain.gain.value = 0;
-    src.connect(this.scratchFilter).connect(this.scratchGain).connect(this.master!);
+    this.scratchPanner = this.makePanner();
+    src.connect(this.scratchFilter).connect(this.scratchGain).connect(this.scratchPanner).connect(this.master!);
     src.start();
   }
 
@@ -175,7 +179,8 @@ export class Sfx {
   }
 
   /** Play a piano note (MIDI number) at velocity 0..1. Falls back to a bell if samples are missing. */
-  piano(midi: number, velocity = 0.8): void {
+  /** Play a piano note; with a position (world metres) it sounds from that key. */
+  piano(midi: number, velocity = 0.8, x?: number, y?: number, z?: number): void {
     if (!this.ready()) return;
     if (!this.pianoSamples.length) {
       this.tone(440 * Math.pow(2, (midi - 69) / 12), this.ctx!.currentTime, 1.2, 0.18 * velocity);
@@ -191,12 +196,64 @@ export class Sfx {
     const t = ctx.currentTime;
     g.gain.setValueAtTime(0.55 * velocity, t);
     g.gain.setTargetAtTime(0, t + 1.6, 0.4);
-    src.connect(g).connect(this.master!);
+    if (x !== undefined && y !== undefined && z !== undefined) {
+      const p = this.makePanner();
+      Sfx.place(p, x, y, z);
+      src.connect(g).connect(p).connect(this.master!);
+    } else {
+      src.connect(g).connect(this.master!);
+    }
     src.start(t);
     src.stop(t + 3.5);
   }
 
   /** Continuous brush-on-paper texture. `speed` in m/s, 0 = silent. */
+  /** An HRTF panner for a sound source in the room (metres, world space). */
+  private makePanner(): PannerNode {
+    const p = this.ctx!.createPanner();
+    p.panningModel = 'HRTF';
+    p.distanceModel = 'inverse';
+    p.refDistance = 0.6; // at arm's length the level is unchanged
+    p.rolloffFactor = 0.6;
+    return p;
+  }
+
+  private static place(p: PannerNode, x: number, y: number, z: number): void {
+    if (p.positionX) {
+      p.positionX.value = x;
+      p.positionY.value = y;
+      p.positionZ.value = z;
+    } else {
+      (p as unknown as { setPosition(x: number, y: number, z: number): void }).setPosition(x, y, z);
+    }
+  }
+
+  /** Move the ears with the head (world position, forward and up vectors). Call every frame. */
+  setListener(px: number, py: number, pz: number, fx: number, fy: number, fz: number, ux: number, uy: number, uz: number): void {
+    const l = this.ctx?.listener;
+    if (!l) return;
+    if (l.positionX) {
+      l.positionX.value = px;
+      l.positionY.value = py;
+      l.positionZ.value = pz;
+      l.forwardX.value = fx;
+      l.forwardY.value = fy;
+      l.forwardZ.value = fz;
+      l.upX.value = ux;
+      l.upY.value = uy;
+      l.upZ.value = uz;
+    } else {
+      const legacy = l as unknown as { setPosition(x: number, y: number, z: number): void; setOrientation(...v: number[]): void };
+      legacy.setPosition(px, py, pz);
+      legacy.setOrientation(fx, fy, fz, ux, uy, uz);
+    }
+  }
+
+  /** Where the brush is touching the paper (world space). */
+  setScratchPosition(x: number, y: number, z: number): void {
+    if (this.scratchPanner) Sfx.place(this.scratchPanner, x, y, z);
+  }
+
   setScratch(speed: number): void {
     if (!this.ctx || !this.scratchGain || !this.scratchFilter) return;
     const target = this.muted ? 0 : Math.min(0.09, speed * 0.6);

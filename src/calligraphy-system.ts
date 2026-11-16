@@ -240,6 +240,9 @@ export class CalligraphySystem extends createSystem({
   private v = new Vector3();
   private v2 = new Vector3();
   private head = new Vector3();
+  private headQuat = new Quaternion();
+  private earF = new Vector3();
+  private earU = new Vector3();
   private fwd = new Vector3();
   private m = new Matrix4();
   private q = new Quaternion();
@@ -345,7 +348,7 @@ export class CalligraphySystem extends createSystem({
     this.desk.body.add(fx);
     fx.add(this.sparks.points);
     this.piano = new PianoMode({
-      play: (midi, velocity) => this.sfx.piano(midi, velocity),
+      play: (midi, velocity, x, y, z) => this.sfx.piano(midi, velocity, x, y, z),
       sparks: (x, y, z, n) => this.sparks.burst(x, y, z, n, 0.12),
     });
     this.piano.root.visible = false;
@@ -1424,6 +1427,9 @@ export class CalligraphySystem extends createSystem({
           this.capZ.push(this.tip.z);
         }
         this.sfx.setScratch(this.tipSpeed);
+        this.v.set(this.tip.x, 0, this.tip.z);
+        this.desk.paper.localToWorld(this.v);
+        this.sfx.setScratchPosition(this.v.x, this.v.y, this.v.z);
 
         // In step with the master?
         const d = Math.hypot(this.tip.x - this.ghostTip.x, this.tip.z - this.ghostTip.z);
@@ -1989,6 +1995,13 @@ export class CalligraphySystem extends createSystem({
     if (this.mode === 'demo2d') this.camera.getWorldPosition(this.head);
     else this.player.head.getWorldPosition(this.head);
     this.env.update(dt, this.head.x, this.head.y, this.head.z);
+    // Spatial audio: the ears follow the head.
+    if (this.mode !== 'demo2d') {
+      this.player.head.getWorldQuaternion(this.headQuat);
+      this.earF.set(0, 0, -1).applyQuaternion(this.headQuat);
+      this.earU.set(0, 1, 0).applyQuaternion(this.headQuat);
+      this.sfx.setListener(this.head.x, this.head.y, this.head.z, this.earF.x, this.earF.y, this.earF.z, this.earU.x, this.earU.y, this.earU.z);
+    }
     this.sparks.update(dt);
     if (this.locked && this.penDown && this.tipValid) {
       this.sparkClock += dt;
