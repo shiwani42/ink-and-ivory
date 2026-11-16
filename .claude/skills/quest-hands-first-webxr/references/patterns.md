@@ -87,6 +87,9 @@ const local = obj.worldToLocal(target /* head + forward*0.4 at height y */);
 - To move it later, compute the world matrix, premultiply by `inverse(parent.matrixWorld)`, then decompose.
 - Point-in-polygon uses the plane-local `polygon[i].x/.z`.
 
+### 6b. When no table or planes are found: offer a room scan
+If `session.initiateRoomCapture` exists and no horizontal planes arrive within a few seconds, show a "Scan room" button next to the virtual-desk fallback (the Nanauts pattern). Call it only on that press, never automatically (it can wipe anchors in IWSDK 1.1.0), and fall back to the virtual desk if it rejects. Log whether the API exists, so a device test shows it.
+
 ## 7. Skinned translucent "ghost" hand
 - **Model:** `https://cdn.jsdelivr.net/npm/@webxr-input-profiles/assets@1.0/dist/profiles/generic-hand/{left,right}.glb` (MIT). Vendor it into `public/models/` and register it in assets with `priority: 'critical'`.
   - It has 25 **flat** bones named after the WebXR joints, under `Armature`.
@@ -165,3 +168,20 @@ if (import.meta.env.DEV) console.info(`[tag] layout ${JSON.stringify({ targets: 
   - cap at 40 notes; durations in quarter beats rounded to 0.25.
 - **Storage:** localStorage under a versioned key, wrapped in try/catch. Reset that slot's score whenever its content changes. Show its name on the last tile.
 - **Unit test** the parser with a MIDI written by a few lines of Python (header, a tempo track, chords, a drum note, running status), bundled with esbuild and run in node.
+
+## 16. Pinch, grab points and gestures (from past winners)
+- **Pinch hysteresis:** start when thumb and index tips are within 8 mm, release only beyond 15 mm. One threshold flickers at the edge (HandCraft XR's IWSDK fork, MIT).
+- **Grab from the pinch point:** use the thumb–index midpoint as the grab point, with a radius of about 3 cm, and freeze it while the pinch is held so tracking jitter doesn't move the object. For hands, treat select as squeeze.
+- **Finger chords as commands:** a chord (thumb + middle, thumb + ring) fires only when the other fingers are clearly apart, after a short hold, and then latches until released (OpenSoundLab; learn only). Keep each gesture distinct from the others and from resting hands; disable the ray near grabbable objects.
+- **Microgestures** (thumb tap on the side of the index finger) may appear as `gamepad.buttons[9]` on a hand input source with 10 or more buttons (Nanauts). Unverified on our side: feature-detect, add a 200 ms refractory period, and treat it as an optional shortcut only.
+
+## 17. App state, lifecycle and UI visibility
+- **One central state, declarative panels:** each panel declares `showWhen(state)`, a priority and whether it is exclusive, instead of scattered `visible = ...` calls (Nanauts).
+- **Remember where the user was:** keep `stateBeforePause` (system menu) and `stateBeforeSessionEnd` (headset removed or session ended), and offer to resume there on the next enter.
+- **Versioned saves:** store `{ version, ... }` in localStorage, migrate or reset on a version change, wrap reads and writes in try/catch, and save only when something changed (a dirty flag).
+
+## 18. Sound variety
+Repeated sounds (taps, clacks, key presses that aren't notes) get 3 to 4 variants or a small random pitch (±3%) and filter jitter, so they don't sound mechanical (HandCraft XR). Use positional one-shots for objects in the world.
+
+## 19. AI agents inside an experience
+If an LLM drives anything, make it return a JSON action contract (`{"action": "start_timer", "seconds": 300}`), and validate it before acting (Flaivor). Split listening, thinking and speaking into separate modules, and stream audio as Opus from `MediaRecorder` to a serverless endpoint (Nanauts). Make sure the experience still stands without the model (the "take it away" test).

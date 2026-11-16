@@ -84,7 +84,7 @@
   </div>
   <div class="row">
     <div id="btn-scene" class="btn grow"><div id="btn-scene-label" class="btn-label">Scene: on</div></div>
-    <div id="btn-place" class="btn grow"><div class="btn-label">Move paper here</div></div>
+    <div id="btn-place" class="btn grow"><div id="btn-place-label" class="btn-label">Move paper here</div></div>
   </div>
   <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
 </div>

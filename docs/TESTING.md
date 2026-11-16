@@ -90,6 +90,7 @@ Connect over USB from Linux: `adb reverse tcp:8081 tcp:8081`, then open `https:/
 - [ ] Left hand writes; the ghost mirrors.
 - [ ] System menu (palm-up pinch, left hand) pauses; returning resumes.
 - [ ] Room with no table, or in poor light: virtual desk fallback, and the tracking-light tip in the caption.
+- [ ] On the virtual desk, the menu shows **Scan my room** (the log says `room capture available`). Pressing it opens Quest's room scan; afterwards the paper moves onto the real table. Check that a saved anchor survives the scan.
 - [ ] Performance capture during practice: 72 fps target, never below 60.
 - [ ] Production URL loads logged out or in incognito.
 

@@ -34,6 +34,15 @@ How the reference project went from a working prototype to a polished entry thro
   - **Store** in localStorage, and reset the score for that slot when the content changes.
 - **Defaults, then choice:** never block the first minute with a settings screen. Invite a choice right after the first success.
 
+## Lessons from past winners (see `reference-winners/REPORT.md`)
+- **Polish one loop, not many features.** Le Dino Labo, HandCraft and MarketView each won with one loop done well.
+- **Spread thin, lose all.** With six projects and little time, finish the two strongest and park the scaffolds, rather than submitting six thin ones.
+- **Playtest with someone new to XR** for 15 minutes before recording the trailer; fix only what confuses them (captions, first instruction). Final Throwdown ran a public playtest.
+- **Record on the headset, standalone,** with the awe moment in the first 20 seconds; real gameplay only.
+- **Ship two URLs** and test both logged out.
+- **Commit after every green run, on every project.** Work left untracked for a day is the easiest thing to lose.
+- **Study winners' code safely:** clone shallow into a separate `reference-winners/` folder, read `package.json` first, install only with `--ignore-scripts`, build only with plain bundler commands, never copy code without checking its licence (see assets-and-licensing.md).
+
 ## Process anti-patterns we hit
 - Editing a comment in `src/` while the emulator test was running (the page hot-reloads and the run is invalid).
 - Measuring draw calls from a log that still held the previous run's lines.

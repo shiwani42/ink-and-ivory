@@ -247,12 +247,14 @@ export class Sfx {
     );
   }
 
-  /** Wooden block: UI presses and gentle "try again". */
+  /** Wooden block: UI presses and gentle "try again". Slightly different every time, like real wood. */
   tok(pitch = 1): void {
     if (!this.ready()) return;
     const t = this.ctx!.currentTime;
-    this.tone(520 * pitch, t, 0.09, 0.22, 'triangle');
-    this.tone(1250 * pitch, t, 0.03, 0.06, 'sine');
+    const p = pitch * (1 + (Math.random() - 0.5) * 0.06); // +-3%
+    const g = 0.2 + Math.random() * 0.04;
+    this.tone(520 * p, t, 0.09, g, 'triangle');
+    this.tone(1250 * p * (1 + (Math.random() - 0.5) * 0.04), t, 0.03, 0.06, 'sine');
   }
 
   /** Soft low thud: the seal stamp landing on paper. */
@@ -260,12 +262,12 @@ export class Sfx {
     if (!this.ready()) return;
     const ctx = this.ctx!;
     const t = ctx.currentTime;
-    this.tone(95, t, 0.35, 0.35);
+    this.tone(95 * (1 + (Math.random() - 0.5) * 0.08), t, 0.35, 0.35);
     const src = ctx.createBufferSource();
     src.buffer = this.noise!;
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
-    f.frequency.value = 900;
+    f.frequency.value = 760 + Math.random() * 280; // a different paper "thump" each time
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.25, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);

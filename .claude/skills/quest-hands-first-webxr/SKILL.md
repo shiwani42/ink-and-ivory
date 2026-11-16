@@ -19,6 +19,7 @@ Each rebuild was cheaper because of the habits below. Follow them from the first
 - **Copy-ready code patterns:** [references/patterns.md](references/patterns.md).
 - **Emulator test harness:** [scripts/iwsdk_e2e.py](scripts/iwsdk_e2e.py). **GLB preview render:** [scripts/blender_preview_glb.py](scripts/blender_preview_glb.py).
 - **Reference implementation:** `hands-of-a-master/` in the same workspace (`src/`, `tools/blender/build_assets.py`, `tools/e2e.py`, `docs/`).
+- **What past winners did** (2025 Start competition and earlier; code study, techniques, licences): `reference-winners/REPORT.md` in the workspace. Read section 5 ("what judges see") before planning a new project.
 
 ## When to use
 Any IWSDK (WebXR) app for Quest where hands are the only input and the real room matters. Typical asks:
@@ -88,6 +89,8 @@ Phase 4 (the end-to-end test) is not optional. Every bug that would have cost po
 ### Phase 3: Make it testable from the first day
 - **Dev-only machine-readable logs:** `console.info('[tag] layout {json}')` with the world positions of every target the test must touch (start points, keys, buttons, seal). Also log every state transition, score and learned result. Guard them with `import.meta.env.DEV`.
 - **A dev-only reset** (Shift+R clears localStorage and reloads), so every run starts as a first-time user.
+- **Named state presets** in dev (`?state=lesson-complete`, `?state=piano-song-3`) that jump straight to a moment. They speed up testing, screenshots and filming the trailer.
+- **Feature-detect and log Quest-only APIs** (`session.initiateRoomCapture`, persistent anchors, microgesture buttons) instead of assuming them. Never call `initiateRoomCapture` automatically: IWSDK 1.1.0 removed its own auto-call because it wiped anchors. Offer it behind a "Scan room" button.
 - **Pure modules** (parsers, scoring, quantising) get a quick unit test: bundle with esbuild (`--platform=node --alias:@app=./src`) and run with node against generated fixtures (for example a MIDI file written by a Python script).
 
 ### Phase 4: End-to-end test in the emulator (IWER), hands only
@@ -120,7 +123,7 @@ Minimum test matrix before calling it done:
 7. Production build: `npm run build`; `vite preview` serves everything; dev logs absent from the bundle.
 
 ### Phase 5: Measure and optimise
-- **Budget:** 100 draw calls per eye or fewer, 100 to 300k triangles, one light plus IBL, no shadow maps, no full-screen post-processing. No meshopt (IWSDK's loader lacks the decoder); Draco is optional (Blender's libdraco may be missing). Use `highp` in custom shaders.
+- **Budget:** 100 draw calls per eye or fewer, 100 to 300k triangles, one light plus IBL, no per-frame full shadow maps, no full-screen post-processing. If shadows matter (objects that move on a table), use two tiers: a static 512² map updated only when something settles, plus a small 128² shadow camera that follows only the moving objects (HandCraft XR's approach). No meshopt (IWSDK's loader lacks the decoder); Draco is optional (Blender's libdraco may be missing). Use `highp` in custom shaders.
 - **Merge static models by material in Blender** before export. Keep only the nodes the code animates or names (keys, legs) separate. The grand piano went from 93 meshes to 7, and piano mode from 280 to 112 draw calls in the emulator.
 - **Place panoramas cost one draw.** Use a 4096 x 2048 JPG on a sphere that follows the head.
 - Desktop frame time does not predict Quest. Capture on the device (`hz-perfetto-debug`).
@@ -133,7 +136,9 @@ Minimum test matrix before calling it done:
   - `docs/TESTING.md`: harness, latest results, bugs fixed, on-device checklist.
 - **Credits:** verify every author and licence from the source page before writing it. Don't attribute a track to an author you haven't confirmed; credit it by title and licence instead.
 - **After each project, fold new lessons back into this skill** (generalised, not project-specific). Sync the copy into every project's `.claude/skills/`, and note them in the common plan.
-- **Ship:** `npx vercel --prod` (keep `Permissions-Policy: xr-spatial-tracking=*`). Test the production alias logged out on a headset. Ask before deploying to the user's account, and make no redeploys after the deadline.
+- **Ship:** `npx vercel --prod` (keep `Permissions-Policy: xr-spatial-tracking=*`). Test the production alias logged out on a headset, and give judges a second tested mirror URL (winners did). Ask before deploying to the user's account, and make no redeploys after the deadline.
+- **What judges see decides the score.** Every 2025 web winner had a live URL, a trailer recorded on a Quest in standalone mode, and evidence of on-device performance work. Reserve the last ~30 hours for headset QA, a 15-minute playtest with someone new to XR, deploy, trailer and forms; feature work stops there.
+- **Write the Devpost text honestly:** name known issues and what is next, and link any SDK fork or patch you made (it reads as engineering depth).
 - **On-device must-checks** the emulator cannot prove:
   - text and models render (multiview);
   - contact thresholds;
@@ -163,4 +168,5 @@ Minimum test matrix before calling it done:
 | A song or melody doesn't fit the instrument | Range too small | Make the range a parameter in the Blender script (we extended A3–C5 to A3–E5) and rebuild |
 | Wikimedia downloads fail with HTTP 429 | Rate limit | `curl`, 3 to 4 s apart, thumbnail URLs |
 | `metavr asset search` returns "Invalid API response" | Server-side gate on Meta's asset API (Nov 2026) | Poly Haven, ambientCG, Commons and Blender scripts |
+| Pinch flickers at the edge | IWSDK 1.1.0 uses one 8 mm threshold | Hysteresis for custom pinches: start at 8 mm, release at 15 mm (patterns §16) |
 | Real fingers vanish under virtual paper | No depth occlusion | Accept the IWSDK hand outline, or test `DepthOccludable` on device |

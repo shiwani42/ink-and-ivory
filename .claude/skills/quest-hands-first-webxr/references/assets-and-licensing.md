@@ -14,6 +14,11 @@ Competition entries are public. Everything shipped must be original, public doma
 | Hand mesh and poses | WebXR Input Profiles generic hand; IWER poses | MIT | |
 | Melodies | Pieces whose composers died long ago (Beethoven, folk tunes); Happy Birthday (PD in the US since 2016 and the EU since 2017) | public domain | Arrangements can still be copyrighted: write your own simple version |
 
+## Other people's code
+- **Reuse with the notice:** MIT, Apache-2.0, BSD, CC0. Keep the licence text and credit the author in the README.
+- **Learn the technique only** (re-implement in your own words and code): no licence at all (default copyright), GPL (would force our licence), custom licences such as OpenSoundLab's OSLLv1 (no store distribution of derivatives), and minified production bundles.
+- **Disclose analytics** if you add any (Nanauts shipped Google Analytics); for a judged entry, prefer none.
+
 ## Do not ship
 - **Copyrighted songs**, including their melody alone: pop, film and game music. If the user asks for one, explain, offer public-domain alternatives with the same feel, and point to the bring-your-own path (the user's own MIDI or performance). Don't transcribe it yourself, and keep it out of the trailer too.
 - **Logos, brands, or identifiable people** (also a rule). Check photos for faces and signage.

@@ -417,7 +417,7 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'btn-faster', () => this.setTempo(this.tempo + 0.1));
     on(this.menu, 'btn-watch', () => this.startLesson(this.lessonIndex, true));
     on(this.menu, 'btn-guide', () => this.cycleGuide());
-    on(this.menu, 'btn-place', () => this.beginPlacing());
+    on(this.menu, 'btn-place', () => this.placeOrScan());
     on(this.menu, 'btn-text', () => this.toggleTextSize());
     on(this.menu, 'craft-cal', () => this.setCraft('calligraphy'));
     on(this.menu, 'lang-japanese', () => this.setLanguage('japanese'));
@@ -753,7 +753,7 @@ export class CalligraphySystem extends createSystem({
   }
 
   private finishPlacing(realDesk: boolean): void {
-    this.log(`placed on ${realDesk ? 'detected table' : 'virtual desk'}`);
+    this.log(`placed on ${realDesk ? 'detected table' : 'virtual desk'} (room capture ${this.canScanRoom() ? 'available' : 'unavailable'})`);
     this.desk.root.visible = true;
     this.desk.virtualTable.visible = !realDesk && this.craft !== 'piano';
     this.onRealDesk = realDesk;
@@ -770,13 +770,40 @@ export class CalligraphySystem extends createSystem({
     this.layoutPanels(); // face the writer's actual head, seated or standing
     this.applyScene();
     this.startLesson(this.lessonIndex, true);
+    // On a virtual desk, Quest can be asked to scan the room so a real table
+    // shows up. Only on the learner's press: an automatic scan can wipe
+    // saved anchors (IWSDK 1.1.0 removed its own auto-call for that reason).
+    const canScan = !realDesk && this.canScanRoom();
+    this.text(this.menu, 'btn-place-label', canScan ? 'Scan my room' : 'Move paper here');
     if (!realDesk) {
       this.setCaption(
         this.lessonEyebrow(),
         'Watch the master',
-        'No table found, so the paper rests on a virtual desk. At a real table, press "Move paper here" on the menu.',
+        canScan
+          ? 'No table found, so the paper rests on a virtual desk. Sitting at a table? Press "Scan my room" on the menu.'
+          : 'No table found, so the paper rests on a virtual desk. At a real table, press "Move paper here" on the menu.',
       );
     }
+  }
+
+  private canScanRoom(): boolean {
+    const session = this.renderer.xr.getSession() as (XRSession & { initiateRoomCapture?: () => Promise<void> }) | null;
+    return typeof session?.initiateRoomCapture === 'function';
+  }
+
+  /** "Scan my room" (virtual desk) or "Move paper here" (everything else). */
+  private placeOrScan(): void {
+    const session = this.renderer.xr.getSession() as (XRSession & { initiateRoomCapture?: () => Promise<void> }) | null;
+    if (this.onRealDesk || typeof session?.initiateRoomCapture !== 'function') {
+      this.beginPlacing();
+      return;
+    }
+    this.log('room capture requested');
+    session
+      .initiateRoomCapture()
+      .then(() => this.log('room capture done'))
+      .catch((error: unknown) => this.log(`room capture failed ${String(error)}`))
+      .finally(() => this.beginPlacing());
   }
 
   private startLesson(index: number, watchFirst: boolean): void {
