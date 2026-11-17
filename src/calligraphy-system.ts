@@ -55,6 +55,9 @@ import { dailyEcho, phrasesOf, SONG_UNITS, SONGS, type PianoSong } from './piano
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
 
 import { Environment, SCENES } from './env/environment.js';
+import { DeskMemory } from './mr/desk-memory.js';
+import { gatherPlanes } from './mr/plane-source.js';
+import { describeReport, emptyReport, findTableSpot, type PlaneInput, resetReport } from './mr/room-placement.js';
 import { type Language, LANGUAGES, LESSON_SETS, LESSONS, type Lesson, type Unit, UNITS } from './lessons/lessons.js';
 import { CHAR_SIZE, StrokePath } from './lessons/master-path.js';
 import { PASS_SCORE, scoreStroke, type StrokeScore } from './lessons/scoring.js';
@@ -341,6 +344,11 @@ export class CalligraphySystem extends createSystem({
   private sample = { x: 0, z: 0 };
   private playerIsIdentity = true;
   private bestPlace = new Vector3();
+  // Mixed reality: room-aware placement and the remembered desk spot (src/mr/).
+  private deskMemory!: DeskMemory;
+  private planePool: PlaneInput[] = [];
+  private placeReport = emptyReport();
+  private placeHow = 'detected table';
   private parentInv = new Matrix4();
   private axis = new Vector3();
   private lastPoseLog = -10;
@@ -415,6 +423,14 @@ export class CalligraphySystem extends createSystem({
           }
           location.reload();
         }
+        // Dev only, for tools/e2e_room.py: P places again where you are, M does the
+        // same but may use the remembered spot (like a new session), L logs the planes.
+        if (e.shiftKey && this.mode !== 'demo2d' && this.mode !== 'placing') {
+          const k = e.key.toLowerCase();
+          if (k === 'm') this.deskMemory.arm();
+          if (k === 'p' || k === 'm') this.beginPlacing();
+          if (k === 'l') this.logPlanes();
+        }
       };
       window.addEventListener('keydown', onKey);
       this.cleanupFuncs.push(() => window.removeEventListener('keydown', onKey));
@@ -462,6 +478,7 @@ export class CalligraphySystem extends createSystem({
     this.world.createTransformEntity(this.env.mesh, { persistent: true });
     this.desk = createDeskSet();
     this.deskEntity = this.world.createTransformEntity(this.desk.root, { persistent: true });
+    this.deskMemory = new DeskMemory(this.world);
     // Effects live on their own layer at paper height, visible in both crafts.
     const fx = new Group();
     fx.position.y = SURFACE_Y;
@@ -1128,6 +1145,7 @@ export class CalligraphySystem extends createSystem({
     void this.sfx.loadPiano(import.meta.env.BASE_URL);
     this.lessonIndex = this.firstUnpassed();
     if (this.craft === 'calligraphy') this.loadLesson(this.lessonIndex);
+    this.deskMemory.arm(); // the first placement may return to last session's spot
     this.beginPlacing();
   }
 
@@ -1153,8 +1171,10 @@ export class CalligraphySystem extends createSystem({
     this.text(this.status, 'cap-score', ' ');
   }
 
-  private finishPlacing(realDesk: boolean): void {
-    this.log(`placed on ${realDesk ? 'detected table' : 'virtual desk'} (room capture ${this.canScanRoom() ? 'available' : 'unavailable'})`);
+  private finishPlacing(realDesk: boolean, how = realDesk ? 'detected table' : 'virtual desk'): void {
+    this.log(`placed on ${how} (room capture ${this.canScanRoom() ? 'available' : 'unavailable'})`);
+    this.log(`placement ${describeReport(this.placeReport)}`);
+    this.deskMemory.disarm();
     this.desk.root.visible = true;
     this.desk.virtualTable.visible = !realDesk && this.craft !== 'piano';
     this.onRealDesk = realDesk;
@@ -1175,8 +1195,14 @@ export class CalligraphySystem extends createSystem({
     // saved anchors (IWSDK 1.1.0 removed its own auto-call for that reason).
     const canScan = !realDesk && this.canScanRoom();
     this.text(this.menu, 'btn-place-label', canScan ? 'Scan my room' : 'Move paper here');
+    if (realDesk) this.deskMemory.remember(this.desk.root, how);
     if (this.applyPreset()) return;
     this.startLesson(this.lessonIndex, true);
+    if (how === 'remembered spot') {
+      this.setCaption(this.lessonEyebrow(), 'Welcome back', 'Your paper is on the same spot of your table as last time. Watch the master.');
+    } else if (how === 'small table') {
+      this.setCaption(this.lessonEyebrow(), 'Watch the master', 'Your table is small, so the paper overhangs it a little. Write over the table.');
+    }
     if (!realDesk) {
       this.setCaption(
         this.lessonEyebrow(),
@@ -1542,60 +1568,32 @@ export class CalligraphySystem extends createSystem({
     this.fwd.normalize();
   }
 
-  /** Try to put the paper on a detected table. Returns true on success. */
+  /** Try to put the paper on a detected table (src/mr/room-placement.ts). Returns true on success. */
   private tryPlaceOnPlane(): boolean {
     this.readHead();
-    const target = this.v.copy(this.head).addScaledVector(this.fwd, 0.4);
-    let bestScore = Infinity;
-    const best = this.bestPlace;
-    for (const entity of this.queries.planes.entities) {
-      const plane = entity.getValue(XRPlane, '_plane') as XRPlane | undefined;
-      const obj = entity.object3D;
-      if (!plane || !obj || plane.orientation !== 'horizontal') continue;
-      const label = (plane as XRPlane & { semanticLabel?: string }).semanticLabel ?? '';
-      if (label === 'floor' || label === 'ceiling') continue;
-      obj.updateWorldMatrix(true, false);
-      const y = obj.matrixWorld.elements[13];
-      if (y < this.head.y - 0.95 || y > this.head.y - 0.12) continue;
-      // Clamp the ideal spot into the plane's polygon bounds (plane-local XZ).
-      const local = obj.worldToLocal(this.v2.set(target.x, y, target.z));
-      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-      for (const p of plane.polygon) {
-        minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-        minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
-      }
-      if (!Number.isFinite(minX) || maxX - minX < 0.2 || maxZ - minZ < 0.2) continue;
-      const mx = Math.min(0.14, (maxX - minX) / 2);
-      const mz = Math.min(0.17, (maxZ - minZ) / 2);
-      local.x = Math.min(maxX - mx, Math.max(minX + mx, local.x));
-      local.z = Math.min(maxZ - mz, Math.max(minZ + mz, local.z));
-      local.y = 0;
-      // Round or irregular tables: slide toward the centroid until the whole
-      // writing set (approximated by a 22 cm circle) is on the surface.
-      if (!this.footprintInside(plane.polygon, local.x, local.z)) {
-        let cx = 0, cz = 0;
-        for (const p of plane.polygon) { cx += p.x; cz += p.z; }
-        cx /= plane.polygon.length; cz /= plane.polygon.length;
-        for (let step = 0; step < 25 && !this.footprintInside(plane.polygon, local.x, local.z); step++) {
-          local.x += (cx - local.x) * 0.15;
-          local.z += (cz - local.z) * 0.15;
-        }
-        if (!this.footprintInside(plane.polygon, local.x, local.z)) continue; // table too small
-      }
-      const world = obj.localToWorld(local);
-      const dist = Math.hypot(world.x - target.x, world.z - target.z);
-      if (dist > 0.6) continue;
-      const score = dist - (label === 'table' || label === 'desk' ? 0.3 : 0);
-      if (score < bestScore) {
-        bestScore = score;
-        best.copy(world);
-      }
-    }
-    if (bestScore === Infinity) return false;
+    const count = gatherPlanes(this.queries.planes.entities, this.planePool);
+    const spot = findTableSpot(this.planePool, this.head, this.fwd, resetReport(this.placeReport), count);
+    if (!spot) return false;
+    this.placeHow = spot.kind === 'small-table' ? 'small table' : 'detected table';
+    const best = this.bestPlace.set(spot.x, spot.y + 0.001, spot.z);
     const yaw = Math.atan2(this.head.x - best.x, this.head.z - best.z);
-    best.y += 0.001;
     this.setDeskWorldPose(best, yaw);
     return true;
+  }
+
+  /** First placement of a session: last session's spot, if its persistent anchor came back. */
+  private recallDesk(dt: number): 'wait' | 'placed' | 'no' {
+    this.readHead();
+    const r = this.deskMemory.recall(dt, this.head);
+    if (r.state === 'pending') return 'wait';
+    if (r.state === 'lost') {
+      this.log(`remembered spot not used: ${r.why}`);
+      this.deskMemory.disarm();
+    }
+    if (r.state !== 'ready') return 'no';
+    resetReport(this.placeReport); // no planes were needed
+    this.setDeskWorldPose(this.bestPlace.set(r.x, r.y, r.z), r.yaw);
+    return 'placed';
   }
 
   private logPlanes(): void {
@@ -1617,15 +1615,6 @@ export class CalligraphySystem extends createSystem({
         `plane ${plane.orientation} label=${plane.semanticLabel} pos [${e[12].toFixed(2)}, ${e[13].toFixed(2)}, ${e[14].toFixed(2)}] up [${e[4].toFixed(2)}, ${e[5].toFixed(2)}, ${e[6].toFixed(2)}] size ${(maxX - minX).toFixed(2)} x ${(maxZ - minZ).toFixed(2)}`,
       );
     }
-  }
-
-  private footprintInside(polygon: ReadonlyArray<DOMPointReadOnly>, x: number, z: number): boolean {
-    const r = 0.22;
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2;
-      if (!pointInPolygon(polygon, x + Math.cos(a) * r, z + Math.sin(a) * r)) return false;
-    }
-    return pointInPolygon(polygon, x, z);
   }
 
   private placeVirtual(): void {
@@ -2863,6 +2852,8 @@ export class CalligraphySystem extends createSystem({
     const dt = Math.min(delta, 0.05);
     this.clock += dt;
     this.ghost.tick(this.clock);
+    const saved = this.deskMemory.tick(dt, this.desk.root);
+    if (saved) this.log(saved);
 
     // Fading ink.
     for (let i = this.fading.length - 1; i >= 0; i--) {
@@ -2928,8 +2919,14 @@ export class CalligraphySystem extends createSystem({
       case 'placing': {
         this.updateTools();
         this.cues.hideAll();
+        const recalled = this.recallDesk(dt);
+        if (recalled === 'wait') return;
+        if (recalled === 'placed') {
+          this.finishPlacing(true, 'remembered spot');
+          return;
+        }
         this.placingClock += dt;
-        if (this.tryPlaceOnPlane()) this.finishPlacing(true);
+        if (this.tryPlaceOnPlane()) this.finishPlacing(true, this.placeHow);
         else if (this.placingClock > PLACE_TIMEOUT) {
           this.logPlanes();
           this.placeVirtual();
@@ -2996,16 +2993,6 @@ export class CalligraphySystem extends createSystem({
     if (this.ghost.visible) this.poseGhost();
     this.updateTools();
   }
-}
-
-function pointInPolygon(polygon: ReadonlyArray<DOMPointReadOnly>, x: number, z: number): boolean {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const a = polygon[i];
-    const b = polygon[j];
-    if (a.z > z !== b.z > z && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
-  }
-  return inside;
 }
 
 function cap(s: string): string {

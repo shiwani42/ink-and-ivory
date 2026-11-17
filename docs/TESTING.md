@@ -10,6 +10,8 @@ python3 tools/e2e.py --lessons 2 --hand left  # left-handed writer
 python3 tools/e2e.py --jitter 6               # noisier fingertip (mm)
 python3 tools/e2e.py --lessons 6 --negative --piano 4 --jitter 3   # everything, about 15 minutes
 python3 tools/e2e_hands.py                      # hand-input features: poke hover, thumbs up, tracking loss, microgestures
+python3 tools/e2e_room.py                       # placement in 6 simulated rooms + no Space Setup + desk remembered across sessions
+node tools/test-room-placement.mjs              # placement maths on 16 synthetic rooms (no browser)
 ```
 
 **What it covers:**
@@ -51,6 +53,15 @@ The app writes `[hoam] ...` lines to the console **in dev builds only**. The dri
 | "Move paper in front of me" from the menu | Placement runs again, then the lesson restarts |
 
 The emulated room reports 15 planes (floor, ceiling, walls, two tables, couches, door, window, art), and the app ignores everything except table-like horizontal planes at seated height.
+
+### Rooms we never tested (`tools/e2e_room.py`, `tools/room.mjs`)
+`tools/room.mjs` switches IWER's simulated room at runtime (`window.IWER_DEVICE.sem.loadDefaultEnvironment`, or "none" for a headset with no Space Setup). For each room, the test:
+1. reads the planes (dev key Shift+L);
+2. sits the learner at every table-height surface, eyes 0.45 m above it;
+3. places the paper again (Shift+P);
+4. checks that it lands on that surface (height within 2 cm, centre on the surface).
+
+It then checks that the desk comes back across XR sessions. Session 2 sits 25 cm to the side and turned 25°; the first placement logic (Shift+M) must return the paper to the session-1 spot, while plain detection would have put it elsewhere. Results are in [INTEGRATION-meta-xr.md](INTEGRATION-meta-xr.md#tests-18-nov-2026-emulator). Screenshots: `artifacts/room-*.png`.
 
 ### Bugs found by testing and fixed
 | Found | Fix |
@@ -95,6 +106,8 @@ Connect over USB from Linux: `adb reverse tcp:8081 tcp:8081`, then open `https:/
 - [ ] Left hand writes; the ghost mirrors.
 - [ ] System menu (palm-up pinch, left hand) pauses; returning resumes.
 - [ ] Room with no table, or in poor light: virtual desk fallback, and the tracking-light tip in the caption.
+- [ ] Desk memory: place the paper on your table, exit, re-enter. The paper returns to the same spot with "Welcome back" (log `placed on remembered spot`). In a private window it can't, and detection runs as usual.
+- [ ] Unusual surfaces: a small side table (the paper is centred on it), a sofa seat in reach (refused), an unlabelled desk (accepted). Read the `placement planes N: ...` log line for why planes were skipped. Also check a cluttered table: planes don't know about objects on the top (the emulator's side table has a plant under the paper).
 - [ ] On the virtual desk, the menu shows **Scan my room** (the log says `room capture available`). Pressing it opens Quest's room scan; afterwards the paper moves onto the real table. Check that a saved anchor survives the scan.
 - [ ] Poke feedback: a button lights as the fingertip nears it, and the vermilion ring on the panel shrinks as you approach; a press flashes.
 - [ ] Thumbs up on the lesson-complete screen: the gold ring fills beside the thumb, then the next lesson starts. A thumbs up while writing does nothing. Watch the `thumbs-up confidence` log for real hands.

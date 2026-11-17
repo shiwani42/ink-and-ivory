@@ -21,7 +21,7 @@ You start in your own room: the paper or keyboard lands on your real table. Then
 
 ## The experience (about 5 to 10 minutes)
 1. **Start at my desk.** In the browser page, press the button (or the browser's Enter XR). You stay seated, and passthrough shows your real room.
-2. **The paper arrives on your real table.** The app finds a table among the detected planes and unrolls a felt mat, washi paper with a practice grid, a paperweight and an inkstone in front of you, anchored in place. Round tables are handled. If there is no table, it falls back to a virtual desk.
+2. **The paper arrives on your real table.** The app finds a table among the detected planes and unrolls a felt mat, washi paper with a practice grid, a paperweight and an inkstone in front of you, anchored in place. It handles round tables and small side tables, and never picks a sofa or a tilted surface. If there is no table, it falls back to a virtual desk. Next time, the paper comes back to the same spot on your table.
 3. **Watch the master.** The ghost hand writes the character in vermilion ink, with a soft light at its fingertip.
 4. **Touch the red seal** once. This calibrates contact height for your desk.
 5. **Write stroke by stroke.**
@@ -93,11 +93,13 @@ npm run build     # static site in dist/ (deploy to Vercel; vercel.json is inclu
 
 ## Test it
 - **Automated end-to-end:** `python3 tools/e2e.py --lessons 6 --negative` with the dev server running. It plays every lesson hands-only in the emulator, checks that the wrong strokes get the right hints, and saves screenshots.
+- **Rooms we never tested:** `python3 tools/e2e_room.py` sits the learner at every table in six simulated rooms (plus a room with no Space Setup) and checks that the desk comes back to the same spot next session. `node tools/test-room-placement.mjs` checks the placement maths on 16 synthetic rooms.
 - Results, the on-device checklist and known gaps are in **[docs/TESTING.md](docs/TESTING.md)**.
 
 ## Documents
 | File | What |
 |---|---|
+| [docs/INTEGRATION-meta-xr.md](docs/INTEGRATION-meta-xr.md) / [docs/META-XR-RESOURCES.md](docs/META-XR-RESOURCES.md) | Meta's mixed-reality docs, MRUK, Platform SDK and MQDH against HOAM; a sourced guide to these resources for WebXR and native teams |
 | [docs/JUDGING.md](docs/JUDGING.md) | How the app meets each judging criterion, rule and special award, with evidence and known gaps |
 | [docs/SUBMISSION.md](docs/SUBMISSION.md) | Devpost text, video shot list (under 3 min), screenshot list, final checklist |
 | [docs/TESTING.md](docs/TESTING.md) | Automated and manual tests, latest results, performance numbers, on-device plan |

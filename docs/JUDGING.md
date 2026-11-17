@@ -90,7 +90,15 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
   - The writing set is clamped inside the plane polygon and slid toward the centroid until its whole footprint fits (handles round tables).
   - It faces the writer, with a virtual-desk fallback when no plane qualifies.
   - E2E covers three placements: a detected rectangular-bounds table, a round table, and no table nearby.
-- **Spatial anchoring:** the desk is attached with `XRAnchor` so it stays put if tracking drifts.
+  - **Rooms we never tested** (`src/mr/room-placement.ts`):
+    - Placement is restricted by label: never a couch, bed, screen or wall art. Both `table` and `desk` labels are accepted, and unlabelled surfaces too.
+    - Planes tilted more than 6° are refused.
+    - A side table too small for the whole set still gets the paper centred on it, so your fingertip meets a real surface, instead of a floating virtual desk.
+    - `tools/e2e_room.py` sits the emulated learner at every table-height surface in six simulated rooms, plus a room with no Space Setup. `tools/test-room-placement.mjs` covers 16 synthetic cases: tiny, slanted, rotated, round, couch, out of reach, no planes.
+- **Spatial anchoring:**
+  - The desk is attached with `XRAnchor`, so it stays put if tracking drifts.
+  - **It comes back next session** (`src/mr/desk-memory.ts`). IWSDK's persistent anchor (`requestPersistentHandle` / `restorePersistentAnchor`) is restored. If it is the same anchor and the spot is within reach, the paper returns to the same place on your real table ("Welcome back").
+  - See [INTEGRATION-meta-xr.md](INTEGRATION-meta-xr.md) for the comparison with Meta's mixed-reality docs, MRUK and the Platform SDK.
 - **Ghost hand:**
   - A skinned WebXR generic hand driven by a procedural 25-joint pose solver built from IWER's point pose.
   - A Fresnel shader with a depth pre-pass, and a fingertip glow.
