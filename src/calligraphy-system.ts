@@ -437,7 +437,7 @@ export class CalligraphySystem extends createSystem({
     };
     try {
       const [w, mnu, cap] = await Promise.all([
-        make('welcome-panel', 0.09),
+        make('welcome-panel', 0.115),
         make('menu-panel', MENU_SCALE),
         make('caption-panel', CAPTION_SCALE),
       ]);
@@ -468,7 +468,7 @@ export class CalligraphySystem extends createSystem({
     }
 
     // Welcome: above the far edge of the paper, aimed at the 2D camera.
-    this.welcome.position.set(0, 0.22, -0.34);
+    this.welcome.position.set(0, 0.27, -0.36);
     this.aimPanelAt(this.welcome, this.v.set(0, 1.16, 0.02));
     this.layoutPanels();
 
@@ -486,6 +486,10 @@ export class CalligraphySystem extends createSystem({
     if (!this.world.xrEnabled) {
       this.welcome.getElementById('xr-button')?.setProperties({ display: 'none' });
       this.text(this.welcome, 'xr-note', 'Open this page in Meta Quest Browser to start at your desk.');
+    } else {
+      // On a computer or phone there is no mixed reality: say so plainly
+      // instead of offering a button that cannot start anything.
+      void this.checkXrSupport();
     }
     on(this.welcome, 'xr-button', () => this.world.launchXR());
     Array.from({ length: 9 }, (_, i) =>
@@ -542,6 +546,31 @@ export class CalligraphySystem extends createSystem({
     this.refreshMenu();
     this.refreshWelcome();
     this.applyPanelVisibility();
+  }
+
+  private async checkXrSupport(): Promise<void> {
+    let supported = false;
+    try {
+      supported = !!(await navigator.xr?.isSessionSupported('immersive-ar'));
+    } catch {
+      supported = false;
+    }
+    this.log(`immersive-ar supported: ${supported}`);
+    if (supported || !this.welcome) return;
+    this.welcome.getElementById('xr-button')?.setProperties({ display: 'none' });
+    this.welcome.getElementById<UIKit.Text>('xr-note')?.setProperties({ fontSize: 17, lineHeight: 24, color: '#3d342c' });
+    this.text(
+      this.welcome,
+      'xr-note',
+      `This is a preview: the master writing on a loop. The lessons happen in mixed reality at your own desk. On a Meta Quest 3 or 3S, open ${location.host} in Meta Quest Browser.`,
+    );
+    if (!this.sharedTune) {
+      this.text(
+        this.welcome,
+        'midi-note',
+        'You can add a piano song here (a MIDI file), then copy its link and open that on your Quest: the master will already know it. Free public-domain pieces: mutopiaproject.org.',
+      );
+    }
   }
 
   /** Start page: choose a MIDI file to learn as "your song" (also accepts drag and drop). */
