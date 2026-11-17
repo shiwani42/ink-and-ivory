@@ -63,3 +63,30 @@ When a full place covers the room (a street, a hall), passthrough hands disappea
 - `OneHandGrabbable` + the GrabSystem (`features.grabbing: true`): subscribe to `{required:[MyTag, Grabbed]}` `qualify`/`disqualify` for pick-up/release; the system moves the object while held, your code handles the drop.
 - **The near-grab sphere sits at the palm (grip space), not the fingertips.** It takes the object nearest the palm, so small items in a cluster (coins around a centre coin) get the wrong one. Lay small grabbables in a single row across the reach direction, about 7 cm apart.
 - Toggle interaction components with game state (only live targets interactable) rather than leaving hidden objects raycastable.
+
+## Feedback, gestures and tracking loss (Hands of a Master, 18 Nov 2026; source: Meta's hand-tracking guidance)
+- **Poke hover and press on UIKit without a pointer:** add a class object with the `important` conditional (`el.classList.add({ important: { backgroundColor } })`) and remove it afterwards. It outranks inline `setProperties` and `:hover`, and comes off cleanly. Use the same for gesture and microgesture feedback.
+- **Poke cursor:** a ring on the panel plane under the fingertip (tip minus normal × depth), scaled by depth over about 7 cm, `depthTest: false`, high `renderOrder`. This answers Meta's "communicate touch z-distance".
+- **Pose detection from 25 joints:**
+  - Use a soft ramp per cue: curled = tip-to-knuckle under 4–6 cm; thumb clear of the index knuckle; thumb direction · world up above 0.55–0.8. Confidence = the minimum across cues.
+  - Gate it with a `HoldGate`: hold 0.6 s at ≥ 0.7, forgive 120 ms dips, and latch until 0.3 s below 0.35. Start latched, so a pose already showing when the gate opens can't fire.
+  - Enable it only while its action is on screen, and show a filling ring while it's held.
+- **Tracking loss:** WebXR has no confidence API, so "no joint pose" means lost.
+  - Allow about 150 ms of grace, then cancel the stroke and don't score it.
+  - Pause anything clocked: advance it only on `dt`, and skip the update while lost.
+  - Show a body-locked card after 0.3 s if the activity is timed, or about 2.5 s if it's waiting.
+  - Emulator: `xr set-connected {device, connected: false}`.
+- **"Lifted" must be observed, never inferred from absence.** A hand that came back already touching the paper started a stroke mid-page. A change of active hand also re-arms the lift requirement.
+- **No palm-up hand menu:** WebXR reserves the palm pinch for the system (the left one exits the session). Keep menus world-anchored within reach.
+- **Microgestures:** IWSDK and IWER map them to hand-gamepad buttons 5–9, but Meta doesn't document them for Quest Browser. Use them only as optional shortcuts (rising edge, only while the target is live); test with `xr microgesture`.
+- **Emulator tips:**
+  - Hover with `run-sequence {target, anchor: "index-tip", offset: {normal: 0.03}}`.
+  - `approach` ends on the surface and presses.
+  - `depart` before dropping a hand, so it doesn't sweep through a tilted panel.
+  - A `browser screenshot` takes about 3 s; catch sub-second states with a `browser run` loop over `page.screenshot`.
+
+## A tool in the hand (brush, pen)
+- **Keep the fingertip as the contact point,** so the real desk still gives the touch. Draw the tool with its tip where the ink lands and its shaft through the web between thumb and index (the midpoint of `thumb-phalanx-proximal` and `index-finger-phalanx-proximal`). Lean a brush toward vertical; a pen lies back along the hand.
+- **Give the ghost master the same tool,** using its rendered joints.
+- **Hide the resting copy** on the desk while the tool is in the hand.
+- **Pivot the model once at load:** tip at the origin, shaft along +Y. Then each frame it's `position = tip`, `quaternion.setFromUnitVectors(up, dir)`.

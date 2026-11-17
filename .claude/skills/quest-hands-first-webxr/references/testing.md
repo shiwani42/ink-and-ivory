@@ -76,3 +76,19 @@ For CPU frame time in the browser: `chrome://inspect#devices`, then "trace" on c
 - **Tests must reset world state the desktop preview changed.** The 2D page runs the same journey (e.g. auto-hails after 3 s), so entering XR found the vehicle already parked. Reset vehicles and one-shot state on every new journey and on "play again".
 - Drive a generic loop from the app's own logs (`phase X errand=Y step=N`, `result points=`, `targets … layout={buttons:{…}}`) so one driver plays any level. Press UIKit buttons by poking their logged positions, and fall back to `xr run-sequence {target, press}`; count both paths.
 - Physical-randomness checks (which coin the grab takes) can't be forced: verify the rule whenever it occurs (every overpayment got change back) rather than failing when it doesn't happen.
+
+## Recording a trailer from the emulator (Linux, no headset)
+The rules accept emulator footage ("as viewed on a Meta Quest device or via XR Simulator or another equivalent emulator"). The reference implementation is in Hands of a Master: `tools/trailer/recorder.mjs`, `shoot.py` and `assemble.py`.
+- **One shot per `browser run`:** scripts are capped at 110 s per lease.
+  - Set the viewport to 1920×1080 *before* the session starts; a running session keeps its canvas size.
+  - Reload with a preset, then make one trusted `page.mouse.click`, or Chrome keeps the app's audio locked.
+  - Grant the offered session (`IWER_DEVICE.grantOfferedSession()`).
+  - Hide `IWER_DEVICE.devui` (canvas and container) and the workspace chrome around the runtime iframe.
+- **Frames:** use the CDP `Page.startScreencast` (JPEG plus timestamps, 25–50 fps on a GPU). Encode them with an ffconcat file with per-frame durations, then `fps=30`.
+- **App log during a shot:** the CLI's log reader waits while the script holds the lease, so capture `page.on('console')` to a file and drive the shot from that. Use the *latest* layout line: a preset can switch songs or lessons after the first one is logged.
+- **Camera:** set the head with `xr set-transform` before the reload (the emulator restores it, so the desk is placed in front of a seated viewer). Aim it after the session starts. Use `xr animate-to {device: "headset", orientation: {pitch, yaw, roll}, easing: "minimum-jerk"}` for push-ins.
+- **Audio:**
+  - The headless managed browser runs with `--mute-audio`, so record **headed** with the screen awake.
+  - Route Chromium to a null sink: `pactl load-module module-null-sink sink_name=rec`, then `pactl move-sink-input <id> rec`. New Chromium streams follow (stream-restore).
+  - Record with `ffmpeg -f pulse -i rec.monitor`.
+  - **Move the streams back and unload the sink afterwards,** or Chromium stays silent for the user.

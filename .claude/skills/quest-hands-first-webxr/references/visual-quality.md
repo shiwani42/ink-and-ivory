@@ -95,3 +95,26 @@ A desktop-built city draws everything, every frame. Cull from outside so the ori
 - **Radii that worked in Old Delhi lanes:** crowd 40 m, traffic 60 m, other props 60 m, buildings 130 m, ink hulls 30 m. Landmarks, roads and ground are never culled.
 - **Look for the original's own LOD knobs first:** SADAK exports a mutable `DETAIL.near` (105 m), which its cover stills already change. Setting it to 55 m from the adapter cut 0.5M to 0.3M triangles with no edits to its code. Result: 66–160 draw calls and 0.13–0.36M triangles per view.
 - **Measure outside XR:** stats taken while an emulator XR session is still running count both eyes, so they look about twice as high.
+
+## Real human NPCs on a custom rig (MakeHuman/MPFB, free, no GPU)
+Primitive-built people (boxes, cylinders) read as "broken" at VR conversation distance (0.7 m), even when the original game uses them. What worked (Sadak VR, `tools/humans/build_human.py`):
+- **Generate:** MPFB in Blender, headless:
+  - `HumanService.create_human(detailed_helpers=True, …)`. You need the joint helpers, or `add_builtin_rig` fits bones about 0.86 m off the mesh.
+  - Macros (gender, age, muscle, weight, race mix), then a seeded handful of face targets (`TargetService.load_target` from `data/targets/{nose,mouth,chin,…}`), so no two vendors share a face.
+  - `add_builtin_rig(body, "default")`: 163 bones with a jaw, eyes, eyelids (`orbicularis03`) and fingers.
+  - Eyes, eyebrows, eyelashes and teeth with `add_mhclo_asset`. All of this output is CC0.
+- **Freeze:** `shape_key_remove(all=True, apply_mix=True)`, then apply the Mask helper modifier.
+- **Rest pose to match your animation code:** pose the arms straight down with palms to the thighs and the fingers slightly curled. Apply the Armature modifier on each mesh, then `pose.armature_apply`.
+- **Retarget by merging weights, not by mapping rotations:**
+  - Create your own armature with your bone names and hierarchy, with heads at MakeHuman joints.
+  - Sum each MakeHuman bone's weights into its target: descendants of `wrist` go to the wrist, so the fingers are rigid in their curl; `jaw` and its descendants go to the jaw; `orbicularis03` goes to the lid.
+  - Keep the top 4 weights and normalise.
+- **Clothes without a clothes pack:** paint vertex colours by each vertex's dominant bone (skin, cloth1, cloth2, feet, and a hairline that sweeps from the forehead to the nape). Add simple garments (kurta hem and sari flares, trouser tubes, a shirt hem, an apron arc that follows the body's girth, a pallu strip shrinkwrapped `NEAREST_SURFACEPOINT`) and weight them by height.
+  - Vertex colours are linear: convert sRGB hex with `^2.2`.
+  - Scale textures to 256 px: each GLB drops from 4 MB to 1.7 MB.
+- **In three.js:**
+  - Clone with `SkeletonUtils.clone`. A plain `clone()` keeps the original's bones.
+  - Make the joints world-aligned: identity rotations, positions from the rest world positions, then `skeleton.calculateInverses()`. The mesh keeps its rest shape and Euler-based code written for a procedural rig works.
+  - Talk by rotating the jaw bone (about 0.22 rad), never by scaling it. Blink by moving the lid bones down about 8 mm.
+  - Hard cel bands blotch a real face. Use a soft `MeshStandardMaterial` (vertex colours, roughness about 0.8) with the world's grade and reveal patched in.
+  - Load as `priority: 'critical'` GLTF assets. Changes to `assets.ts` need a dev restart.
