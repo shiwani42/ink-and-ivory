@@ -50,3 +50,5 @@ opencode.json
 # Local test output (screenshots, logs, profiles)
 artifacts/
 __pycache__/
+.vercel
+.env*
