@@ -94,12 +94,20 @@ The shared lesson of all three: when input is ambiguous, don't execute an action
   Keep counting any "hidden hand" mechanic during the freeze: cameras lose hands below a table edge exactly when the player is hiding them.
   Have the input layer report `justLost` and `lostSpeed` and leave the decision to the game, instead of turning loss into a release.
 - **Commit a choice deliberately:** hover previews (the piece lifts about 1.5 cm, its destination swells, a soft tick); a pinch commits at once; a resting fingertip commits only after about 0.3 s dwell, with glow that fills. A fingertip brushing past on its way to another target must not commit.
-- **Undo is a take-back window, not a button:** for about 2.4 s after a choice made between options, touching the moved piece again restores a snapshot of the state and reopens the choice. Arm it only after the choosing hand has left the piece (about 6 cm), or the finger that chose takes it straight back.
+- **Undo is a take-back window, not a button:** for about 2.4 s after a choice made between options, touching the moved piece again restores a snapshot of the state and reopens the choice. Arm it only after the choosing hand has left the piece (about 6 cm), or the finger that chose takes it straight back. Keep the window open (up to about 5 s) while an armed hand hovers within about 12 cm of the piece: someone reaching back is deciding to take it back.
 - **Grab affordance before the grab:** when a pinch point comes within range, brighten the object and tick once, so the player knows a pinch will take it.
 - **Controllers still have haptics:** `inputSource.gamepad.hapticActuators[0].pulse(v, ms)` in a try/catch, skipped for hands. Pair every pulse with the sound and glow that hands rely on.
 - **Answer the gestures players already make:** a raised open hand waving (three or more left/right sign flips of horizontal velocity above about 0.3 m/s within 1.6 s, palm near head height, not pinching) gets an in-character reply, on a 25 s cooldown and only in calm phases.
 - **Already-good defaults these stories confirm:** release velocity from a window that skips the last ~40 ms (Table Troopers aims with the position from just before the pinch opened); physical objects as UI (an eraser, a gong) rather than gesture vocabularies; one-handed play; hands and controllers interchangeable at any time.
-- **Emulator:** after `xr set-connected {connected: true}` the hand may come back still pinching; send `{pinch: 0}` before the next pick-up. A phase log written before an animation starts reports the pre-animation positions.
+- **Emulator:** IWER resets a reconnected hand to open (pinch 0, default pose), unlike a real hand, which comes back still pinching. Reconnect, restore the position and pinch in one call: `xr set-device-state {state:{hands:{right:{connected:true, position, pinchValue:1}}}}`. Each CLI call costs about 1 s, so for any window under about 3 s, position the hand before the window opens (aim at a logged destination) instead of reading a log and then moving. A phase log written before an animation starts reports the pre-animation positions.
+
+## Onboarding hands (source: Meta, "Hands Onboarding 101", Nov 2026)
+- Teach the core action first, as a small real task (pick up the dice), before secondary gestures. Keep a critical prompt up until the player succeeds, not until it's dismissed.
+- **Instructions follow the active input:** keep a controller variant of every instruction ("pull the trigger", not "pinch") and choose it per frame from whether a tracked source is a hand.
+- **Contextual reminders, not a one-shot tutorial:** if nothing happens for about 12 s, show the full instruction again; re-offer the hint for a trick the player hasn't tried yet every few turns.
+- Confirm every success with something seen and heard; define what happens to held objects on tracking loss and tell the player how to continue.
+- Unfamiliar gestures need a demonstration where they're used (a looping neutral 3D hand), not only text.
+- Test with a new player without coaching; watch where they hesitate.
 
 ## A tool in the hand (brush, pen)
 - **Keep the fingertip as the contact point,** so the real desk still gives the touch. Draw the tool with its tip where the ink lands and its shaft through the web between thumb and index (the midpoint of `thumb-phalanx-proximal` and `index-finger-phalanx-proximal`). Lean a brush toward vertical; a pen lies back along the hand.

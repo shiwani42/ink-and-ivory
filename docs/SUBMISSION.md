@@ -121,6 +121,7 @@ Use `docs/media/` for now and replace them with headset captures later:
 4. `01-browser-landing.png`: the landing page.
 
 ## Final checklist
+- [ ] **Finishing touches** (see the skill's submission.md, "Finishing touches"): hero GIF of the gold lock-in at the top of the README and the Devpost description (from headset footage, or `artifacts/trailer/02-write-big.mp4` around 0:08–0:14); a soft shadow under the master's and your fingertip or tool tip; a slow-frame logger (`[hoam] perf ...`, `?perf=1`).
 - [ ] `npm run build` passes; deploy `dist/` to Vercel (`npx vercel --prod`). `vercel.json` keeps `Permissions-Policy: xr-spatial-tracking=*`.
 - [ ] On a Quest 3 (and 3S if available), test the **production URL** in Quest Browser, logged out or incognito:
   - Enter, then the paper lands on a real desk.

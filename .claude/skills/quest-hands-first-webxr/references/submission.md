@@ -32,6 +32,12 @@ Name known issues and what's next; link any SDK fork or patch you made (it reads
 ## Pre-submit self-check
 Score yourself on the four criteria; walk the headset-only list in testing.md; confirm every credit against its source page; confirm both URLs work logged out.
 
+## Finishing touches (keep for the last hours, after headset footage exists)
+Small, high-visibility items. Park them in the project's final checklist so they aren't forgotten, then do them at the end:
+1. **A hero GIF at the top of the README and the Devpost page:** a 5–8 s loop of the single magic moment (e.g. the hands locking together in gold), with descriptive alt text, before any text. Cut it from headset footage (`metavr capture video`), falling back to the emulator trailer: `ffmpeg -ss <t> -t 6 -i clip.mp4 -vf "fps=15,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" hero.gif`. Keep it under about 8 MB.
+2. **A soft shadow under the guide's fingertip or tool tip** on the work surface (an invisible receiver, a blurred disc that tightens and darkens as it nears the surface). It shows hovering versus touching at a glance, for the ghost and the learner alike.
+3. **A slow-frame logger:** count frames over budget with a fixed tag (`[app] perf slow=N of M p95=X ms`), on in dev and behind `?perf=1` in production. Ask the first headset tester for those lines; they're the cheapest real performance numbers you'll get.
+
 ## Recording the trailer (Meta's guidance)
 Record landscape 1920 × 1080 (`metavr capture video start --width 1920 --height 1080`, from Linux too). Meta suggests 36 fps (variable), image stabilisation low, and slow, deliberate head movement. Mixed Reality Capture doesn't apply to WebXR. Use `?state=` presets to jump to each shot.
 
