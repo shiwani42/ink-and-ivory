@@ -13,9 +13,18 @@ Past winners didn't win on polygons. They won on **lighting, grounding, motion, 
 - **One play area, occasional moves:** one shadow-casting key, `castShadow`, a tight shadow camera (~1 m) aimed at the play area, a 1024² map, `autoUpdate=false`, refresh only when something moves; a `ShadowMaterial` catcher underneath.
 - **Objects moving continuously on a table:** two tiers: a static 512² map refreshed when things settle, plus a small 128² shadow camera that follows only the moving objects.
 - Never per-frame full shadow maps. **Force one material recompile** if shadows are enabled after load.
+- **A character's hands over the table** must cast onto it (`castShadow` on body and clothes; no `receiveShadow`, since skinned self-shadow is acne). An idle character moves every frame, so watch its arm bones separately and refresh at most every 3rd frame (~24 Hz).
+- **Floor props in passthrough** (pillars, lamps, a seat) sit outside the ~1 m shadow camera and float. Bake a contact shadow at load from the geometry itself:
+  1. Rasterise every triangle within ~0.3 m of the base into a top-down canvas, darkest per pixel (`'lighten'`).
+  2. Add two blurs: ~3 cm for the core, ~13 cm (drawn twice) for the falloff.
+  3. Raise the mask to the power 0.5. The part you see is the falloff beyond the base; the core sits under the object.
+  4. Put the mask in the **alpha channel of a black texture** on a `MeshBasicMaterial` with `transparent` and `depthWrite:false`. Normal alpha blending is what darkens passthrough; multiply blending leaves the camera feed untouched.
+  5. Use one quad per prop and bake once, so there's no per-frame cost. The shape follows the real footprint, such as two arch feet or a lamp's ring.
+- **Verify subtle effects with an A/B**: tint the effect red, or take two screenshots (effect on, then at opacity 0) and diff them. Effects that are "too subtle to see" and effects that "don't render" look identical by eye.
 - Arrival animation: scale content in along its depth axis over ~0.7 s.
 
 ## 3. Materials that read as real
+- **Image→3D GLBs (TRELLIS, etc.) usually ship base colour only.** With no factors, glTF defaults to metallic 1 and rough 1, so stone and marble render as dull dark metal. Set `metalness` and `roughness` per prop: stone 0/0.8, marble 0/0.4, brass 0.9/0.3. Clone materials if placements differ.
 - Draw ornament once on a canvas and reuse the strokes as metalness, roughness and bump masks, so gold thread glints as the head moves.
 - Lacquer and wood: `MeshPhysicalMaterial` with clearcoat. Velvet: muted sheen (dark `sheenColor`, darker base).
 - Pack multi-face textures into one atlas (one draw call per object).
@@ -65,9 +74,22 @@ AO only affects indirect light (IBL, ambient), so it reads strongest under image
 ## Materials that read as real
 - **Lacquer, polished wood, car paint:** Principled `Coat Weight` 1, `Coat Roughness` ~0.04 over a satin base (roughness ~0.2); exported as `KHR_materials_clearcoat`. One extra shader layer, no extra draw.
 - **Reflections:** feed each place's own HDR as the environment, so metal and coat reflect the room the user sees.
+  - When the place is an LDR painted dome, use a **50%-desaturated, 1024×512 copy** as the `IBLTexture`. The full-saturation image tints ivory and green board squares orange.
+  - Turn `scene.environmentRotation.y` with the dome every frame. IWSDK applies the IBL `rotation` only on `_needsUpdate`.
+  - An LDR env is darker than `'room'`, so raise the intensity (0.8 → ~1.6).
+- **Gold thread on cloth:** keep it mostly dielectric (metalness ≤0.3, roughness ~0.4). Fully metal zari mirrors the dark ceiling and disappears.
 
 ## Frame rate and layers (Meta's WebXR guidance)
 - Request 72 Hz first. If on-device traces show headroom, step up via `session.supportedFrameRates` / `updateTargetFrameRate(90)` (Quest Browser 16.4+). Meta: "higher frame rates result in more realistic experiences."
 - Verify that foveation actually applies: `adb shell ovrgpuprofiler -e` (restart the browser), then `ovrgpuprofiler -t`.
 - **`XRQuadLayer`** (IWSDK optional feature `layers`) renders panel text crisply, but the compositor draws it *over* everything, including hands. Use it only for panels that hands never pass in front of. The emulator shows only the fallback mesh.
 - KTX2/Basis is Meta's recommended texture format (IWSDK bundles `KTX2Loader`); worth it when texture memory or upload hitches show up.
+  - Check before converting. If the textures are already small WebP (≤2k, a few MB of VRAM in total), KTX2 changes nothing visible and ETC1S can blotch faces.
+  - IWSDK fetches the Basis transcoder from unpkg at runtime, so self-host it (`ktx2TranscoderPath`) for an offline-safe build.
+
+## Culling a vendored world (without editing it)
+A desktop-built city draws everything, every frame. Cull from outside so the original's code stays untouched:
+- **Plain meshes:** toggle `mesh.layers` channel 0 by distance from the user, never `visible`, so the original's own visibility logic keeps working. Work in the world group's frame: `inverse(world.matrixWorld) * mesh.matrixWorld`. Update a slice of meshes per frame (all within ~0.25 s), and all of them after a jump (a ride or teleport).
+- **InstancedMesh (crowds, lamps, clutter):** an `InstancedMesh` has no per-instance culling. Leave the source where the original writes it, take it off layer 0, and add a sibling proxy that shares its geometry and material. Copy only the instances in range into the proxy (with their instance colours), and only when the source's `instanceMatrix.version` changes or the user moves. Skip zero-scaled instances, which mean hidden parts. Never compact the source in place: the original may pose some instances only once.
+- **Rescan every second:** worlds that stream in detail add meshes later.
+- **Radii that worked in Old Delhi lanes:** crowd 45 m, traffic 70 m, other props 60 m, buildings 170 m, ink hulls 45 m. Landmarks, roads and ground are never culled. Result: 100–150 draw calls and 0.2–0.45M triangles per view on the desktop emulator, and about 340 calls and 0.57M triangles for both eyes in XR.

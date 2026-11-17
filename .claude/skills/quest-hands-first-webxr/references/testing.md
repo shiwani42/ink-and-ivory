@@ -32,6 +32,7 @@
 | Preset | `browser run tools/goto.mjs` | needs `dev restart --allow-browser-automation` (architecture.md) |
 
 ## Rules that saved hours
+- **Unattended runs: headless.** A headed managed browser stops drawing when the screen locks or the window is hidden. The app logs one frame and freezes (e.g. stuck at "finding your desk") with **no errors**. Use `npx iwsdk dev restart --headless --open --allow-browser-automation` for long or overnight test runs; switch back to headed (and say so) when the user wants to watch.
 - **Never edit `src/` while a run is going** (comments included). Docs, skills and `public/` assets outside the import graph are safe. If you slipped, restart the run.
 - Run long suites in the background (`npm run test:xr`) and write docs meanwhile; wait for the completion notice.
 - Quick run (one item + the changed feature) after each change; the full suite before each commit.
@@ -65,3 +66,13 @@ metavr casting start | status | stop
 For CPU frame time in the browser: `chrome://inspect#devices`, then "trace" on com.oculus.browser with the `xr.debug` category.
 - `metavr asset search` (Meta's 3D Asset Library) failed server-side for us in Nov 2026, even when logged in. Retry occasionally; don't depend on it.
 - Meta Spatial Simulator runs 2D Android apps only (macOS/Windows); it can't test WebXR. Use IWER.
+
+## More harness lessons (Sadak VR, Nov 2026)
+- **`browser run` scripts see the editor shell first:** the app runs in an iframe (`…?__iwsdk_preview_reload=…`). Evaluate in every `page.frames()` and keep the one where your debug handle (`window.<app>`) exists. Reference: `sadak-vr/tools/probe.mjs`.
+- **`browser logs` `pattern` is not reliable for every line**: when a one-off line seems missing, fetch without a pattern or probe state via the debug handle before concluding the code didn't run.
+- **Review shots need a realistic pose.** The test seat (head 1.0 m, pitched about 45° down) hides faces and makes UI look as if it overlaps. For composition review, put the eyes 1.2 m above the floor, about 0.45 m behind the table edge, pitched −5° to −10° (`sadak-vr/scripts/e2e/review.py`). The emulator room's table is a 0.42 m coffee table: standing characters will loom over it.
+- **Dev shortcuts must respect state** (e.g. "put exact change on the plate" pays only what is missing); a naive shortcut produced a false failure that looked like a game bug.
+
+- **Tests must reset world state the desktop preview changed.** The 2D page runs the same journey (e.g. auto-hails after 3 s), so entering XR found the vehicle already parked. Reset vehicles and one-shot state on every new journey and on "play again".
+- Drive a generic loop from the app's own logs (`phase X errand=Y step=N`, `result points=`, `targets … layout={buttons:{…}}`) so one driver plays any level. Press UIKit buttons by poking their logged positions, and fall back to `xr run-sequence {target, press}`; count both paths.
+- Physical-randomness checks (which coin the grab takes) can't be forced: verify the rule whenever it occurs (every overpayment got change back) rather than failing when it doesn't happen.

@@ -36,3 +36,23 @@
 - Assuming a hosted asset API works because it is documented.
 - A first version that passed every functional test and was rejected on looks: the visual bar came too late.
 - Five rounds tuning a symptom (squint values, alpha cutoffs) before bisecting the pipeline found the real cause.
+
+## Parallel agents in a git worktree (worked well for a world or art subsystem)
+- Freeze the interface first: a `types.ts` contract plus a grey-box stub that implements it, committed before the agent starts. The director is built and fully emulator-tested against the stub while the agent builds the real thing; the merge then needed only layout tweaks.
+- Give the agent its own preview page and **its own port**, never the main dev port. If its `node_modules` is a symlink to the main checkout, also give it its **own Vite `cacheDir`** (e.g. `.tmp/vite`): otherwise its optimizer overwrites the shared `node_modules/.vite` and the main server serves stale deps.
+- Ask for screenshots from the player's real seat plus close-ups, perf numbers (`renderer.info` after one frame), and an integration note. Review the screenshots yourself before merging.
+- After merging: copy its artifacts, then `git worktree remove --force` and delete the branch. Gitignore `.claude/worktrees/` and `__pycache__/` so a commit never embeds them.
+
+## Porting an existing game: the original is the spec
+- Before designing anything, have a read-only agent map the original's player-facing flow with file:line citations: screens and strings, task order and selection, the dialogue/turn loop and its pass rule, rewards and HUD, transitions (rides, cutscenes), audio events, and what is legacy or unreachable. Build to that spec.
+- Keep its order, content, UI copy, loop, rewards, finale, look and audio. Add VR on top (hands paths, physical verbs, MR placement, seated rides) and label those as additions in JUDGING.md. Don't swap its mechanics for invented ones; one user rejected a quiz-card flow at once with "follow everything exactly as in real <game> code".
+- Port data verbatim with a provenance header (e.g. lesson files, level tables), and unit-test the port against the source's numbers (order, totals, step counts per level).
+- Show motion where the original moves the player: rides, vehicles arriving, a new place for each task. A static set with only the text changing reads as a slideshow.
+- **If the original is three.js, run its world code; don't rebuild it.** A rebuilt city looked close but was not "exactly as in the repo" (the user asked twice). The fix that stuck:
+  - Vendor the original's engine folder unmodified, with a README naming the commit. Copy only the import closure: bundle the entry points with `esbuild --bundle --metafile --external:three` and copy the files listed in `inputs`.
+  - Resolve its path aliases (`@/lib` → the vendored folder) in both `vite.config.ts` and `tsconfig.json` `paths`. Stub type-only imports, and `define` `process.env.NODE_ENV`.
+  - `three` stays a single instance when the project's `three` is the same `super-three` that `@iwsdk/core` uses (`resolve.dedupe`).
+  - Call its builder the way its own engine does (its scene setup, lights, sky, material conversion). Keep every VR change in one adapter file, never in the vendored files, so a fresh copy can drop in.
+  - Its stated look (post-processing) won't run per eye on a Quest. Move the grade and haze into each material with `onBeforeCompile` (chain any existing hook and extend `customProgramCacheKey`). Do ink as inverted hulls that share the geometry, drawn only near the user.
+  - A desktop city will blow the Quest budget: in our case 3M triangles and 560 draw calls, from a whole-map crowd, traffic and clutter. See visual-quality.md, "Culling a vendored world".
+  - Verify the port with an inventory probe: every group the builder adds, landmarks by name, and the original's own console warnings (a missing webfont, a missing preset).

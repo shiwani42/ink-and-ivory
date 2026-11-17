@@ -54,3 +54,12 @@ The judging text names gaze interactions (Unity/Unreal ISDK v207+). Quest 3 and 
 
 ## Meta's hands guidance worth quoting in JUDGING.md
 "Avoid time-based or reflex-heavy events" and "do not penalize users for taking their time" (design/hands-best-practices). Keep wait modes forgiving, and score rhythm only as a bonus.
+
+## Real hands over an opaque virtual world
+When a full place covers the room (a street, a hall), passthrough hands disappear and IWSDK's hand visual is only an outline. Its inner "stencil" skinned mesh writes `vec4(0,0,0,0)` with normal blending (invisible) plus depth. Set that material to `blending = NoBlending; transparent = false; needsUpdate = true`: it now writes alpha 0, and Quest composites passthrough there, so you see your **real hands** through a hand-shaped window, and its depth hides UI behind the hand. Find it by traversing the scene for a `SkinnedMesh` whose `ShaderMaterial.fragmentShader` contains `vec4(0,0,0,0)` (the material is shared, so do it once). The emulator overlays its own synthetic hand, so only a headset can confirm the look. Reference: `sadak-vr/src/game/director.ts` `punchHands`.
+
+## IWSDK's stock interaction components (prefer them over custom poke/grab)
+- `RayInteractable` + `PokeInteractable` on a mesh or panel entity: subscribe to `{required:[MyTag, Pressed]}` `qualify` for a press (poke-through or point + pinch) and `Hovered` for hover. Pressed `disqualify` gives you **hold-to-talk** for free (finger stays in, or pinch held on the ray).
+- `OneHandGrabbable` + the GrabSystem (`features.grabbing: true`): subscribe to `{required:[MyTag, Grabbed]}` `qualify`/`disqualify` for pick-up/release; the system moves the object while held, your code handles the drop.
+- **The near-grab sphere sits at the palm (grip space), not the fingertips.** It takes the object nearest the palm, so small items in a cluster (coins around a centre coin) get the wrong one. Lay small grabbables in a single row across the reach direction, about 7 cm apart.
+- Toggle interaction components with game state (only live targets interactable) rather than leaving hidden objects raycastable.

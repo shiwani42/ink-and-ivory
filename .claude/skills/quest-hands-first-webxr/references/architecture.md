@@ -47,3 +47,6 @@ Reference implementation: `hands-of-a-master/src/presets.ts` and `tools/goto.mjs
 
 ## LLM inside the experience
 Return a JSON action contract (`{"action":"start_timer","seconds":300}`) and validate it before acting; split listen / think / speak modules; stream audio (`MediaRecorder` Opus) to a serverless endpoint; make sure the experience still stands without the model. Opponent-specific guidance: `quest-mr-game`.
+
+## UI that turns to whoever is speaking
+Put dialogue, reply cards and hints under one **UI root placed at the seated user's position** (on the table plane, about 0.45 m toward the user from the anchor) and yaw that root per scene: the cards stay within reach while the dialogue sits beside the speaker (e.g. a driver in a vehicle that pulls up on your right). Give a row of cards **one shared orientation** (a helper object at the row centre looks at the head) so the outer cards don't roll. Physical things (coins, plates, goods) stay in anchor space.

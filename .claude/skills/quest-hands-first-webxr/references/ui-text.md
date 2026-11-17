@@ -68,3 +68,14 @@ Capture the view at each onboarding moment and inspect at full resolution: clipp
 
 ## UIKitML: don't hide text elements at load
 A tile that starts with `style="display: none"` and blank text didn't lay out new text when the code later set its text and showed it. The tile appeared with its number but no name. Give every element real placeholder text, start it visible, and let the code hide what isn't needed on the first refresh.
+
+## UIKit for Latin UI, Canvas2D for scripts
+- Use the Horizon UIKit kit (via the `iwsdk-ui` skill) for HUDs, buttons and cards in Latin text: it gives real buttons, Lucide icons (e.g. `IndianRupee` for ₹, which the MSDF fonts lack), and works with the stock interaction components. Keep Devanagari, CJK and other scripts on Canvas2D cards.
+- Code-owned panels: `world.assets.instantiate(id)`, `createTransformEntity(panel, {parent})`, then **add RayInteractable + PokeInteractable only while the panel is shown** (and remove them when hidden). Give buttons runtime `name`s so `xr list-targets` and `run-sequence press` can find them.
+- `assets.ts` changes need a dev server restart before `ui assets` / `ui render-preview` see them. Use one contact sheet of `ui render-preview` outputs for the visual check.
+- UIKit lays out newly shown elements on its next update: read an element's world position (for tests) a few hundred ms after toggling `display`.
+- Panels in the editor preview render light, but dark at runtime (preferred scheme dark): give every text class a `:dark` colour.
+- Placement check: primary UI 10–20° below eye level. A card 0.38 m away and 0.25 m below the eyes (33°) was invisible in review shots; 0.5 m away and 0.17 m below (19°) read well.
+
+## Hidden elements still take a custom poke
+`setProperties({ display: 'none' })` hides a UIKit element, but its `matrixWorld` stays where it was. A hand-written fingertip poke that tests each button's rectangle will still fire a hidden button at its old position. That's how adding a third language chip made "Play your own tune" (shown in the same row's place) switch to Chinese. Route every show/hide through one helper that records hidden ids, and skip those ids (and the children of hidden rows) in the poke test.

@@ -33,3 +33,6 @@ No table nearby; seated at a table; a round table. The emulator room has about 1
 
 ## Remembering placement across sessions
 IWSDK 1.1.0 already restores a persistent anchor at the reference-space origin through `localStorage` (`scene-understanding/scene-understanding-system.js`, about lines 538–630). Store the content's pose relative to it to bring the desk or board back next session. Limits: 8 anchors per site, nothing persists in private browsing, and it needs a headset to verify. Judges may only see one session, so it's a nice-to-have, worth one line in the write-up if it works.
+
+## Depth occlusion and opaque worlds
+`DepthOccludable` on UI or props is right in passthrough, but **wrong once an opaque world covers the room**: real objects nobody can see (a laptop on the table, a sofa in the emulator room) punch holes in cards that show the virtual world behind. Under a full place, rely on the hand window (hands-input.md) for hands-over-UI and leave UI non-occludable. Never put it on the world itself either: the real walls cut the street, and it forces materials transparent.
