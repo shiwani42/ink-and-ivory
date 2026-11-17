@@ -145,6 +145,7 @@ def main():
     ap.add_argument('--hand', default='right', choices=['right', 'left'], help='writing hand')
     ap.add_argument('--piano', type=int, default=0, help='also play N piano songs after the calligraphy lessons')
     ap.add_argument('--compose', action='store_true', help='at the piano, play a tune of our own and check the master learns and teaches it')
+    ap.add_argument('--lang', default='japanese', choices=['japanese', 'chinese', 'english'], help='calligraphy language')
     ap.add_argument('--watch', action='store_true', help='keep the emulated head looking at the paper (for a human watching)')
     args = ap.parse_args()
     jitter = args.jitter / 1000
@@ -198,6 +199,13 @@ def main():
     m, _ = wait_for(r'calibrated offset (.*)', m1, 6)
     print('   offset', m.group(1))
     hand_to((seal[0], seal[1] + 0.08, seal[2]), 0.3, writer)
+
+    if args.lang != 'japanese':
+        m0 = mark()
+        press(f'lang-{args.lang}', other)
+        m, _ = wait_for(r'^layout (.*)', m0, 10)
+        layout = json.loads(m.group(1))
+        print(f'   language {args.lang}: lesson {layout["lesson"]}')
 
     for lesson_no in range(args.lessons):
         m, _ = wait_for(r'^practice$', m0, 40)
@@ -264,17 +272,24 @@ def main():
         press('craft-piano', other)
         lay = None
         for song_no in range(args.piano):
-            m, _ = wait_for(r'^piano-layout (.*)', m0, 15)
-            lay = json.loads(m.group(1))
-            print(f'5.{song_no + 1} piano {lay["song"]}: {len(lay["notes"])} notes')
-            if args.watch:
-                look_at_paper(lay)
-            wait_for(r'^practice$', m0, 60)
-            ms = mark()
-            play_song(lay, writer)
-            m, _ = wait_for(r'lesson complete score (\d+) accuracy ([\d.]+) rhythm ([\d.]+)', ms, 20)
-            score = int(m.group(1))
-            print(f'     score {score} (accuracy {m.group(2)}, rhythm {m.group(3)})')
+            # Long songs come phrase by phrase (master plays, we echo), then whole.
+            while True:
+                m, _ = wait_for(r'^piano-layout (.*)', m0, 30)
+                lay = json.loads(m.group(1))
+                print(f'5.{song_no + 1} piano {lay["song"]} ({lay.get("part", "whole")}): {len(lay["notes"])} notes')
+                if args.watch:
+                    look_at_paper(lay)
+                wait_for(r'^practice$', m0, 60)
+                ms = mark()
+                play_song(lay, writer)
+                m, _ = wait_for(r'^(phrase-done .*|lesson complete score (\d+) accuracy ([\d.]+) rhythm ([\d.]+))', ms, 25)
+                if m.group(1).startswith('phrase-done'):
+                    print(f'     {m.group(1)}')
+                    m0 = ms
+                    continue
+                break
+            score = int(m.group(2))
+            print(f'     score {score} (accuracy {m.group(3)}, rhythm {m.group(4)})')
             results.append((lay['song'], [score]))
             time.sleep(1.0)
             shot(f'piano-{song_no + 1}-{lay["song"]}')

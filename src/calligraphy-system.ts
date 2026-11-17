@@ -36,20 +36,34 @@ import { GhostHand, JointBlender } from './ghost/ghost-hand.js';
 import { GhostPoseBuilder, JOINT_COUNT, type Handedness } from './ghost/ghost-pose.js';
 import { Sparks } from './fx/sparks.js';
 import { type FingerTip, PianoMode } from './piano/piano-mode.js';
-import { clearCustomSong, CUSTOM_ID, loadCustomSong, saveCustomSong, songFromMidi } from './piano/custom-song.js';
+import {
+  addTune,
+  clearCustomSong,
+  decodeTune,
+  encodeTune,
+  loadTunes,
+  MAX_TUNES,
+  songFromMidi,
+  tuneCodeFromUrl,
+} from './piano/custom-song.js';
 import { parsePreset, type Preset } from './presets.js';
-import { SONGS, type PianoSong } from './piano/songs.js';
+import { dailyEcho, phrasesOf, SONG_UNITS, SONGS, type PianoSong } from './piano/songs.js';
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
 import { Environment, SCENES } from './env/environment.js';
-import { type Language, LANGUAGES, LESSON_SETS, LESSONS, type Lesson } from './lessons/lessons.js';
+import { type Language, LANGUAGES, LESSON_SETS, LESSONS, type Lesson, type Unit, UNITS } from './lessons/lessons.js';
 import { StrokePath } from './lessons/master-path.js';
 import { PASS_SCORE, scoreStroke, type StrokeScore } from './lessons/scoring.js';
 import {
   clearProgress,
+  DAILY_GOAL,
+  dailyCount,
+  helpLevel,
   lessonProgress,
   loadProgress,
+  markDaily,
   markPracticeDay,
   saveProgress,
+  today,
   type Progress,
 } from './progress.js';
 
@@ -106,6 +120,12 @@ const PLACE_TIMEOUT = 2.5;
 const MENU_SCALE = 0.056; // 380 units -> 21 cm wide; 76-unit targets -> 43 mm
 const CAPTION_SCALE = 0.085; // 520 units -> 44 cm wide; 25-unit body -> about 1 degree at 0.9 m
 const BREAK_AFTER_S = 25 * 60;
+const NEW_TUNE_ID = 'piano-new-tune';
+/** Broad nib for English italic: held at 40 degrees, so thickness follows direction. */
+const NIB_X = Math.cos((40 * Math.PI) / 180);
+const NIB_Z = -Math.sin((40 * Math.PI) / 180); // up the page is -z
+/** Ghost opacity for each help level (full guide, outline, from memory), before in-attempt fading. */
+const HELP = [1, 0.55, 0.2];
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 const smooth = (t: number): number => t * t * (3 - 2 * t);
@@ -150,6 +170,8 @@ export class CalligraphySystem extends createSystem({
   private captionEntity?: Entity;
   private anchored = false;
   private pokeButtons: PokeButton[] = [];
+  /** Menu elements set to display: none. Their old position must not take a poke. */
+  private hidden = new Set<string>(['piano-row']);
   private pokeTip = new Vector3();
   private lastTriggerId = '';
   private lastTriggerAt = 0;
@@ -167,8 +189,27 @@ export class CalligraphySystem extends createSystem({
   private calX = SEAL_X; // calibration target (moves beside the keyboard in piano mode)
   private calZ = SEAL_Z;
   private pianoHintAt = -10;
-  /** The learner's own song (played to the master, or from a MIDI file). */
-  private customSong: PianoSong | undefined = loadCustomSong();
+  /** The learner's own tunes (played to the master, from a MIDI file, or a shared link). */
+  private tunes: PianoSong[] = loadTunes();
+  /** A tune that arrived in the page link (?tune=...), opened once the keyboard is placed. */
+  private sharedTune?: PianoSong;
+  private daily: PianoSong = dailyEcho();
+  private dailyDay = today();
+  /** The unit shown on the menu. */
+  private unitPage = 0;
+  /**
+   * In-attempt help, 0..1: falls while you move with the master, comes back
+   * slowly after a slip (a skill-adaptive ghost, as in the CHI 2026 study).
+   */
+  private assist = 1;
+  private assistNoted = false;
+  /** Piano songs are taught phrase by phrase, then played whole. */
+  private phrases: [number, number][] = [[0, 0]];
+  private phraseIndex = 0;
+  private wholeRun = true;
+  private fullSong?: PianoSong;
+  private dirX = 0;
+  private dirZ = 1;
   private midiInput?: HTMLInputElement;
   private status?: UIKitMLAsset; // body-locked card shown while finding the desk
   private statusEntity?: Entity;
@@ -311,11 +352,19 @@ export class CalligraphySystem extends createSystem({
     if (this.preset?.state === 'fresh') {
       clearProgress();
       clearCustomSong();
-      this.customSong = undefined;
+      this.tunes = [];
       this.preset = undefined;
       this.log('preset fresh: progress cleared');
     }
     this.progress = loadProgress();
+    const code = tuneCodeFromUrl();
+    const shared = code ? decodeTune(code) : undefined;
+    if (shared) {
+      const { tunes, tune } = addTune(this.tunes, shared);
+      this.tunes = tunes;
+      this.sharedTune = tune;
+      this.log(`shared tune ${tune.name} ${tune.notes.length} notes`);
+    }
     this.sfx.tracks = SCENES.japan.tracks.map((f) => `${import.meta.env.BASE_URL}${f}`);
     // Image-based lighting from a real studio HDRI (Poly Haven, CC0): glazes,
     // brass and wet ink pick up believable reflections. Hidden as a sky in AR.
@@ -350,6 +399,7 @@ export class CalligraphySystem extends createSystem({
     this.piano = new PianoMode({
       play: (midi, velocity, x, y, z) => this.sfx.piano(midi, velocity, x, y, z),
       sparks: (x, y, z, n) => this.sparks.burst(x, y, z, n, 0.12),
+      tick: (accent) => this.sfx.tok(accent ? 1.35 : 1.1),
     });
     this.piano.root.visible = false;
     this.desk.body.add(this.piano.root);
@@ -440,9 +490,15 @@ export class CalligraphySystem extends createSystem({
     on(this.welcome, 'xr-button', () => this.world.launchXR());
     Array.from({ length: 9 }, (_, i) =>
       on(this.menu, `lesson-${i}`, () => {
-        if (i < this.lessonCount()) this.startLesson(i, true); // tiles 7-9 are piano only
+        const unit = this.currentUnit();
+        if (unit && i < unit.count) this.startLesson(unit.start + i, true);
       }),
     );
+    on(this.menu, 'btn-unit-prev', () => this.pageUnit(-1));
+    on(this.menu, 'btn-unit-next', () => this.pageUnit(1));
+    on(this.menu, 'btn-review', () => this.startReview());
+    on(this.menu, 'lang-english', () => this.setLanguage('english'));
+    on(this.welcome, 'share-button', () => void this.copyTuneLink());
     on(this.menu, 'btn-slower', () => this.setTempo(this.tempo - 0.1));
     on(this.menu, 'btn-faster', () => this.setTempo(this.tempo + 0.1));
     on(this.menu, 'btn-watch', () => this.startLesson(this.lessonIndex, true));
@@ -484,6 +540,7 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'btn-again', () => this.startLesson(this.lessonIndex, false));
 
     this.refreshMenu();
+    this.refreshWelcome();
     this.applyPanelVisibility();
   }
 
@@ -512,13 +569,50 @@ export class CalligraphySystem extends createSystem({
       this.text(this.welcome, 'midi-note', result);
       return;
     }
-    this.customSong = result;
-    saveCustomSong(result);
-    delete this.progress.lessons[CUSTOM_ID];
+    const { tunes, tune } = addTune(this.tunes, result);
+    this.tunes = tunes;
+    delete this.progress.lessons[tune.id];
     saveProgress(this.progress);
-    this.text(this.welcome, 'midi-note', `Added "${result.name}" (${result.notes.length} notes). In the headset: Piano, song ${SONGS.length + 1}.`);
+    this.text(this.welcome, 'midi-note', `Added "${tune.name}" (${tune.notes.length} notes). In the headset: Piano, the "Your music" unit.`);
     this.log(`midi ${result.name} ${result.notes.length} notes bpm ${result.bpm}`);
     this.refreshMenu();
+    this.refreshWelcome();
+  }
+
+  /** Start page: put a link to the newest tune on the clipboard (and in the address bar). */
+  private async copyTuneLink(): Promise<void> {
+    const tune = this.tunes[this.tunes.length - 1];
+    if (!tune) return;
+    const url = `${location.origin}${location.pathname}?tune=${encodeTune(tune)}`;
+    try {
+      history.replaceState(null, '', url);
+    } catch {
+      // ignore: the clipboard is the main path
+    }
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(url);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+    this.text(
+      this.welcome,
+      'midi-note',
+      copied
+        ? `Link to "${tune.name}" copied. Whoever opens it on a Quest finds the master already knows your tune.`
+        : `The link to "${tune.name}" is now in the address bar: copy it from there and send it.`,
+    );
+    this.log(`share ${tune.name} ${copied ? 'copied' : 'address bar'}`);
+  }
+
+  private refreshWelcome(): void {
+    const tune = this.tunes[this.tunes.length - 1];
+    this.welcome?.getElementById('share-button')?.setProperties({ display: tune ? 'flex' : 'none' });
+    if (tune) this.text(this.welcome, 'share-label', `Copy a link to "${tune.name}"`);
+    if (this.sharedTune) {
+      this.text(this.welcome, 'midi-note', `Someone shared a tune with you: "${this.sharedTune.name}". Begin at your desk and the master will teach it.`);
+    }
   }
 
   private trigger(id: string, fn: () => void): void {
@@ -532,8 +626,17 @@ export class CalligraphySystem extends createSystem({
     fn();
   }
 
+  /** Show or hide a menu element, and remember it so a hidden button ignores pokes. */
+  private display(id: string, on: boolean): void {
+    this.menu?.getElementById(id)?.setProperties({ display: on ? 'flex' : 'none' });
+    if (on) this.hidden.delete(id);
+    else this.hidden.add(id);
+  }
+
   private buttonActive(b: PokeButton): boolean {
-    if (!b.panel.visible) return false;
+    if (!b.panel.visible || this.hidden.has(b.id)) return false;
+    if (b.id.startsWith('lang-') && this.hidden.has('languages')) return false;
+    if (b.id === 'btn-record' && this.hidden.has('piano-row')) return false;
     if (b.id === 'btn-next' || b.id === 'btn-again') {
       if (!this.captionActionsShown) return false;
       if (b.id === 'btn-next' && this.lessonIndex === this.lessonCount() - 1) return false;
@@ -672,7 +775,8 @@ export class CalligraphySystem extends createSystem({
   }
 
   private lessonEyebrow(): string {
-    return `${LANGUAGES[this.language].name.toUpperCase()}  -  LESSON ${this.lessonIndex + 1} OF ${this.lessons().length}  -  ${this.lesson.meaning.toUpperCase()} (${this.lesson.reading})`;
+    const level = ['', '  -  OUTLINE', '  -  FROM MEMORY'][this.guideMode === 'adaptive' ? helpLevel(this.progress, this.lesson.id) : 0];
+    return `${LANGUAGES[this.language].name.toUpperCase()}  -  LESSON ${this.lessonIndex + 1} OF ${this.lessons().length}  -  ${this.lesson.meaning.toUpperCase()} (${this.lesson.reading})${level}`;
   }
 
   private refreshMenu(): void {
@@ -681,39 +785,109 @@ export class CalligraphySystem extends createSystem({
     const items = piano
       ? this.songs().map((s) => ({ id: s.id, name: s.name }))
       : this.lessons().map((l) => ({ id: l.id, name: cap(l.meaning) }));
+    const units = this.units();
+    this.unitPage = Math.min(units.length - 1, Math.max(0, this.unitPage));
+    const unit = units[this.unitPage];
+    this.text(this.menu, 'unit-count', `UNIT ${this.unitPage + 1} OF ${units.length}`);
+    this.text(this.menu, 'unit-title', unit.title);
+    this.text(this.menu, 'btn-unit-prev-label', '<');
+    this.text(this.menu, 'btn-unit-next-label', '>');
+    const dim = (id: string, off: boolean) =>
+      this.menu?.getElementById<UIKit.Text>(id)?.setProperties({ color: off ? '#c9bba3' : '#1d1813' });
+    dim('btn-unit-prev-label', this.unitPage === 0);
+    dim('btn-unit-next-label', this.unitPage === units.length - 1);
     for (let i = 0; i < 9; i++) {
       const tile = this.menu.getElementById(`lesson-${i}`);
-      const item = items[i];
-      tile?.setProperties({ display: item ? 'flex' : 'none' });
+      const index = unit.start + i;
+      const item = i < unit.count ? items[index] : undefined;
+      this.display(`lesson-${i}`, !!item);
       if (!item) continue;
       const p = this.progress.lessons[item.id];
-      const stars = p?.passed ? '*'.repeat(this.stars(p.best)) : '';
+      // One star per pass: each pass, the master helps a little less.
+      const stars = '*'.repeat(Math.min(3, p?.passes ?? (p?.passed ? 1 : 0)));
       this.text(this.menu, `lesson-${i}-label`, item.name);
-      this.text(this.menu, `lesson-${i}-best`, p?.best ? `${stars} ${p.best}` : ' ');
+      this.text(this.menu, `lesson-${i}-best`, p?.best ? `${stars} ${p.best}` : item.id === NEW_TUNE_ID ? 'Play it' : ' ');
       // The current lesson's tile is highlighted in warm gold.
-      tile?.setProperties({ backgroundColor: i === this.lessonIndex ? '#e6cf9f' : '#ebe1cf' });
+      tile?.setProperties({ backgroundColor: index === this.lessonIndex ? '#e6cf9f' : '#ebe1cf' });
     }
     this.text(this.menu, 'menu-title', piano ? 'Piano lessons' : `${LANGUAGES[this.language].name} calligraphy`);
-    this.menu.getElementById('languages')?.setProperties({ display: piano ? 'none' : 'flex' });
-    this.menu.getElementById('piano-row')?.setProperties({ display: piano ? 'flex' : 'none' });
-    this.text(this.menu, 'btn-record-label', this.customSong ? 'Play a new tune' : 'Play your own tune');
+    this.display('languages', !piano);
+    this.display('piano-row', piano);
+    this.text(this.menu, 'btn-record-label', this.tunes.length ? 'Play a new tune' : 'Play your own tune');
     // Selected chips get a vermilion border and label (hover cannot override a border).
     const select = (id: string, on: boolean) => {
       this.menu?.getElementById(id)?.setProperties({ borderWidth: on ? 3 : 0, borderColor: '#a8231a' });
       this.menu?.getElementById<UIKit.Text>(`${id}-label`)?.setProperties({ color: on ? '#a8231a' : '#5e5246' });
     };
-    for (const lang of ['japanese', 'chinese'] as Language[]) select(`lang-${lang}`, lang === this.language);
+    for (const lang of ['japanese', 'chinese', 'english'] as Language[]) select(`lang-${lang}`, lang === this.language);
     select('craft-cal', !piano);
     select('craft-piano', piano);
     this.text(this.menu, 'tempo', `Tempo ${Math.round(this.tempo * 100)}%`);
     const guide = { adaptive: 'Guide: adaptive', always: 'Guide: always', off: 'Guide: off' }[this.guideMode];
     this.text(this.menu, 'btn-guide-label', guide);
     const days = this.progress.streak.days;
-    this.text(
-      this.menu,
-      'streak',
-      days > 1 ? `${days}-day practice streak` : days === 1 ? 'Practised today' : 'First lesson',
-    );
+    const done = dailyCount(this.progress);
+    const goal = done >= DAILY_GOAL ? 'goal met today' : `today ${done} of ${DAILY_GOAL}`;
+    this.text(this.menu, 'streak', days > 0 ? `${days}-day streak  -  ${goal}` : `Daily goal: ${DAILY_GOAL} lessons`);
+    this.display('btn-review', this.reviewIndex() >= 0);
+  }
+
+  // ---------------------------------------------------------------- course
+
+  /** The units of the current course (calligraphy in this language, or piano). */
+  private units(): Unit[] {
+    if (this.craft !== 'piano') return UNITS[this.language];
+    const units: Unit[] = [];
+    let start = 0;
+    for (const u of SONG_UNITS) {
+      units.push({ title: u.title, start, count: u.songs.length });
+      start += u.songs.length;
+    }
+    units.push({ title: 'Your music', start, count: this.songs().length - start });
+    return units;
+  }
+
+  private currentUnit(): Unit | undefined {
+    return this.units()[this.unitPage];
+  }
+
+  private unitOf(index: number): number {
+    const units = this.units();
+    const k = units.findIndex((u) => index >= u.start && index < u.start + u.count);
+    return k < 0 ? 0 : k;
+  }
+
+  private pageUnit(step: number): void {
+    this.unitPage = Math.min(this.units().length - 1, Math.max(0, this.unitPage + step));
+    this.refreshMenu();
+  }
+
+  /**
+   * Review: the passed lesson that needs it most (lowest best score, then the
+   * longest since it was practised). Practised from memory, no demonstration.
+   */
+  private reviewIndex(): number {
+    const ids = this.lessonIds();
+    let best = -1;
+    let bestKey = Infinity;
+    const now = today();
+    ids.forEach((id, i) => {
+      const p = this.progress.lessons[id];
+      if (!p?.passed || i === this.lessonIndex) return;
+      const key = p.best - (p.last && p.last !== now ? 10 : 0);
+      if (key < bestKey) {
+        bestKey = key;
+        best = i;
+      }
+    });
+    return best;
+  }
+
+  private startReview(): void {
+    const i = this.reviewIndex();
+    if (i < 0 || this.mode === 'demo2d' || this.mode === 'placing') return;
+    this.log(`review ${this.lessonIds()[i]}`);
+    this.startLesson(i, false);
   }
 
   private stars(score: number): number {
@@ -739,7 +913,8 @@ export class CalligraphySystem extends createSystem({
     this.desk.virtualTable.visible = true;
     this.camera.position.set(0, 1.2, 0.12);
     this.camera.lookAt(0, 0.98, -0.6);
-    this.loadLesson(LESSONS.length - 1);
+    const demo = this.lessons().findIndex((l) => l.glyph === LESSONS[LESSONS.length - 1].glyph);
+    this.loadLesson(demo < 0 ? 0 : demo);
     this.ghost.visible = true;
     this.ghost.opacity = 0.75;
     this.setGuideOpacity(0.18);
@@ -819,6 +994,16 @@ export class CalligraphySystem extends createSystem({
 
   /** Jump to the moment named in the URL (see presets.ts). Returns false if there is none. */
   private applyPreset(): boolean {
+    if (!this.preset && this.sharedTune) {
+      // A tune from a shared link: go straight to the piano and let the master play it.
+      const id = this.sharedTune.id;
+      this.sharedTune = undefined;
+      this.mode = 'watch';
+      if (this.craft !== 'piano') this.setCraft('piano');
+      const index = this.songs().findIndex((x) => x.id === id);
+      if (index >= 0) this.startLesson(index, true);
+      return true;
+    }
     const p = this.preset;
     if (!p) return false;
     this.preset = undefined; // once only; "Move paper here" later behaves normally
@@ -867,6 +1052,8 @@ export class CalligraphySystem extends createSystem({
 
   private startLesson(index: number, watchFirst: boolean): void {
     if (this.mode === 'demo2d') return;
+    this.unitPage = this.unitOf(index);
+    this.assist = 1;
     this.penDown = false;
     this.locked = false;
     this.sfx.setScratch(0);
@@ -977,21 +1164,51 @@ export class CalligraphySystem extends createSystem({
     this.strokeScores = [];
   }
 
-  private skill(): number {
-    const best = this.progress.lessons[this.lesson.id]?.best ?? 0;
-    return clamp01((best - 50) / 45);
+  /** How much the master helps on this lesson, 0..1, from how often it has been passed. */
+  private help(id = this.craft === 'piano' ? this.piano.song.id : this.lesson.id): number {
+    return HELP[helpLevel(this.progress, id)];
+  }
+
+  /** Ghost opacity for the current help level and in-attempt fading (0.08 to 0.8). */
+  private ghostOpacity(): number {
+    if (this.guideMode === 'off') return 0;
+    if (this.guideMode === 'always') return 0.78;
+    return 0.08 + 0.72 * this.help() * this.assist;
+  }
+
+  /** In-attempt fading: down while you keep up with the master, back up after a slip. */
+  private nudgeAssist(delta: number): void {
+    this.assist = Math.min(1, Math.max(0.12, this.assist + delta));
+    if (!this.assistNoted && this.assist < 0.5 && this.guideMode === 'adaptive') {
+      this.assistNoted = true;
+      this.log('master letting go');
+    }
   }
 
   private setGuideOpacity(v: number): void {
     for (const g of this.guideRibbons) g.material.opacity = v;
   }
 
-  /** The master lets go as you improve: fainter ghost, fainter tracing guide. */
+  /**
+   * The master lets go as you improve. Each pass of a lesson lowers the help:
+   * full guide, then the outline only, then from memory (a faint trace).
+   */
   private applyGuideStrength(): void {
-    const s = this.guideMode === 'adaptive' ? this.skill() : 0;
-    const off = this.guideMode === 'off';
-    this.ghost.opacity = off ? 0 : 0.78 - 0.56 * s;
-    this.setGuideOpacity(off ? 0 : 0.3 - 0.22 * s);
+    const level = this.guideMode === 'adaptive' ? helpLevel(this.progress, this.lesson.id) : 0;
+    this.ghost.opacity = this.ghostOpacity();
+    this.setGuideOpacity(this.guideMode === 'off' ? 0 : [0.3, 0.2, 0.05][level]);
+  }
+
+  /** English italic: a broad nib held at a fixed angle, thick or thin by direction. */
+  private nibWidth(dx: number, dz: number): number {
+    const len = Math.hypot(dx, dz);
+    if (len < 1e-6) return 0.008;
+    const cross = Math.abs((dx / len) * NIB_Z - (dz / len) * NIB_X);
+    return 0.0022 + 0.0105 * cross;
+  }
+
+  private get broadNib(): boolean {
+    return this.craft === 'calligraphy' && this.language === 'english';
   }
 
   private setTempo(v: number): void {
@@ -1188,7 +1405,15 @@ export class CalligraphySystem extends createSystem({
           this.demoRibbons[c.stroke] = ribbon;
         }
         const speed = dt > 0 ? len / dt : 0;
-        ribbon.add(this.sample.x, this.sample.z, 0.0118 - 0.006 * clamp01(speed / 0.22));
+        if (this.broadNib) {
+          if (len > 1e-5) {
+          this.dirX = dx / len;
+          this.dirZ = dz / len;
+        }
+          ribbon.add(this.sample.x, this.sample.z, this.nibWidth(this.dirX, this.dirZ));
+        } else {
+          ribbon.add(this.sample.x, this.sample.z, 0.0118 - 0.006 * clamp01(speed / 0.22));
+        }
         if (t >= 1) ribbon.finish();
       }
     }
@@ -1302,7 +1527,15 @@ export class CalligraphySystem extends createSystem({
     if (bestSource !== this.tipSource) this.tipFilter.reset();
     this.tipSource = bestSource;
     this.tipFilter.filter(this.v2.x, this.v2.y, this.v2.z, dt, this.tip);
-    const sp = Math.hypot(this.tip.x - this.tipPrev.x, this.tip.z - this.tipPrev.z) / Math.max(dt, 1e-3);
+    const ddx = this.tip.x - this.tipPrev.x;
+    const ddz = this.tip.z - this.tipPrev.z;
+    const moved = Math.hypot(ddx, ddz);
+    if (moved > 0.0004) {
+      const k = Math.min(1, dt * 18);
+      this.dirX += (ddx / moved - this.dirX) * k;
+      this.dirZ += (ddz / moved - this.dirZ) * k;
+    }
+    const sp = moved / Math.max(dt, 1e-3);
     this.tipSpeed += (sp - this.tipSpeed) * (1 - Math.exp(-dt * 12));
     this.tipPrev.x = this.tip.x;
     this.tipPrev.z = this.tip.z;
@@ -1419,8 +1652,9 @@ export class CalligraphySystem extends createSystem({
       if (len > 1e-5) this.easeLean(dx / len, dz / len, dt);
 
       if (this.tipValid) {
-        // Ink: width follows a pressure proxy (slow = wet and wide).
-        const target = 0.0118 - 0.0068 * clamp01(this.tipSpeed / 0.28);
+        // Ink: width follows a pressure proxy (slow = wet and wide), or the
+        // nib angle for italic.
+        const target = this.broadNib ? this.nibWidth(this.dirX, this.dirZ) : 0.0118 - 0.0068 * clamp01(this.tipSpeed / 0.28);
         this.width += (target - this.width) * Math.min(1, dt * 10);
         if (this.current?.add(this.tip.x, this.tip.z, this.width)) {
           this.capX.push(this.tip.x);
@@ -1438,8 +1672,10 @@ export class CalligraphySystem extends createSystem({
           if (d < LOCK_DIST) {
             this.syncIn += dt;
             this.syncRun += dt;
+            this.nudgeAssist(-0.5 * dt);
           } else {
             this.syncRun = 0;
+            if (d > UNLOCK_DIST) this.nudgeAssist(0.15 * dt);
           }
         }
         if (!this.locked && this.syncRun > 0.3 && this.guideMode !== 'off') this.setLocked(true);
@@ -1579,6 +1815,7 @@ export class CalligraphySystem extends createSystem({
       this.cooldown = 1.1;
     } else {
       this.fadeOut(ribbon, 0.9);
+      this.nudgeAssist(0.4); // the master comes closer again
       this.sfx.tok(0.7);
       this.setCaption(
         this.lessonEyebrow(),
@@ -1600,10 +1837,9 @@ export class CalligraphySystem extends createSystem({
     const record = lessonProgress(this.progress, this.lesson.id);
     const improved = score > record.best;
     const prevBest = record.best;
-    record.attempts++;
-    record.best = Math.max(record.best, score);
-    record.passed = record.passed || score >= PASS_SCORE;
+    const levelUp = this.recordPass(record, score);
     const days = markPracticeDay(this.progress);
+    const daily = markDaily(this.progress);
     saveProgress(this.progress);
 
     // The jade seal stamps the page: lift, dip in paste, press, return.
@@ -1620,22 +1856,48 @@ export class CalligraphySystem extends createSystem({
 
     const stars = '*'.repeat(this.stars(score)) || '-';
     const isLast = this.lessonIndex === this.lessonCount() - 1;
-    const body = improved && prevBest > 0
-      ? `New best (was ${prevBest}). The master's guide will fade a little more next time.`
-      : isLast
-        ? 'You have written all eight principles of the brush in one character.'
-        : this.lessonIndex === 0 && record.attempts === 1
-          ? `The seal is yours. Try it in ${this.language === 'japanese' ? 'Chinese' : 'Japanese'} too: choose your language on the menu, or press "Next lesson".`
-          : `The seal is yours. "Next lesson" is on the menu to your ${this.ghost.handedness === 'left' ? 'right' : 'left'}.`;
+    const others = (['japanese', 'chinese', 'english'] as Language[]).filter((l) => l !== this.language).map((l) => LANGUAGES[l].name);
+    const body = levelUp
+      ? levelUp
+      : improved && prevBest > 0
+        ? `New best (was ${prevBest}).`
+        : this.lesson.glyph === '永'
+          ? 'You have written all eight principles of the brush in one character.'
+          : this.lessonIndex === 0 && record.attempts === 1
+            ? `The seal is yours. Try ${others.join(' or ')} too: choose on the menu, or press "Next lesson".`
+            : `The seal is yours. "Next lesson" is on the menu to your ${this.ghost.handedness === 'left' ? 'right' : 'left'}.`;
     this.setCaption(
       this.lessonEyebrow(),
       `${cap(this.lesson.meaning)} complete  ${stars}`,
       body,
-      `Score ${score}  -  ${days > 1 ? `${days}-day streak` : 'practised today'}`,
+      `Score ${score}  -  ${this.dailyLine(days, daily)}`,
     );
     this.menu?.getElementById('btn-next')?.setProperties({ display: isLast ? 'none' : 'flex' });
     this.showCaptionActions(true);
     this.refreshMenu();
+  }
+
+  /** Save a finished attempt. Returns a line about the next help level when a pass lowers it. */
+  private recordPass(record: ReturnType<typeof lessonProgress>, score: number): string {
+    record.attempts++;
+    record.best = Math.max(record.best, score);
+    record.last = today();
+    if (score < PASS_SCORE) return '';
+    record.passed = true;
+    const before = Math.min(2, record.passes ?? 0);
+    record.passes = (record.passes ?? 0) + 1;
+    const after = Math.min(2, record.passes);
+    if (after === before || this.guideMode !== 'adaptive') return '';
+    return after === 1
+      ? 'Passed. Next time the master shows less: only the outline.'
+      : 'Passed again. Next time, from memory: the master only watches.';
+  }
+
+  private dailyLine(days: number, daily: number): string {
+    const streak = days > 1 ? `${days}-day streak` : 'practised today';
+    if (daily === DAILY_GOAL) return `${streak}  -  daily goal met`;
+    if (daily < DAILY_GOAL) return `${streak}  -  ${daily} of ${DAILY_GOAL} today`;
+    return streak;
   }
 
   // ---------------------------------------------------------------- crafts
@@ -1680,7 +1942,7 @@ export class CalligraphySystem extends createSystem({
   }
 
   private lessonCount(): number {
-    return this.craft === 'piano' ? SONGS.length + 1 : this.lessons().length;
+    return this.craft === 'piano' ? this.songs().length : this.lessons().length;
   }
 
   private lessonIds(): string[] {
@@ -1717,24 +1979,35 @@ export class CalligraphySystem extends createSystem({
   }
 
   private pianoEyebrow(): string {
-    return `PIANO  -  ${this.lessonIndex + 1} OF ${SONGS.length + 1}  -  ${this.piano.song.name.toUpperCase()}`;
+    const part = this.phrases.length > 1 && !this.wholeRun ? `  -  PHRASE ${this.phraseIndex + 1} OF ${this.phrases.length}` : '';
+    return `PIANO  -  ${this.lessonIndex + 1} OF ${this.songs().length}  -  ${(this.fullSong ?? this.piano.song).name.toUpperCase()}${part}`;
   }
 
-  /** The built-in songs, then the learner's own (or an empty "Your tune" slot). */
+  /** The course songs, today's echo, the learner's own tunes, and a slot for a new one. */
   private songs(): PianoSong[] {
-    return [
-      ...SONGS,
-      this.customSong ?? { id: CUSTOM_ID, name: 'Your tune', teaching: '', bpm: 60, notes: [] },
-    ];
+    if (this.daily.id === 'piano-daily' && this.dailyDay !== today()) {
+      this.daily = dailyEcho();
+      this.dailyDay = today();
+    }
+    const list = [...SONGS, this.daily, ...this.tunes];
+    if (this.tunes.length < MAX_TUNES) list.push({ id: NEW_TUNE_ID, name: 'New tune', teaching: '', bpm: 60, notes: [] });
+    return list;
+  }
+
+  private newTuneIndex(): number {
+    const list = this.songs();
+    const i = list.findIndex((x) => x.id === NEW_TUNE_ID);
+    return i < 0 ? list.length - 1 : i;
   }
 
   /** The master listens while the learner plays their own tune. */
   private startListening(): void {
     if (this.craft !== 'piano' || this.mode === 'demo2d' || this.mode === 'placing') return;
     this.mode = 'piano';
-    this.lessonIndex = SONGS.length;
+    this.lessonIndex = this.newTuneIndex();
+    this.unitPage = this.unitOf(this.lessonIndex);
     this.showCaptionActions(false);
-    this.piano.startListen(SONGS.length);
+    this.piano.startListen(this.lessonIndex);
     this.setCaption(
       'PIANO  -  YOUR TUNE',
       'Play me your tune',
@@ -1752,46 +2025,80 @@ export class CalligraphySystem extends createSystem({
     }
     this.lessonIndex = index;
     this.piano.tempo = Math.max(0.5, Math.min(1, this.tempo + 0.2));
-    this.piano.loadSong(index, song);
+    // Teach long songs phrase by phrase (master plays, you echo), then whole.
+    // "Play it again" and review go straight to the whole song.
+    this.fullSong = song;
+    this.phrases = phrasesOf(song);
+    this.phraseIndex = 0;
+    this.wholeRun = !watchFirst || this.phrases.length === 1;
     this.showCaptionActions(false);
     // Clear calligraphy ink so a later switch back starts clean.
     for (const r of this.userRibbons) this.fadeOut(r, 0.3);
     this.userRibbons = [];
     this.ghost.visible = true;
-    this.ghost.opacity = this.guideMode === 'off' ? 0.3 : 0.78 - 0.56 * this.skill();
-    if (watchFirst) {
-      this.mode = 'piano';
-      this.piano.startWatch();
-      this.setCaption(
-        this.pianoEyebrow(),
-        'Listen to the master',
-        `${this.piano.song.teaching} ${this.piano.song.notes.length} notes. Just watch and listen for now.`,
-      );
-    } else {
-      this.beginPractice();
-    }
+    this.loadPhrase(watchFirst, true);
     this.refreshMenu();
     this.applyPanelVisibility();
-    this.log(`lesson ${this.piano.song.id} (${watchFirst ? 'watch' : 'practice'})`);
-    if (import.meta.env.DEV) {
-      this.desk.paper.updateWorldMatrix(true, false);
-      const w = (x: number, y: number, z: number) => {
-        const p = new Vector3(x, y, z).applyMatrix4(this.desk.paper.matrixWorld);
-        return [+p.x.toFixed(4), +p.y.toFixed(4), +p.z.toFixed(4)];
-      };
-      this.log(`piano-layout ${JSON.stringify({ ...(this.piano.layout(w) as object), seal: w(this.calX, 0, this.calZ) })}`);
+    this.log(`lesson ${song.id} (${watchFirst ? 'watch' : 'practice'})`);
+  }
+
+  /** Machine-readable keyboard layout and the notes about to be played (tools/e2e.py). */
+  private logPianoLayout(): void {
+    if (!import.meta.env.DEV) return;
+    this.desk.paper.updateWorldMatrix(true, false);
+    const w = (x: number, y: number, z: number) => {
+      const p = new Vector3(x, y, z).applyMatrix4(this.desk.paper.matrixWorld);
+      return [+p.x.toFixed(4), +p.y.toFixed(4), +p.z.toFixed(4)];
+    };
+    const part = this.wholeRun ? 'whole' : `${this.phraseIndex + 1}/${this.phrases.length}`;
+    this.log(`piano-layout ${JSON.stringify({ ...(this.piano.layout(w) as object), part, seal: w(this.calX, 0, this.calZ) })}`);
+  }
+
+  /** Load the current phrase (or the whole song) and either demonstrate it or start your turn. */
+  private loadPhrase(watch: boolean, intro = false): void {
+    const song = this.fullSong!;
+    const range = this.phrases[Math.min(this.phraseIndex, this.phrases.length - 1)];
+    const part = this.wholeRun ? song : { ...song, notes: song.notes.slice(range[0], range[1]) };
+    this.piano.loadSong(this.lessonIndex, part);
+    this.logPianoLayout();
+    this.assist = 1;
+    this.ghost.opacity = this.ghostOpacity();
+    if (!watch) {
+      this.beginPractice();
+      return;
     }
+    this.mode = 'piano';
+    this.piano.startWatch();
+    const phrased = this.phrases.length > 1 && !this.wholeRun;
+    const body = intro
+      ? phrased
+        ? `${song.teaching} The master plays it a phrase at a time; echo each one, then play it all.`
+        : `${song.teaching} ${song.notes.length} notes. Just watch and listen for now.`
+      : 'Listen to the next phrase, then echo it.';
+    this.setCaption(this.pianoEyebrow(), phrased ? `Phrase ${this.phraseIndex + 1}: listen` : 'Listen to the master', body);
+    this.log(`phrase ${phrased ? `${this.phraseIndex + 1}/${this.phrases.length}` : 'whole'} watch`);
   }
 
   private promptNote(first = false): void {
     const total = this.piano.song.notes.length;
     const i = this.piano.noteIndex;
+    const isNew = !this.progress.lessons[this.piano.song.id];
+    const phrased = this.phrases.length > 1;
+    const title = first
+      ? phrased && !this.wholeRun
+        ? `Phrase ${this.phraseIndex + 1}: your turn`
+        : phrased
+          ? 'Now the whole song'
+          : 'Your turn'
+      : `Note ${Math.min(i + 1, total)} of ${total}`;
     this.setCaption(
-      first && !this.progress.lessons[this.piano.song.id] ? 'YOUR TURN' : this.pianoEyebrow(),
-      first ? 'Your turn' : `Note ${Math.min(i + 1, total)} of ${total}`,
+      first && isNew && this.phraseIndex === 0 && !this.wholeRun ? 'YOUR TURN' : this.pianoEyebrow(),
+      title,
       first
-        ? 'Tap the glowing key with any fingertip. The master plays with you. Keep to the beat and the keys turn gold.'
-        : 'Tap the glowing key. Stay on the beat to turn it gold.',
+        ? isNew && this.phraseIndex === 0
+          ? 'The master counts four, then tap the glowing key with any fingertip. It pulses on the beat; keep with it and the keys turn gold.'
+          : 'Four beats in, then tap each key as it pulses.'
+        : 'Tap the glowing key as it pulses. On the beat turns it gold.',
     );
   }
 
@@ -1801,6 +2108,7 @@ export class CalligraphySystem extends createSystem({
       this.beginPractice();
     } else if (ev.type === 'note') {
       this.progress.strokes++;
+      this.nudgeAssist(ev.correct ? (ev.inTime ? -0.1 : -0.03) : 0.3);
       if (ev.correct) {
         this.log(`note ${ev.index} correct${ev.inTime ? ' on-beat' : ''}`);
         if (ev.inTime && !this.progress.seenLock) {
@@ -1819,19 +2127,33 @@ export class CalligraphySystem extends createSystem({
         this.setCaption('PIANO  -  YOUR TUNE', `Listening: ${ev.count} note${ev.count === 1 ? '' : 's'}`, 'Keep going. Stop for three seconds when your tune is done.');
       }
     } else if (ev.type === 'learned') {
-      this.customSong = ev.song;
-      saveCustomSong(ev.song);
-      delete this.progress.lessons[CUSTOM_ID]; // a new tune starts a new record
+      const { tunes, tune } = addTune(this.tunes, { ...ev.song, name: `Tune ${this.tunes.length + 1}` });
+      this.tunes = tunes;
+      delete this.progress.lessons[tune.id]; // a new tune starts a new record
       saveProgress(this.progress);
       this.sfx.chime(0);
       this.log(`learned ${ev.song.notes.length} notes bpm ${ev.song.bpm}`);
-      this.startSong(SONGS.length, true);
+      this.startSong(this.songs().findIndex((x) => x.id === tune.id), true);
       this.setCaption(
         'PIANO  -  YOUR TUNE',
         'The master learned your tune',
         `${ev.song.notes.length} notes. Listen to the master play it back, then play it together.`,
       );
     } else if (ev.type === 'complete') {
+      if (!this.wholeRun) {
+        // A phrase echoed: the next phrase, or the whole song once all are learned.
+        this.sfx.chime(this.phraseIndex + 1, 0.14);
+        this.log(`phrase-done ${this.phraseIndex + 1}/${this.phrases.length} score ${ev.score}`);
+        this.phraseIndex++;
+        if (this.phraseIndex < this.phrases.length) {
+          this.loadPhrase(true);
+        } else {
+          this.wholeRun = true;
+          this.log('phrases done: whole song');
+          this.loadPhrase(false);
+        }
+        return;
+      }
       this.completeSong(ev.score, ev.accuracy, ev.rhythm);
     }
   }
@@ -1841,10 +2163,9 @@ export class CalligraphySystem extends createSystem({
     const song = this.piano.song;
     const record = lessonProgress(this.progress, song.id);
     const prevBest = record.best;
-    record.attempts++;
-    record.best = Math.max(record.best, score);
-    record.passed = record.passed || score >= PASS_SCORE;
+    const levelUp = this.recordPass(record, score);
     const days = markPracticeDay(this.progress);
+    const daily = markDaily(this.progress);
     saveProgress(this.progress);
     this.sfx.fanfare();
     for (const k of this.piano.keys) this.sparks.burst((k.x0 + k.x1) / 2, k.top - SURFACE_Y, (k.z0 + k.z1) / 2, 2, 0.14);
@@ -1853,10 +2174,11 @@ export class CalligraphySystem extends createSystem({
     this.setCaption(
       this.pianoEyebrow(),
       `${song.name} complete  ${stars}`,
-      score > prevBest && prevBest > 0
-        ? `New best (was ${prevBest}). The master's hand will fade a little more next time.`
-        : `${Math.round(accuracy * 100)}% of keys right, ${Math.round(rhythm * 100)}% on the beat.`,
-      `Score ${score}  -  ${days > 1 ? `${days}-day streak` : 'practised today'}`,
+      levelUp ||
+        (score > prevBest && prevBest > 0
+          ? `New best (was ${prevBest}). ${Math.round(rhythm * 100)}% on the beat.`
+          : `${Math.round(accuracy * 100)}% of keys right, ${Math.round(rhythm * 100)}% on the beat.`),
+      `Score ${score}  -  ${this.dailyLine(days, daily)}`,
     );
     this.menu?.getElementById('btn-next')?.setProperties({ display: isLast ? 'none' : 'flex' });
     this.showCaptionActions(true);
@@ -2075,6 +2397,8 @@ export class CalligraphySystem extends createSystem({
       this.updateCalibrate(dt);
     } else if (this.mode === 'piano') {
       this.ghost.visible = this.guideMode !== 'off' || this.piano.phase === 'watch';
+      if (this.piano.phase === 'play') this.ghost.opacity += (this.ghostOpacity() - this.ghost.opacity) * Math.min(1, dt * 4);
+      else if (this.piano.phase === 'watch') this.ghost.opacity = 0.8;
       this.readAllTips();
       const ev = this.piano.update(dt, this.tips, this.surfaceOffset);
       this.ghostTip.copy(this.piano.ghostTip);
@@ -2083,6 +2407,7 @@ export class CalligraphySystem extends createSystem({
       this.onPianoEvent(ev);
     } else if (this.mode === 'practice') {
       this.ghost.visible = this.guideMode !== 'off' || this.lockBlend > 0.01;
+      this.ghost.opacity += (this.ghostOpacity() - this.ghost.opacity) * Math.min(1, dt * 4);
       this.updatePractice(dt);
     } else if (this.mode === 'complete') {
       this.stepChoreo(dt, false);

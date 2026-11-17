@@ -87,6 +87,11 @@ export class PianoMode {
   gold = 0;
 
   private clock = 0;
+  /** Count-in: beats left before the first note is due (the master counts you in). */
+  private countBeats = 0;
+  private countClock = 0;
+  /** When the next note is due (clock seconds), for the key's beat pulse. */
+  private due = 0;
   private watchTimes: number[] = [];
   private watchClock = 0;
   private lastPress = 0;
@@ -112,6 +117,8 @@ export class PianoMode {
     private readonly hooks: {
       play: (midi: number, velocity: number, x: number, y: number, z: number) => void;
       sparks: (x: number, y: number, z: number, n: number) => void;
+      /** A count-in beat (accent on the first of the bar). */
+      tick: (accent: boolean) => void;
     },
   ) {
     const gltf = AssetManager.getGLTF('model-keyboard');
@@ -227,7 +234,11 @@ export class PianoMode {
     this.drawSheet();
   }
 
-  startPlay(): void {
+  /** Your turn. With a count-in, the master taps four beats first and the first key pulses on the beat. */
+  startPlay(countIn = true): void {
+    this.countBeats = countIn ? 4 : 0;
+    this.countClock = 0;
+    this.due = this.clock + this.countBeats * this.beatSeconds;
     this.phase = 'play';
     this.noteIndex = 0;
     this.correct = 0;
@@ -326,6 +337,15 @@ export class PianoMode {
       }
     }
 
+    if (this.phase === 'play' && this.countBeats > 0) {
+      this.countClock -= dt;
+      if (this.countClock <= 0) {
+        this.hooks.tick(this.countBeats === 4);
+        this.countBeats--;
+        this.countClock += this.beatSeconds;
+      }
+    }
+
     if (this.phase === 'play') {
       const expected = this.song.notes[this.noteIndex];
       this.keyCentre(expected.note, this.target);
@@ -345,6 +365,7 @@ export class PianoMode {
           this.tapClock = 0; // the master plays it with you
           this.correct++;
           this.lastPress = this.clock;
+          this.due = this.clock + expected.beats * beat;
           this.played[this.noteIndex] = onBeat ? 2 : 1;
           event = { type: 'note', correct: true, inTime: onBeat, index: this.noteIndex };
           this.noteIndex++;
@@ -362,11 +383,13 @@ export class PianoMode {
           event = { type: 'note', correct: false, inTime: false, index: this.noteIndex };
         }
       }
-      // The expected key breathes so the eye always finds it.
-      const k = this.keyById.get(expected.note)!;
-      if (k.glow < 0.45) {
+      // The expected key glows so the eye always finds it, and pulses
+      // brightest exactly when its note is due: the beat made visible.
+      const k = this.keyById.get(expected.note);
+      if (k && k.glow < 0.6) {
+        const late = (this.clock - this.due) / 0.11;
         k.glowColor.copy(VERMILION);
-        k.glow = Math.max(k.glow, 0.25 + 0.2 * Math.sin(this.clock * 5));
+        k.glow = Math.max(k.glow, 0.22 + 0.38 * Math.exp(-late * late));
       }
     }
 

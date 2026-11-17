@@ -59,6 +59,17 @@ export const SCENES: Record<string, SceneDef> = {
     yaw: Math.PI * 0.5,
     calm: 1,
   },
+  english: {
+    // A medieval cloister: where Western scribes wrote by the light of the arches.
+    id: 'english',
+    name: 'Historic cloister',
+    panorama: 'env/cloister.jpg',
+    light: 'env/cloister.hdr',
+    credit: 'Historic Cloister Passage HDRI by Elvis Posa, Poly Haven, CC0',
+    tracks: [],
+    yaw: Math.PI * 0.5,
+    calm: 1,
+  },
   music: {
     id: 'music',
     name: 'Music room',

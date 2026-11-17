@@ -29,5 +29,8 @@
   <div id="midi-button" class="cta secondary">
     <div class="cta-label secondary-label">Add your own piano song (MIDI)</div>
   </div>
+  <div id="share-button" class="cta secondary" style="display: none">
+    <div id="share-label" class="cta-label secondary-label">Copy a link to your tune</div>
+  </div>
   <div id="midi-note" class="note">Any MIDI file works; the master learns its melody. Free public-domain pieces: mutopiaproject.org. Or play your own tune to the master at the piano.</div>
 </div>

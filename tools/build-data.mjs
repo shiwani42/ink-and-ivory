@@ -140,23 +140,52 @@ for (const file of readdirSync(kanjiDir).filter((f) => f.endsWith('.svg')).sort(
   const svg = readFileSync(join(kanjiDir, file), 'utf8');
   const glyph = /kvg:element="([^"]+)"/.exec(svg)[1];
   const strokes = [];
-  const re = /<path id="kvg:[0-9a-f]+-s(\d+)" kvg:type="([^"]*)" d="([^"]+)"/g;
+  // Kana have no kvg:type, so the type is optional.
+  const re = /<path id="kvg:[0-9a-f]+-s(\d+)"(?: kvg:type="([^"]*)")? d="([^"]+)"/g;
   let m;
   while ((m = re.exec(svg))) {
     const poly = resample(pathToPolyline(m[3]), 1.5).map(([x, y]) => [
       round(x / VIEWBOX),
       round(y / VIEWBOX),
     ]);
-    strokes.push({ order: Number(m[1]), type: m[2], points: poly });
+    strokes.push({ order: Number(m[1]), type: m[2] ?? '', points: poly });
   }
   strokes.sort((a, b) => a.order - b.order);
   characters[glyph] = { codepoint: file.replace('.svg', ''), strokes };
 }
+// ---------- English italic letters and words (tools/latin-letters.mjs, original) ----------
+const { LETTERS, ADVANCE, DEFAULT_ADVANCE } = await import(pathToFileURL(join(root, 'tools/latin-letters.mjs')).href);
+const SLANT = 0.12; // italic lean, about 7 degrees
+const WORDS = ['hi', 'ink', 'art', 'moon', 'love', 'hand'];
+function latinStrokes(glyphs) {
+  const adv = [...glyphs].map((g) => ADVANCE[g] ?? DEFAULT_ADVANCE);
+  const total = adv.reduce((a, b) => a + b, 0);
+  // Single letters a little larger than a word's letters, to fill the practice box.
+  const scale = glyphs.length === 1 ? 1.3 : Math.min(1, 80 / total);
+  const out = [];
+  let offset = 0;
+  [...glyphs].forEach((g, k) => {
+    const letter = LETTERS[g];
+    if (!letter) throw new Error(`No letter ${g}`);
+    const cx = glyphs.length === 1 ? 50 : 50 + (offset + adv[k] / 2 - total / 2) * scale;
+    offset += adv[k];
+    for (const st of letter.strokes) {
+      const pts = pathToPolyline(st.d).map(([x, y]) => [x + (55 - y) * SLANT, y]);
+      const placed = pts.map(([x, y]) => [cx + (x - 50) * scale, 55 + (y - 55) * scale]);
+      const poly = resample(placed, 1.3 * scale).map(([x, y]) => [round(x / 100), round(y / 100)]);
+      out.push({ order: out.length + 1, type: st.type, points: poly });
+    }
+  });
+  return out;
+}
+for (const g of Object.keys(LETTERS)) characters[g] = { codepoint: 'latin', strokes: latinStrokes(g) };
+for (const w of WORDS) characters[w] = { codepoint: 'latin', strokes: latinStrokes(w) };
+
 writeFileSync(
   join(root, 'src/lessons/strokes.json'),
   JSON.stringify(
     {
-      source: 'KanjiVG (https://kanjivg.tagaini.net), CC BY-SA 3.0, (c) Ulrich Apel and contributors. Converted to polylines by tools/build-data.mjs.',
+      source: 'CJK and kana: KanjiVG (https://kanjivg.tagaini.net), CC BY-SA 3.0, (c) Ulrich Apel and contributors. Latin letters: original (tools/latin-letters.mjs). Converted to polylines by tools/build-data.mjs.',
       characters,
     },
     null,

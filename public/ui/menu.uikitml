@@ -36,6 +36,9 @@
   .btn-label { color: #1d1813; font-family: inter; font-size: 17px; font-weight: 700; }
   .sym { color: #1d1813; font-family: inter; font-size: 32px; font-weight: 700; }
   .tempo { color: #3d342c; font-family: inter; font-size: 18px; font-weight: 600; flex-grow: 1; text-align: center; }
+  .unit-box { flex-grow: 1; flex-direction: column; align-items: center; }
+  .unit-count { color: #a8231a; font-family: inter; font-size: 12px; font-weight: 700; letter-spacing: 1.6px; }
+  .unit-title { color: #1d1813; font-family: merriweather; font-size: 19px; font-weight: 700; }
   .credits { color: #85776a; font-family: inter; font-size: 11px; font-weight: 500; line-height: 15px; margin-top: 2px; padding-left: 4px; }
 </style>
 <div class="card">
@@ -48,14 +51,23 @@
   <div id="languages" class="crafts">
     <div id="lang-japanese" class="craft"><div id="lang-japanese-label" class="craft-label">Japanese</div></div>
     <div id="lang-chinese" class="craft"><div id="lang-chinese-label" class="craft-label">Chinese</div></div>
+    <div id="lang-english" class="craft"><div id="lang-english-label" class="craft-label">English</div></div>
   </div>
   <div id="piano-row" class="crafts" style="display: none">
     <div id="btn-record" class="craft"><div id="btn-record-label" class="craft-label">Play your own tune</div></div>
   </div>
-  <div id="streak" class="meta">First lesson</div>
+  <div class="row">
+    <div id="streak" class="meta grow">First lesson</div>
+    <div id="btn-review" class="btn"><div class="btn-label">Review</div></div>
+  </div>
   <div id="menu-actions" class="actions" style="display: none">
     <div id="btn-next" class="primary"><div class="primary-label">Next lesson</div></div>
     <div id="btn-again" class="primary"><div class="primary-label">Write it again</div></div>
+  </div>
+  <div class="row">
+    <div id="btn-unit-prev" class="btn square"><div id="btn-unit-prev-label" class="sym">-</div></div>
+    <div class="unit-box"><div id="unit-count" class="unit-count">UNIT 1 OF 9</div><div id="unit-title" class="unit-title">First strokes</div></div>
+    <div id="btn-unit-next" class="btn square"><div id="btn-unit-next-label" class="sym">+</div></div>
   </div>
   <div class="grid">
     <div id="lesson-0" class="tile"><div class="tile-num">1</div><div id="lesson-0-label" class="tile-name">One</div><div id="lesson-0-best" class="tile-best"> </div></div>
@@ -86,5 +98,5 @@
     <div id="btn-scene" class="btn grow"><div id="btn-scene-label" class="btn-label">Scene: on</div></div>
     <div id="btn-place" class="btn grow"><div id="btn-place-label" class="btn-label">Move paper here</div></div>
   </div>
-  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
+  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0; italic letters original. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
 </div>

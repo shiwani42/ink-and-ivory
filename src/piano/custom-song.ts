@@ -1,4 +1,4 @@
-import { HIGH_MIDI, idOf, LOW_MIDI, type PianoNote, type PianoSong } from './songs.js';
+import { HIGH_MIDI, idOf, LOW_MIDI, midiOf, type PianoNote, type PianoSong } from './songs.js';
 
 /**
  * The learner's own song, in the last slot of the piano list. It comes from
@@ -13,34 +13,114 @@ import { HIGH_MIDI, idOf, LOW_MIDI, type PianoNote, type PianoSong } from './son
  */
 
 export const CUSTOM_ID = 'piano-custom';
-const STORAGE_KEY = 'hoam-custom-song-v1';
+const STORAGE_KEY = 'hoam-custom-song-v1'; // the single tune of earlier versions
+const TUNES_KEY = 'hoam-tunes-v1';
 const MAX_NOTES = 40;
+/** How many tunes the learner can keep. */
+export const MAX_TUNES = 6;
 
-export function loadCustomSong(): PianoSong | undefined {
+/** The learner's saved tunes, oldest first (an earlier single tune is kept as the first). */
+export function loadTunes(): PianoSong[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return undefined;
-    const song = JSON.parse(raw) as PianoSong;
-    return song?.notes?.length ? { ...song, id: CUSTOM_ID } : undefined;
+    const raw = localStorage.getItem(TUNES_KEY);
+    if (raw) {
+      const list = JSON.parse(raw) as PianoSong[];
+      if (Array.isArray(list)) return list.filter((t) => t?.id && t.notes?.length).slice(-MAX_TUNES);
+    }
+    const old = localStorage.getItem(STORAGE_KEY);
+    if (old) {
+      const song = JSON.parse(old) as PianoSong;
+      if (song?.notes?.length) return [{ ...song, id: CUSTOM_ID }];
+    }
   } catch {
-    return undefined;
+    // storage blocked: no saved tunes
+  }
+  return [];
+}
+
+export function saveTunes(tunes: PianoSong[]): void {
+  try {
+    localStorage.setItem(TUNES_KEY, JSON.stringify(tunes.slice(-MAX_TUNES)));
+  } catch {
+    // Private mode or storage full: the tunes still work for this session.
   }
 }
 
 export function clearCustomSong(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(TUNES_KEY);
   } catch {
     // nothing to clear
   }
 }
 
-export function saveCustomSong(song: PianoSong): void {
+const notesKey = (song: PianoSong): string => song.notes.map((n) => `${n.note}:${n.beats}`).join(' ');
+
+/**
+ * Add a tune and give it its own id. A tune with the same notes as one already
+ * saved replaces it (opening a shared link twice does not duplicate it).
+ * Returns the new list and the saved tune.
+ */
+export function addTune(tunes: PianoSong[], song: PianoSong): { tunes: PianoSong[]; tune: PianoSong } {
+  const key = notesKey(song);
+  const same = tunes.find((t) => notesKey(t) === key);
+  const tune = { ...song, id: same?.id ?? `piano-tune-${Date.now().toString(36)}` };
+  const list = [...tunes.filter((t) => t !== same), tune].slice(-MAX_TUNES);
+  saveTunes(list);
+  return { tunes: list, tune };
+}
+
+// ---------------------------------------------------------------- sharing
+
+const toBase64Url = (text: string): string =>
+  btoa(String.fromCharCode(...new TextEncoder().encode(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+const fromBase64Url = (code: string): string => {
+  const b = atob(code.replace(/-/g, '+').replace(/_/g, '/'));
+  return new TextDecoder().decode(Uint8Array.from(b, (c) => c.charCodeAt(0)));
+};
+
+/** A tune as a short code for a link: name, tempo and notes, nothing else. */
+export function encodeTune(song: PianoSong): string {
+  return toBase64Url(JSON.stringify({ n: song.name, b: song.bpm, s: notesKey(song), f: song.flats ? 1 : 0 }));
+}
+
+/** The tune in a shared link, or undefined if the code is damaged. Every note is checked. */
+export function decodeTune(code: string): PianoSong | undefined {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(song));
+    const data = JSON.parse(fromBase64Url(code)) as { n?: string; b?: number; s?: string; f?: number };
+    const notes = String(data.s ?? '')
+      .trim()
+      .split(/\s+/)
+      .slice(0, MAX_NOTES)
+      .map((tok) => {
+        const [note, beats] = tok.split(':');
+        return { note, beats: Math.min(3, Math.max(0.25, Number(beats) || 1)) };
+      });
+    const valid = notes.every((n) => {
+      if (!/^[A-G]s?\d$/.test(n.note)) return false;
+      const m = midiOf(n.note);
+      return m >= LOW_MIDI && m <= HIGH_MIDI;
+    });
+    if (!valid || notes.length < 3) return undefined;
+    return {
+      id: CUSTOM_ID,
+      name: cleanName(String(data.n ?? 'Shared tune')),
+      teaching: 'A tune someone shared with you.',
+      bpm: Math.round(Math.min(140, Math.max(40, Number(data.b) || 80))),
+      notes,
+      ...(data.f ? { flats: true } : {}),
+    };
   } catch {
-    // Private mode or storage full: the song still works for this session.
+    return undefined;
   }
+}
+
+/** A tune code from the page address (?tune=... or #tune=...). */
+export function tuneCodeFromUrl(): string | undefined {
+  const m = /[?#&]tune=([A-Za-z0-9_-]+)/.exec(location.search + location.hash);
+  return m?.[1];
 }
 
 /** Keep names short and in the panel font. */
