@@ -29,7 +29,8 @@ Both first versions "worked" and were still called *dummy* by the user. Everythi
 | [references/audio.md](references/audio.md) | Web Audio synthesis, samples, music per place, variation, TTS |
 | [references/assets-and-licensing.md](references/assets-and-licensing.md) | Free sources, Blender pipeline, AI generation on free quota, cleanup, what not to ship |
 | [references/testing.md](references/testing.md) | Test layers, emulator harness contract, CLI table, test matrix, headset-only checks |
-| [references/submission.md](references/submission.md) | Judging map, docs, trailer, deploy, write-up |
+| [references/submission.md](references/submission.md) | Judging map, Meta's takeaways as the pitch, docs, trailer, deploy, write-up |
+| [references/meta-resources.md](references/meta-resources.md) | Meta's hands-first success stories and docs, with links: what each means for a WebXR entry, what has no web equivalent |
 
 Scripts: [scripts/xr_e2e_lib.py](scripts/xr_e2e_lib.py) (emulator end-to-end library), [scripts/goto_preset.mjs](scripts/goto_preset.mjs) (jump to a `?state=` preset in the emulator), [scripts/blender_preview_glb.py](scripts/blender_preview_glb.py) (render any GLB), `scripts/assets/` (free asset generation and cleanup; see assets-and-licensing.md).
 
@@ -74,6 +75,7 @@ Scripts: [scripts/xr_e2e_lib.py](scripts/xr_e2e_lib.py) (emulator end-to-end lib
 ### Phase 3: Hands and placement
 Read hands-input.md and placement.md. The short version:
 - **Pinch has two tiers:** precise select 8 mm start / 15 mm release; grab-and-throw 22 mm / 40 mm. IWSDK's built-in select is a single 8 mm threshold with a 200 ms cooldown.
+- **Never do what the player didn't mean:** tracking lost while holding → a fast hand throws, a slow one leaves the object waiting (glide back or cancel); choices commit by pinch or a 0.3 s dwell, never a passing fingertip; a short take-back window. hands-input.md, "Intent guardrails".
 - **Placement chain:** labelled table/desk plane in front → hand-follow + pinch → virtual table (plus a "Scan room" button). Anchor it; keep the plane outline.
 
 ### Phase 4: Testable from day one
@@ -138,4 +140,6 @@ Score the four criteria honestly. List what only a headset can prove (testing.md
 | Draw calls doubled or spiking | emulator renders each eye; old log lines | halve; compare by timestamp |
 | `!state.winner` wrong | seat or index 0 is falsy | compare with `=== undefined` |
 | `pkill -f <pattern>` kills your shell | the pattern matches your own command | narrower pattern or PID |
+| A test of tracking loss can't resume the hold | IWER reconnects a hand open (pinch 0) | `xr set-device-state` with `connected`, `position` and `pinchValue` in one call |
+| A take-back or flip window test is flaky | each CLI call costs ~1 s | pre-position the hand before the window opens |
 | `metavr asset search` "Invalid API response" | server-side gate (Nov 2026) | Poly Haven, ambientCG, Commons, Blender scripts |

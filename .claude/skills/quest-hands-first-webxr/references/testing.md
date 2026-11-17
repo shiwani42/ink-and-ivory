@@ -51,6 +51,8 @@
 ## What only a headset can prove (keep this list in `docs/TESTING.md`, tick it on the device)
 72 fps (60 floor) during the heaviest effect; text and models render under multiview; contact and pinch thresholds with real hands; tracking at gesture extremes (under the table, edge of view); two different rooms; depth occlusion; text legibility at distance; hand-tracking permission prompt; system-menu pause; TTS voices; the file picker in Quest Browser; microgestures; the production URL logged out.
 
+**Playtest without coaching** (Meta's "Hands Onboarding 101", and all three hands-first stories): hand the headset to someone new and say nothing. Note where they hesitate, try another input, miss a confirmation or fail to recover; fix that step and try again with a different person. Include different hand sizes, left-handers and a controller user. Developers are poor judges: they already know how it's supposed to work.
+
 ## Meta VR CLI on the device (works on Linux)
 The `metavr` binary installs to `~/.metavr/npm/binaries/@meta-quest__metavr-linux-x64/<version>/metavr` and is not on PATH.
 ```

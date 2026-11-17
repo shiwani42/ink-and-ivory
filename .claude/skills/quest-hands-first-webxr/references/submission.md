@@ -26,6 +26,15 @@ Innovation, Experience Design, Technical, Polish (25% each), plus the special aw
 ## Time plan
 Reserve the last ~30 hours for headset QA, a 15-minute playtest with someone new to XR, deploy, trailer and forms. Feature work stops there.
 
+## Speak Meta's language (sources: meta-resources.md)
+Meta's hands-first success stories end in takeaways that read like a rubric. Show each with evidence in `docs/JUDGING.md`, the write-up and the trailer:
+- **Hands make it better, not just possible:** the core verb is a real-world action (reach, grab, place, throw), not a gesture vocabulary.
+- **Forgiving precision:** what happens on tracking loss (nothing unintended), a deliberate commit (dwell or pinch), and a way back (take-back or undo). Show one recovery in the trailer.
+- **Feel at the point of contact:** hover and grab affordance, sound and light in place of haptics, controller haptics when controllers are used.
+- **Purposeful mixed reality:** the virtual object behaves as if it belongs in the room (on the real table, grounded with shadows, hidden by real objects).
+- **Inclusive:** one hand is enough, either hand works, instructions follow the active input, newcomers learn it without a tutorial.
+- **Tested with new players** on the device, without coaching (testing.md).
+
 ## Write-up
 Name known issues and what's next; link any SDK fork or patch you made (it reads as engineering depth); disclose analytics (prefer none); list the asset sources and their licences.
 
