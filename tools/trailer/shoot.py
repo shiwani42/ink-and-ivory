@@ -88,8 +88,9 @@ def push_to(centre, height=0.30, dist=0.30, duration=4.0, x=0.0):
 
 
 def paper_centre(m0):
-    m, _ = E.wait_for(r'^layout (.*)', m0, 25)
-    lay = json.loads(m.group(1))
+    E.wait_for(r'^layout (.*)', m0, 25)
+    time.sleep(0.5)
+    lay = latest('layout', m0)
     seal = lay['seal']
     return lay, (seal[0] - 0.088, seal[1], seal[2] - 0.138)
 
@@ -99,6 +100,15 @@ def keys_centre(m0):
     lay = json.loads(m.group(1))
     e4 = lay['keys']['E4']
     return lay, (e4[0] + 0.02, e4[1], e4[2] - 0.04)
+
+
+def latest(prefix, since):
+    """The JSON payload of the most recent '[hoam] <prefix> {...}' line logged after `since`."""
+    found = None
+    for ts, msg in console_logs(2000):
+        if ts > since and msg.startswith(f'[hoam] {prefix} '):
+            found = json.loads(msg[len(f'[hoam] {prefix} '):])
+    return found
 
 
 def hands_down():
@@ -184,9 +194,9 @@ def encode(name, trim_start=0.0):
 
 def write_strokes(m0, jitter=0.0012):
     """Trace every stroke of the current lesson with the master, then let the seal land."""
-    m, _ = E.wait_for(r'^layout (.*)', m0, 20)
-    lay = json.loads(m.group(1))
+    E.wait_for(r'^layout (.*)', m0, 20)
     E.wait_for(r'^practice$', m0, 60)
+    lay = latest('layout', m0)
     E.cli('xr', 'set-hand-pose', payload={'device': 'hand-right', 'poseId': 'point'})
     for i, stroke in enumerate(lay['strokes']):
         ms = E.mark()
@@ -199,9 +209,9 @@ def write_strokes(m0, jitter=0.0012):
 
 
 def calibrate(m0):
-    m, _ = E.wait_for(r'^layout (.*)', m0, 20)
-    lay = json.loads(m.group(1))
+    E.wait_for(r'^layout (.*)', m0, 20)
     E.wait_for(r'^calibrate$', m0, 60)
+    lay = latest('layout', m0)
     seal = lay['seal']
     E.cli('xr', 'set-hand-pose', payload={'device': 'hand-right', 'poseId': 'point'})
     E.hand_to((seal[0], seal[1] + 0.06, seal[2]), 0.8, 'hand-right')
@@ -244,9 +254,9 @@ def s04(m0):
 def piano_phrases(m0, phrases):
     E.cli('xr', 'set-hand-pose', payload={'device': 'hand-right', 'poseId': 'point'})
     for k in range(phrases):
-        m, _ = E.wait_for(r'^piano-layout (.*)', m0, 40)
-        lay = json.loads(m.group(1))
+        E.wait_for(r'^piano-layout (.*)', m0, 40)
         m2, _ = E.wait_for(r'^(practice|calibrate)$', m0, 60)
+        lay = latest('piano-layout', m0)  # the song actually being taught (a preset can switch songs)
         if m2.group(1) == 'calibrate':
             # First time at the piano: touch the seal beside the keys once.
             seal = lay['seal']
