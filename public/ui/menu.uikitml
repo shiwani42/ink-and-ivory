@@ -96,6 +96,9 @@
     <div id="btn-text" class="btn grow"><div id="btn-text-label" class="btn-label">Larger text</div></div>
     <div id="btn-music" class="btn grow"><div id="btn-music-label" class="btn-label">Music: on</div></div>
   </div>
+  <div id="tool-row" class="row">
+    <div id="btn-tool" class="btn grow"><div id="btn-tool-label" class="btn-label">Write with: fingertip</div></div>
+  </div>
   <div class="row">
     <div id="btn-scene" class="btn grow"><div id="btn-scene-label" class="btn-label">Scene: on</div></div>
     <div id="btn-place" class="btn grow"><div id="btn-place-label" class="btn-label">Move paper here</div></div>

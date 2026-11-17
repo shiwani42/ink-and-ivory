@@ -249,6 +249,18 @@ export class CalligraphySystem extends createSystem({
   private toolTip = new Vector3();
   private toolWeb = new Vector3();
   private toolTmp = new Vector3();
+  /**
+   * Real pen mode (beta): you hold a real pen, brush or chopstick and its tip
+   * touches the desk. Touching the seal with the tip teaches where the tip
+   * sits relative to your index knuckle; from then on the tip is computed
+   * from that joint every frame and read exactly like a fingertip.
+   */
+  private writeWith: 'finger' | 'pen' = 'finger';
+  private penOffset?: Vector3;
+  private penHand?: XRHandedness;
+  private penM = new Matrix4();
+  private penCand = new Matrix4();
+  private penCandidate?: { m: Matrix4; height: number; hand?: XRHandedness };
   private midiInput?: HTMLInputElement;
   private status?: UIKitMLAsset; // body-locked card shown while finding the desk
   private statusEntity?: Entity;
@@ -415,6 +427,7 @@ export class CalligraphySystem extends createSystem({
       this.log('preset fresh: progress cleared');
     }
     this.progress = loadProgress();
+    this.writeWith = this.progress.writeWith ?? 'finger';
     const code = tuneCodeFromUrl();
     const shared = code ? decodeTune(code) : undefined;
     if (shared) {
@@ -564,6 +577,7 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'btn-unit-prev', () => this.pageUnit(-1));
     on(this.menu, 'btn-unit-next', () => this.pageUnit(1));
     on(this.menu, 'btn-review', () => this.startReview());
+    on(this.menu, 'btn-tool', () => this.toggleWriteWith());
     on(this.menu, 'lang-english', () => this.setLanguage('english'));
     on(this.welcome, 'share-button', () => void this.copyTuneLink());
     on(this.menu, 'btn-slower', () => this.setTempo(this.tempo - 0.1));
@@ -1010,6 +1024,8 @@ export class CalligraphySystem extends createSystem({
     const goal = done >= DAILY_GOAL ? 'goal met today' : `today ${done} of ${DAILY_GOAL}`;
     this.text(this.menu, 'streak', days > 0 ? `${days}-day streak  -  ${goal}` : `Daily goal: ${DAILY_GOAL} lessons`);
     this.display('btn-review', this.reviewIndex() >= 0);
+    this.display('tool-row', !piano);
+    this.text(this.menu, 'btn-tool-label', this.writeWith === 'pen' ? 'Write with: a real pen (beta)' : 'Write with: fingertip');
   }
 
   // ---------------------------------------------------------------- course
@@ -1272,6 +1288,14 @@ export class CalligraphySystem extends createSystem({
       this.log('calibrate');
       this.calibHold = 0;
       this.ghostTarget(this.calX + 0.03, HOVER_Y + 0.02, this.calZ + 0.02);
+      if (this.writeWith === 'pen' && this.craft === 'calligraphy') {
+        this.setCaption(
+          'STEP 2 OF 3  -  YOUR PEN',
+          'Rest your pen on the seal',
+          'Hold a real pen, brush or chopstick the way you write. Rest its tip on the red seal, keep still while the ring grows, then lift.',
+        );
+        return;
+      }
       this.setCaption(
         'STEP 2 OF 3  -  TOUCH',
         'Touch the red seal',
@@ -1388,6 +1412,7 @@ export class CalligraphySystem extends createSystem({
     const h = this.tipHeight();
     const userOn =
       callig &&
+      this.writeWith === 'finger' &&
       (this.mode === 'practice' || this.mode === 'calibrate') &&
       this.tipValid &&
       h < 0.16 &&
@@ -1771,13 +1796,25 @@ export class CalligraphySystem extends createSystem({
     for (const source of session.inputSources) {
       if (!source.hand) continue;
       if (this.penDown && this.tipSource && source !== this.tipSource) continue;
-      const space = source.hand.get('index-finger-tip');
+      const pen = this.writeWith === 'pen';
+      if (pen && this.penOffset && source.handedness !== this.penHand) continue; // only the calibrated hand
+      const space = source.hand.get(pen ? 'index-finger-phalanx-proximal' : 'index-finger-tip');
       const pose = space ? frame.getJointPose(space, ref) : undefined;
       if (!pose) continue;
-      const p = pose.transform.position;
-      this.v.set(p.x, p.y, p.z);
-      if (!this.playerIsIdentity) this.v.applyMatrix4(this.player.matrixWorld);
-      this.v.applyMatrix4(this.paperInv);
+      if (pen) {
+        this.penCand.fromArray(pose.transform.matrix);
+        if (!this.playerIsIdentity) this.penCand.premultiply(this.player.matrixWorld);
+        // The pen tip (once calibrated), else the knuckle itself (while calibrating).
+        if (this.penOffset) this.v.copy(this.penOffset).applyMatrix4(this.penCand);
+        else this.v.setFromMatrixPosition(this.penCand);
+        this.v.applyMatrix4(this.paperInv);
+        if (this.penOffset) this.v.y += TIP_CONTACT_Y; // read the tip like a fingertip pad
+      } else {
+        const p = pose.transform.position;
+        this.v.set(p.x, p.y, p.z);
+        if (!this.playerIsIdentity) this.v.applyMatrix4(this.player.matrixWorld);
+        this.v.applyMatrix4(this.paperInv);
+      }
       const inside =
         Math.abs(this.v.x) < PAPER_W / 2 + 0.05 && Math.abs(this.v.z) < PAPER_D / 2 + 0.05;
       // A hand far below the paper is resting in a lap (under a virtual desk):
@@ -1790,6 +1827,7 @@ export class CalligraphySystem extends createSystem({
         bestH = h;
         bestSource = source;
         this.v2.copy(this.v);
+        if (pen) this.penM.copy(this.penCand);
       }
     }
     if (!bestSource) {
@@ -1861,6 +1899,10 @@ export class CalligraphySystem extends createSystem({
     (ring.material as { opacity: number }).opacity = pulse;
     ring.scale.setScalar(1 + 0.15 * pulse);
     if (!this.tipValid) return;
+    if (this.writeWith === 'pen' && !this.penOffset) {
+      this.calibratePen(dt);
+      return;
+    }
     const near = Math.hypot(this.tip.x - this.calX, this.tip.z - this.calZ) < 0.03;
     if (near && this.tip.y < 0.045 && this.tipSpeed < 0.05) {
       this.calibHold += dt;
@@ -1877,6 +1919,71 @@ export class CalligraphySystem extends createSystem({
       }
     } else {
       this.calibHold = 0;
+    }
+  }
+
+  /**
+   * Real pen: rest the tip on the seal, keep still, then lift. While the
+   * hand is still above the seal we keep the lowest pose seen (that is when
+   * the tip touches); the lift confirms it. A hand that only hovers and then
+   * lowers is replaced by the lower pose, so hovering can't calibrate.
+   * Here this.tip is the knuckle (no offset yet).
+   */
+  private calibratePen(dt: number): void {
+    const ring = this.desk.sealRing;
+    const near = Math.hypot(this.tip.x - this.calX, this.tip.z - this.calZ) < 0.12;
+    const up = this.tip.y;
+    const cand = this.penCandidate;
+    if (cand && up > cand.height + 0.03) {
+      // Lifted: the lowest still pose was the tip on the seal.
+      this.v.set(this.calX, 0, this.calZ);
+      this.desk.paper.localToWorld(this.v);
+      const offset = this.v.clone().applyMatrix4(this.m.copy(cand.m).invert());
+      this.penCandidate = undefined;
+      this.calibHold = 0;
+      if (offset.length() < 0.03 || offset.length() > 0.2) return; // not a pen held in the hand
+      this.penOffset = offset;
+      this.penHand = cand.hand;
+      this.surfaceOffset = 0;
+      this.calibrated = true;
+      this.tipFilter.reset();
+      ring.scale.setScalar(1);
+      (ring.material as { opacity: number }).opacity = 0.25;
+      this.sfx.stamp();
+      this.log(`pen calibrated ${(offset.length() * 100).toFixed(1)} cm from the knuckle, ${this.penHand} hand`);
+      this.needLift = false; // already lifted
+      this.beginPractice();
+      return;
+    }
+    if (near && up > 0.015 && up < 0.2 && this.tipSpeed < 0.04) {
+      this.calibHold += dt;
+      ring.scale.setScalar(1 + 0.7 * clamp01(this.calibHold / 0.6));
+      if (this.calibHold >= 0.6 && (!cand || up < cand.height - 0.003)) {
+        this.penCandidate = { m: this.penM.clone(), height: up, hand: this.tipSource?.handedness };
+        this.setCaption('STEP 2 OF 3  -  YOUR PEN', 'Now lift your pen', 'Got it. Lift the pen off the seal and the paper is yours.');
+      }
+    } else if (!cand) {
+      this.calibHold = 0;
+      ring.scale.setScalar(1);
+    }
+  }
+
+  /** Fingertip (default) or a real pen or brush held in the hand (beta). */
+  private toggleWriteWith(): void {
+    this.writeWith = this.writeWith === 'finger' ? 'pen' : 'finger';
+    this.progress.writeWith = this.writeWith;
+    saveProgress(this.progress);
+    this.penOffset = undefined;
+    this.penHand = undefined;
+    this.penCandidate = undefined;
+    this.tipFilter.reset();
+    this.refreshMenu();
+    this.log(`write with ${this.writeWith}`);
+    if (this.craft === 'calligraphy' && (this.mode === 'practice' || this.mode === 'calibrate' || this.mode === 'complete')) {
+      this.calibrated = false;
+      this.startLesson(this.lessonIndex, false);
+    } else {
+      this.calibrated = false;
     }
   }
 
@@ -2603,6 +2710,14 @@ export class CalligraphySystem extends createSystem({
    * waiting moments are patient, since resting your hands is allowed.
    * Returns true while the piano should hold still.
    */
+  /** True when a Touch controller (not a tracked hand) is an active input. */
+  private controllersInUse(): boolean {
+    const session = this.renderer.xr.getSession();
+    if (!session) return false;
+    for (const source of session.inputSources) if (!source.hand && source.gamepad) return true;
+    return false;
+  }
+
   private updateTracking(dt: number): boolean {
     // A hand that reappears already on the paper must lift before it inks,
     // so tracking coming back never starts a stroke in the middle of the page.
@@ -2617,12 +2732,19 @@ export class CalligraphySystem extends createSystem({
       if (show) {
         // The reading card over the work carries it (where the learner looks
         // while working); the body-locked card also says it if they look away.
+        // Holding Touch controllers is the commonest cause for a first-time
+        // visitor (a judge picks them up out of habit): say so plainly.
+        const controllers = this.controllersInUse();
         const where = this.craft === 'piano' ? 'over the keys' : 'over the paper';
-        const eyebrow = pianoPlay ? 'PAUSED' : 'HANDS OUT OF VIEW';
-        const body = `Hold them ${where}, in front of you, in good light. ${pianoPlay ? 'The song waits for you.' : 'The master waits for you.'}`;
-        this.setStatus(eyebrow, 'Bring your hands back', body);
+        const eyebrow = controllers ? 'HANDS ONLY' : pianoPlay ? 'PAUSED' : 'HANDS OUT OF VIEW';
+        const title = controllers ? 'Put your controllers down' : 'Bring your hands back';
+        const body = controllers
+          ? `This is played with your bare hands. Set the controllers aside and hold your hands ${where}. If no hands appear, turn on hand tracking: Settings, Movement tracking, Hand and body tracking.`
+          : `Hold them ${where}, in front of you, in good light. ${pianoPlay ? 'The song waits for you.' : 'The master waits for you.'}`;
+        if (controllers) this.log('controllers in use: hint shown');
+        this.setStatus(eyebrow, title, body);
         this.text(this.caption, 'cap-eyebrow', eyebrow);
-        this.text(this.caption, 'cap-title', 'Bring your hands back');
+        this.text(this.caption, 'cap-title', title);
         this.text(this.caption, 'cap-body', body);
         this.text(this.caption, 'cap-score', ' ');
       } else {
@@ -2638,6 +2760,12 @@ export class CalligraphySystem extends createSystem({
         this.desk.paper.getWorldPosition(this.v);
         this.v.sub(this.head).normalize();
         away = this.v.dot(this.earF) < 0.82;
+        // Nor when the caption that already says it is in view (they would overlap).
+        if (away && this.caption?.visible) {
+          this.caption.getWorldPosition(this.v);
+          this.v.sub(this.head).normalize();
+          if (this.v.dot(this.earF) > 0.85) away = false;
+        }
       }
       this.status.visible = show && away;
     }

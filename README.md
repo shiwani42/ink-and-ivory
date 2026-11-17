@@ -66,10 +66,20 @@ You start in your own room: the paper or keyboard lands on your real table. Then
   - guide mode (adaptive / always / off);
   - craft (Calligraphy / Piano) and language (Japanese / Chinese / English);
   - units (< and >) and Review;
+  - write with your fingertip, or a real pen or brush held in your hand (beta: rest its tip on the seal to teach the app where the tip is);
   - music on or off, larger text;
   - Scene: the place, or your own room;
   - "Move paper in front of me" (places the paper again).
 - Left-handed writers are detected automatically. The ghost becomes a left hand and the menu moves to the right side.
+
+## If something's off
+| You see | Do this |
+|---|---|
+| "Put your controllers down" | Set the Touch controllers aside. If no hands appear: Settings, Movement tracking, Hand and body tracking on |
+| The paper sits on a virtual desk | No table was found. Press "Scan my room" on the menu (Quest 3), or sit at a table and press "Move paper here" |
+| Ink doesn't appear when you touch | Touch the red seal again (the menu's "Move paper here" re-places and re-calibrates); keep your hand in good light |
+| No sound | Raise the headset volume; the browser starts sound on your first press |
+| Writing with a real pen drifts | Hold the pen as you write, rest its tip on the seal, keep still, lift. Or switch back to "Write with: fingertip" |
 
 ## Run it
 ```bash

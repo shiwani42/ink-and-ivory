@@ -20,6 +20,8 @@ export interface Progress {
   strokes: number;
   calibratedOffset?: number;
   seenLock?: boolean; // the gold lock-in has been explained once
+  /** Write with the index fingertip (default) or a real pen or brush held in the hand (beta). */
+  writeWith?: 'finger' | 'pen';
   /** Lessons completed today, toward the daily goal. */
   daily?: { day: string; count: number };
 }

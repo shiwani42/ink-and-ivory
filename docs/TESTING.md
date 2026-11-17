@@ -139,3 +139,8 @@ Also passing:
 
 ## Emulator note: a locked screen stops the headed browser
 Chromium stops drawing a headed window that can't be seen (screen locked or asleep). The app then logs one frame and freezes in "Finding your desk", with no errors. Run the emulator headless for unattended tests: `npx iwsdk dev restart --headless --open --allow-browser-automation`.
+
+## Real pen mode and controllers (18 Nov)
+- `python3 tools/e2e_pen.py`: **PASS**. A tripod grip with the pen tip 9.1 cm from the index knuckle; the app learned 9.1 cm; stroke 88. Calibration takes the lowest still pose over the seal and confirms it on lift, so a hovering hand can't calibrate. Only a headset can show how much a real wrist's rotation moves the tip (a 9 cm lever: 10 degrees is about 1.6 cm).
+- Controllers instead of hands: the card says "Put your controllers down" and where to turn on hand tracking (checked in the emulator by switching the input mode).
+- Regression after both: `e2e.py --lessons 2 --piano 1 --compose` PASS (85, 84, 86, 83, 86), `e2e_hands.py` 7/7 PASS.
