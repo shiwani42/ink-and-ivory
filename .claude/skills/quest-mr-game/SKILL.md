@@ -11,7 +11,7 @@ Load `quest-hands-first-webxr` first; it owns setup, hands, placement, UI, light
 | File | Contents |
 |---|---|
 | [references/game-design.md](references/game-design.md) | Loop, NPC state machine, rules sim, controllable physics, table dressing, room transformation, juice, LLM characters |
-| [references/character-pipeline.md](references/character-pipeline.md) | MakeHuman/MPFB → glTF → procedural animation; export traps; QA checklist |
+| [references/character-pipeline.md](references/character-pipeline.md) | MakeHuman/MPFB → glTF → procedural animation; export traps; QA checklist; §7 the production route: CC0 clothing/hair/skin packs, visemes, Quaternius mocap retargeted, runtime layering |
 | `scripts/test/rules-sim.example.ts` | Thousands of AI-vs-AI games plus regression asserts (template) |
 | `scripts/test/headless-physics-test.example.ts` | Headless physics checks via an esbuild alias (template) |
 | `scripts/character/build_human.example.py` + `costume.example.py` | Rigged, dressed GLB plus a preview render (templates) |

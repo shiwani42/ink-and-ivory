@@ -97,6 +97,7 @@ A desktop-built city draws everything, every frame. Cull from outside so the ori
 - **Measure outside XR:** stats taken while an emulator XR session is still running count both eyes, so they look about twice as high.
 
 ## Real human NPCs on a custom rig (MakeHuman/MPFB, free, no GPU)
+> Superseded for quality by the production route in `quest-mr-game/references/character-pipeline.md` §7 (real clothing and hair packs, mocap, procedural layers). Painted clothes and code-only idles read as "junky" to users.
 Primitive-built people (boxes, cylinders) read as "broken" at VR conversation distance (0.7 m), even when the original game uses them. What worked (Sadak VR, `tools/humans/build_human.py`):
 - **Generate:** MPFB in Blender, headless:
   - `HumanService.create_human(detailed_helpers=True, …)`. You need the joint helpers, or `add_builtin_rig` fits bones about 0.86 m off the mesh.

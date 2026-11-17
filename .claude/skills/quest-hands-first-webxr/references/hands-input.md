@@ -106,7 +106,11 @@ The shared lesson of all three: when input is ambiguous, don't execute an action
 - **Instructions follow the active input:** keep a controller variant of every instruction ("pull the trigger", not "pinch") and choose it per frame from whether a tracked source is a hand.
 - **Contextual reminders, not a one-shot tutorial:** if nothing happens for about 12 s, show the full instruction again; re-offer the hint for a trick the player hasn't tried yet every few turns.
 - Confirm every success with something seen and heard; define what happens to held objects on tracking loss and tell the player how to continue.
-- Unfamiliar gestures need a demonstration where they're used (a looping neutral 3D hand), not only text.
+- Unfamiliar gestures need a demonstration where they're used (a looping neutral 3D hand), not only text. Built in Chausar (`src/game/ghost/ghost-hand.ts`):
+  - **Mesh and shapes:** the WebXR generic hand GLBs (MIT) and IWER's hand-pose data (MIT; `node_modules/iwer/lib/device/configs/hand/{pinch,point,relaxed}.js`, `jointTransforms[name].offsetMatrix`, left hand; mirror for the right with S·M·S). Dump them to JSON once.
+  - **Placing a pose:** pick a "tip" (pinch = midpoint of the thumb and index tips; point = index tip), build the pose frame from wrist→tip and the wrist's y column, then compose: rotate to the wanted finger and back-of-hand directions and translate the tip onto the target. Feed 25 world matrices to the bones.
+  - **Look:** a cool Fresnel spirit (bright rim, clear centre) after a depth-only pre-pass reads as "a hint", not a second player, against warm scenes. Ivory was too faint on a red cloth.
+  - **When:** only when the action is possible *and* safe (the NPC is looking away), beside the player's own hand (about 7 cm to the outside), a limited number of times, stopping once done; keep the action's time window open while it plays.
 - Test with a new player without coaching; watch where they hesitate.
 
 ## A tool in the hand (brush, pen)

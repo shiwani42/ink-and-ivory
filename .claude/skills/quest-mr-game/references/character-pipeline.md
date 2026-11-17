@@ -94,3 +94,62 @@ Use dev review cameras: face close-up, seated body, side profile. Trigger every 
 - no body intersecting the table or seat;
 - the face reads at the real viewing distance (~0.8–1.2 m);
 - colours right under the scene's actual lighting (warm lamps shift magenta and plum).
+
+## 7. The production route: real clothes, hair and skin + mocap + procedural layers (Sadak VR, Nov 2026)
+Use this when users say NPCs look "junky" or "broken". Painted-on clothes and hair, and code-only idles, read as fake at 0.7 m. This is how VR NPCs are usually built, entirely from free CC0 sources. Code: `sadak-vr/tools/humans/build_character.py`, `retarget.py`, `preview.py`, `preview_anim.py`, and `src/world/human.ts`.
+
+**Sources (all CC0):**
+- **MakeHuman asset packs:** https://static.makehumancommunity.org/assets/assetpacks.html
+  - Mesh packs download from `https://files.makehumancommunity.org/asset_packs/<pack>/<pack>_cc0.zip`. The `files2.` mirror runs at about 7 KB/s; `files.` at about 2.7 MB/s.
+  - Functional packs are at `https://files.makehumancommunity.org/functional/<pack>.zip`.
+  - Useful packs:
+    - `makehuman_system_assets`: 281 MB with skins, hair, casual suits and shoes;
+    - `skins01`: female, including `cutoff3d_indian_female_skin`;
+    - `skins02`: male;
+    - `hair01`: buns and braids;
+    - `shirts01`, `pants01` (harem pants make a good pyjama), `shoes01`, `skirts01` (`toigo_long_full_skirt` works as a sari skirt);
+    - `visemes02`: the 15 Meta/Oculus visemes, as `.target` files;
+    - `faceunits01`: 52 ARKit-style units (blink, brows, smile, jawOpen…).
+  - Unzip straight into MPFB's user data dir.
+- **Motion capture:** Quaternius Universal Animation Library 1 and 2, Standard (free) versions.
+  - https://quaternius.itch.io/universal-animation-library and https://quaternius.itch.io/universal-animation-library-2
+  - itch needs a click-through, so ask the user; scripted downloads get blocked.
+  - About 130 clips on a 65-bone UE-mannequin rig, with the same names as MPFB's `game_engine` rig, except the source's `Head` is capitalised.
+  - NPC-useful clips: `Idle_Loop`, `Idle_Talking_Loop`, `Idle_FoldArms_Loop`, `Interact`, `Yes`, `Idle_No_Loop`, `Driving_Loop`, `Idle_Rail_Loop`, `Sitting_Idle_Loop`, `Sitting_Talking_Loop`, `Idle_TalkingPhone_Loop`, `PickUp_Table`, `Consume`, `Walk_Loop`.
+
+**Build (one Blender run per character, about 15 s):**
+1. `create_human(detailed_helpers=True)`, then seeded face targets, then `add_builtin_rig('game_engine')`.
+2. `set_character_skin(..., 'GAMEENGINE')`, then eyes, brows, lashes, teeth, hair and clothes via `add_mhclo_asset(material_type='GAMEENGINE')`. Clothes come fitted and weighted to the rig automatically.
+3. Freeze the shape keys (`apply_mix`), then load the face morphs as new shape keys on the base-mesh topology. Do this before deleting any vertex, because targets are vertex-indexed.
+4. Delete the body hidden under clothes (`Delete.*` groups) and the helpers (not in group `body`) with **bmesh**: it keeps shape keys, while `modifier_apply` refuses on a mesh with shape keys.
+5. Add eye bones (`eye_l`/`eye_r` under `head`, at each eye's centroid) and reweight the eye mesh by x sign, for gaze.
+6. **Clothes look:**
+   - recolour by unlinking Base Color and setting a plain colour (or tint by multiplying);
+   - tint skin by multiplying the texture by the target skin tone; vertex and material colours are linear, so convert sRGB hex with `^2.2`;
+   - make everything opaque except hair, brows and lashes (alpha clip) and eyes (keep the clear cornea transparent, or eyes glow white).
+7. **Garments the packs lack, from real meshes:**
+   - **Kurta:** a tee plus a flared cloth skirt in the tee's own material. Size it per height to clear the trousers underneath, recalculate the normals outward, and cut the trousers above the hem so they never poke through.
+   - **Sari:** long skirt plus a short-sleeved blouse, plus a pallu built as a band along an ellipse path round the measured girth (hip → chest → over the shoulder → down the back). Shrinkwrapping onto a body whose hidden vertices were deleted gives jagged spikes.
+8. Retarget the clips onto this very rig before export, then export the GLB with skins, morphs (`export_try_sparse_sk`) and NLA-track animations. Each character is 4.3–6.8 MB with 8 clips.
+
+**Retargeting (`retarget.py`, standard world-space method):**
+- First align the rest poses: turn each target bone's direction onto its source bone's rest direction. Then per frame: target world rotation = source world change since its rest × aligned target rest. Solve locals parent-first; the pelvis takes the source hip translation scaled by hip height.
+- **Bone direction = the main child.** Skip eye, jaw and leaf children, or the head (whose first child is now `eye_l`) aligns to "forward" and every clip looks at the sky.
+- **Name output actions uniquely** (`RT_<name>`) while the source actions still exist. Otherwise Blender renames yours `Yes.001` and the export filter drops them. Rename after deleting the source.
+- Retarget inside the build, onto the exact armature that ships. A separate `anims.glb` re-imported and re-exported can change the bones' rest rotations, so its local quaternions no longer fit.
+
+**Runtime layering (`human.ts`, a `VendorRig`):**
+- Clone with `SkeletonUtils.clone`; play the base clip through an `AnimationMixer` (idle ↔ talking, 0.5 s crossfades, the odd folded-arms rest).
+- Then the procedural layers every frame, all in world-space bone maths:
+  - gaze: neck 35 %, head 75 %, eyes 100 %, clamped;
+  - two-bone IK for hands, blended in when idle (`restW`) so hands drift onto the counter, and out while talking so the mocap gestures play;
+  - palm orientation;
+  - blinks (`eyeBlinkLeft/Right`);
+  - visemes from a voice meter, or a syllable rhythm.
+- Seated with a sitting clip: offset the body so the clip's pelvis lands on the seat.
+- **Bugs that cost an iteration each:**
+  - Measuring the character's "forward" in world space when its GLB loads after the holder is already placed: use the holder's world quaternion, or heads twist sideways.
+  - Sharing module-level scratch vectors (`_a`, `_b`, `_c`) between hand targets, gaze targets and the IK internals: one limb's solve overwrote the other's target (an arm vanished) and the gaze target (heads looked up). Give targets their own vectors.
+  - `MeshStandardMaterial` under lights tuned for cel/toon bands over-exposes plain cloth to white. Scale plain-colour materials by about 0.5 and textured ones by about 0.75, or light the characters separately.
+- Stream the characters: the first NPC is `priority: 'critical'`, the rest `'background'`. Build lazily in `update()` once `AssetManager.getGLTF(key)` returns.
+- Review with Blender renders of a mid-clip frame per clip (`preview_anim.py`), plus in-app shots of idle, talking and offering.
