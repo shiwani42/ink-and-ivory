@@ -31,6 +31,8 @@ export interface Lesson {
   meaning: string;
   teaching: string;
   strokes: Stroke[];
+  /** Lettering paper only: ruled lines (ascender, waist, baseline, descender), 0..1 down the box. */
+  guides?: number[];
 }
 
 export interface Unit {
@@ -88,7 +90,7 @@ interface RawStroke {
 }
 
 const characters = (
-  strokeData as unknown as { characters: Record<string, { strokes: RawStroke[] }> }
+  strokeData as unknown as { characters: Record<string, { strokes: RawStroke[]; guides?: number[] }> }
 ).characters;
 
 function strokesOf(glyph: string): Stroke[] {
@@ -317,12 +319,13 @@ function english(): { lessons: Lesson[]; units: [string, number][] } {
         meaning: `letter ${g}`,
         teaching: lessons.length === 0 ? `${intro} ${teaching}` : teaching,
         strokes: strokesOf(g),
+        guides: characters[g].guides,
       });
     }
   }
   units.push(['Words', WORDS.length]);
   for (const [w, teaching] of WORDS) {
-    lessons.push({ id: `en-word-${w}`, glyph: w, reading: 'word', meaning: w, teaching, strokes: strokesOf(w) });
+    lessons.push({ id: `en-word-${w}`, glyph: w, reading: 'word', meaning: w, teaching, strokes: strokesOf(w), guides: characters[w].guides });
   }
   return { lessons, units };
 }

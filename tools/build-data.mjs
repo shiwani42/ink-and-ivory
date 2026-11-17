@@ -176,10 +176,12 @@ function latinStrokes(glyphs) {
       out.push({ order: out.length + 1, type: st.type, points: poly });
     }
   });
-  return out;
+  // Ruled lines for the lettering paper: ascender, waist (x-height), baseline, descender.
+  const guides = [16, 40, 70, 88].map((y) => round((55 + (y - 55) * scale) / 100));
+  return { strokes: out, guides };
 }
-for (const g of Object.keys(LETTERS)) characters[g] = { codepoint: 'latin', strokes: latinStrokes(g) };
-for (const w of WORDS) characters[w] = { codepoint: 'latin', strokes: latinStrokes(w) };
+for (const g of Object.keys(LETTERS)) characters[g] = { codepoint: 'latin', ...latinStrokes(g) };
+for (const w of WORDS) characters[w] = { codepoint: 'latin', ...latinStrokes(w) };
 
 writeFileSync(
   join(root, 'src/lessons/strokes.json'),

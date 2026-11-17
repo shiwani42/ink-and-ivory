@@ -1,4 +1,5 @@
 import {
+  Color,
   createSystem,
   DomeGradient,
   Group,
@@ -33,6 +34,7 @@ import {
   type DeskSet,
 } from './desk/desk.js';
 import { GhostHand, JointBlender } from './ghost/ghost-hand.js';
+import { HeldTool } from './ghost/held-tool.js';
 import { GhostPoseBuilder, JOINT_COUNT, type Handedness } from './ghost/ghost-pose.js';
 import { Sparks } from './fx/sparks.js';
 import { type FingerTip, PianoMode } from './piano/piano-mode.js';
@@ -49,9 +51,10 @@ import {
 import { parsePreset, type Preset } from './presets.js';
 import { dailyEcho, phrasesOf, SONG_UNITS, SONGS, type PianoSong } from './piano/songs.js';
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
+
 import { Environment, SCENES } from './env/environment.js';
 import { type Language, LANGUAGES, LESSON_SETS, LESSONS, type Lesson, type Unit, UNITS } from './lessons/lessons.js';
-import { StrokePath } from './lessons/master-path.js';
+import { CHAR_SIZE, StrokePath } from './lessons/master-path.js';
 import { PASS_SCORE, scoreStroke, type StrokeScore } from './lessons/scoring.js';
 import {
   clearProgress,
@@ -121,6 +124,7 @@ const MENU_SCALE = 0.056; // 380 units -> 21 cm wide; 76-unit targets -> 43 mm
 const CAPTION_SCALE = 0.085; // 520 units -> 44 cm wide; 25-unit body -> about 1 degree at 0.9 m
 const BREAK_AFTER_S = 25 * 60;
 const NEW_TUNE_ID = 'piano-new-tune';
+const RULE_COLOR = new Color('#5f7fa3'); // ruled lines on lettering paper
 /** Broad nib for English italic: held at 40 degrees, so thickness follows direction. */
 const NIB_X = Math.cos((40 * Math.PI) / 180);
 const NIB_Z = -Math.sin((40 * Math.PI) / 180); // up the page is -z
@@ -210,6 +214,14 @@ export class CalligraphySystem extends createSystem({
   private fullSong?: PianoSong;
   private dirX = 0;
   private dirZ = 1;
+  /** The brush or dip pen in the master's hand and in yours (its tip where the ink lands). */
+  private ghostTool?: HeldTool;
+  private userTool?: HeldTool;
+  private shownJointsRef: Float32Array = this.ghostJoints;
+  private ruleRibbons: InkRibbon[] = [];
+  private toolTip = new Vector3();
+  private toolWeb = new Vector3();
+  private toolTmp = new Vector3();
   private midiInput?: HTMLInputElement;
   private status?: UIKitMLAsset; // body-locked card shown while finding the desk
   private statusEntity?: Entity;
@@ -406,6 +418,10 @@ export class CalligraphySystem extends createSystem({
     this.ghost = new GhostHand();
     this.world.createTransformEntity(this.ghost.root, { persistent: true });
     this.poses = { left: new GhostPoseBuilder('left'), right: new GhostPoseBuilder('right') };
+    this.ghostTool = new HeldTool(true);
+    this.userTool = new HeldTool(false);
+    this.world.createTransformEntity(this.ghostTool.root, { persistent: true });
+    this.world.createTransformEntity(this.userTool.root, { persistent: true });
     void this.createPanels();
     this.loadLesson(this.lessonIndex);
     this.enter2D();
@@ -1191,6 +1207,96 @@ export class CalligraphySystem extends createSystem({
     }
     this.strokeIndex = 0;
     this.strokeScores = [];
+    this.applyTools();
+    // Lettering paper: faint ruled lines for this lesson's letter size.
+    for (const r of this.ruleRibbons) {
+      r.mesh.removeFromParent();
+      r.dispose();
+    }
+    this.ruleRibbons = [];
+    for (const [k, g] of (this.lesson.guides ?? []).entries()) {
+      const main = k === 1 || k === 2; // waist and baseline
+      const r = new InkRibbon(RULE_COLOR, 0.00015, false);
+      const z = (g - 0.5) * CHAR_SIZE;
+      r.setPolyline([-0.115, 0.115], [z, z], main ? 0.0011 : 0.0007);
+      r.material.opacity = main ? 0.5 : 0.28;
+      r.mesh.renderOrder = 1;
+      this.desk.paper.add(r.mesh);
+      this.ruleRibbons.push(r);
+    }
+  }
+
+  /** Brush and inkstone for Japanese and Chinese; dip pen, ink bottle and lined paper for English. */
+  private applyTools(): void {
+    const pen = this.language === 'english';
+    this.desk.brushSet.visible = !pen;
+    this.desk.penSet.visible = pen;
+    this.desk.setPaper(pen ? 'lined' : 'grid');
+    this.ghostTool?.setKind(pen ? 'pen' : 'brush');
+    this.userTool?.setKind(pen ? 'pen' : 'brush');
+  }
+
+  /** Each frame: the master's tool in the ghost hand, yours in your writing hand. */
+  private updateTools(): void {
+    if (!this.ghostTool || !this.userTool) return;
+    const callig = this.craft === 'calligraphy';
+    // The master's: tip on the paper under the ghost fingertip, shaft through the ghost's thumb-index web.
+    const ghostOn = callig && this.ghost.visible && this.ghost.opacity > 0.02 && this.mode !== 'placing';
+    this.ghostTool.root.visible = ghostOn;
+    if (ghostOn) {
+      this.toolTip.set(this.ghostTip.x, Math.max(0.0008, this.ghostTip.y - TIP_CONTACT_Y + 0.0008), this.ghostTip.z);
+      this.desk.paper.localToWorld(this.toolTip);
+      this.jointWeb(this.shownJointsRef, this.toolWeb);
+      this.ghostTool.place(this.toolTip, this.toolWeb, Math.min(0.85, this.ghost.opacity * 1.05));
+    }
+    // Yours: only while writing or calibrating, with the hand over the paper.
+    const h = this.tipHeight();
+    const userOn =
+      callig &&
+      (this.mode === 'practice' || this.mode === 'calibrate') &&
+      this.tipValid &&
+      h < 0.16 &&
+      Math.abs(this.tip.x) < PAPER_W / 2 + 0.12 &&
+      Math.abs(this.tip.z) < PAPER_D / 2 + 0.12 &&
+      this.readWeb(this.toolWeb);
+    this.userTool.root.visible = userOn;
+    if (userOn) {
+      this.toolTip.set(this.tip.x, Math.max(0.0008, h + 0.0008), this.tip.z);
+      this.desk.paper.localToWorld(this.toolTip);
+      this.userTool.place(this.toolTip, this.toolWeb);
+    }
+    // The resting tool is in your hand while you write.
+    this.desk.restingBrush.visible = !(userOn && this.userTool.kind === 'brush');
+    this.desk.restingPen.visible = !(userOn && this.userTool.kind === 'pen');
+  }
+
+  /** World point between thumb and index finger (proximal joints) from 25 joint matrices. */
+  private jointWeb(j: Float32Array, out: Vector3): void {
+    out.set(
+      (j[2 * 16 + 12] + j[6 * 16 + 12]) / 2,
+      (j[2 * 16 + 13] + j[6 * 16 + 13]) / 2,
+      (j[2 * 16 + 14] + j[6 * 16 + 14]) / 2,
+    );
+  }
+
+  /** Your writing hand's thumb-index web, in world space. */
+  private readWeb(out: Vector3): boolean {
+    const frame = this.xrFrame;
+    const ref = this.renderer.xr.getReferenceSpace();
+    const src = this.tipSource;
+    if (!frame?.getJointPose || !ref || !src?.hand) return false;
+    const a = src.hand.get('thumb-phalanx-proximal');
+    const b = src.hand.get('index-finger-phalanx-proximal');
+    const pa = a ? frame.getJointPose(a, ref) : undefined;
+    const pb = b ? frame.getJointPose(b, ref) : undefined;
+    if (!pa || !pb) return false;
+    out.set(
+      (pa.transform.position.x + pb.transform.position.x) / 2,
+      (pa.transform.position.y + pb.transform.position.y) / 2,
+      (pa.transform.position.z + pb.transform.position.z) / 2,
+    );
+    if (!this.playerIsIdentity) out.applyMatrix4(this.player.matrixWorld);
+    return true;
   }
 
   /** How much the master helps on this lesson, 0..1, from how often it has been passed. */
@@ -1482,8 +1588,10 @@ export class CalligraphySystem extends createSystem({
     if (this.lockBlend > 0.001 && this.readUserJoints()) {
       this.blender.blend(this.ghostJoints, this.userJoints, this.lockBlend, this.shownJoints);
       this.ghost.setJoints(this.shownJoints);
+      this.shownJointsRef = this.shownJoints;
     } else {
       this.ghost.setJoints(this.ghostJoints);
+      this.shownJointsRef = this.ghostJoints;
     }
   }
 
@@ -2379,9 +2487,11 @@ export class CalligraphySystem extends createSystem({
           }
         }
         this.poseGhost();
+        this.updateTools();
         return;
       }
       case 'placing': {
+        this.updateTools();
         this.placingClock += dt;
         if (this.tryPlaceOnPlane()) this.finishPlacing(true);
         else if (this.placingClock > PLACE_TIMEOUT) {
@@ -2443,6 +2553,7 @@ export class CalligraphySystem extends createSystem({
       this.ghost.opacity = Math.max(0, this.ghost.opacity - dt * 0.3);
     }
     if (this.ghost.visible) this.poseGhost();
+    this.updateTools();
   }
 }
 

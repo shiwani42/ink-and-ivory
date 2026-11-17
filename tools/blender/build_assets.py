@@ -458,7 +458,94 @@ def build_tabletop():
     export('tabletop', [top, apron])
 
 
-for fn in (build_brush, build_brush_rest, build_inkstone, build_water_dropper, build_seal_set, build_paperweight, build_tabletop):
+# ---------------------------------------------------------------- 8b. English set: broad-edge dip pen, pen rest, ink bottle
+def build_dip_pen():
+    """Straight holder (walnut), brass ferrule, steel broad-edge (chisel) nib. Lies along +X, nib toward +X."""
+    reset(); M = mats()
+    steel = material('steel', (0.62, 0.63, 0.66), 0.28, metal=1.0)
+    L = 0.155
+    holder = lathe('pen_holder', [(0.0, 0.0), (0.0032, 0.0), (0.0036, 0.004), (0.0038, 0.06), (0.0042, 0.11),
+                                  (0.0050, 0.135), (0.0052, L - 0.004), (0.0047, L), (0.0, L)], segments=28)
+    assign(holder, M['walnut'])
+    ferrule = lathe('pen_ferrule', [(0.0, L), (0.0047, L), (0.0045, L + 0.006), (0.0040, L + 0.013), (0.0, L + 0.013)], segments=28)
+    assign(ferrule, M['brass'])
+    # Nib: a thin curved blade that narrows to a flat chisel edge 4.5 mm wide.
+    bm = bmesh.new()
+    prof = [(0.0, 0.0034), (0.006, 0.0036), (0.014, 0.0030), (0.020, 0.0024), (0.024, 0.00225)]  # (along, half width)
+    t = 0.00035
+    top, bot = [], []
+    for a, hw in prof:
+        curve = 0.0012 * math.sin(math.pi * a / 0.024)  # gentle arch along the nib
+        for side in (-1, 1):
+            top.append(bm.verts.new((a, side * hw, curve + t)))
+            bot.append(bm.verts.new((a, side * hw, curve - t)))
+    n = len(prof)
+    for k in range(n - 1):
+        i0, i1 = 2 * k, 2 * (k + 1)
+        bm.faces.new((top[i0], top[i0 + 1], top[i1 + 1], top[i1]))
+        bm.faces.new((bot[i0], bot[i1], bot[i1 + 1], bot[i0 + 1]))
+        bm.faces.new((top[i0], top[i1], bot[i1], bot[i0]))
+        bm.faces.new((top[i0 + 1], bot[i0 + 1], bot[i1 + 1], top[i1 + 1]))
+    bm.faces.new((top[0], bot[0], bot[1], top[1]))
+    e = 2 * (n - 1)
+    bm.faces.new((top[e], top[e + 1], bot[e + 1], bot[e]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new('pen_nib')
+    bm.to_mesh(me)
+    bm.free()
+    nib = bpy.data.objects.new('pen_nib', me)
+    bpy.context.collection.objects.link(nib)
+    # The nib leaves the ferrule along the holder's axis (holder runs along Z before the turn).
+    nib.rotation_euler = (0, -math.pi / 2, 0)
+    nib.location = (0, 0, L + 0.010)
+    bpy.context.view_layer.objects.active = nib
+    nib.select_set(True)
+    bpy.ops.object.transform_apply(location=True, rotation=True)
+    nib.select_set(False)
+    assign(nib, steel)
+    parts = [holder, ferrule, nib]
+    for o in parts:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = holder
+    bpy.ops.object.join()
+    pen = bpy.context.active_object
+    pen.name = 'dip_pen'
+    pen.rotation_euler = (0, math.pi / 2, 0)
+    bpy.ops.object.transform_apply(rotation=True)
+    xs = [v.co.x for v in pen.data.vertices]
+    zs = [v.co.z for v in pen.data.vertices]
+    cx = (min(xs) + max(xs)) / 2
+    for v in pen.data.vertices:
+        v.co.x -= cx
+        v.co.z -= min(zs)
+    export('dip_pen', [pen])
+
+
+def build_pen_rest_and_bottle():
+    reset(); M = mats()
+    # Pen rest: a small walnut block with a groove across the top.
+    rest = box('pen_rest', 0.016, 0.05, 0.009)
+    uv_cube(rest, 0.05)
+    bevel(rest, 0.0015, 2)
+    assign(rest, M['walnut'])
+    export('pen_rest', bake_ao([rest], 'pen_rest', 256, 0.02))
+    reset(); M = mats()
+    glass = material('ink_glass', (0.035, 0.05, 0.06), 0.06)
+    label = material('label', (0.9, 0.85, 0.74), 0.8)
+    body = lathe('ink_bottle', [(0.0, 0.0), (0.019, 0.0), (0.021, 0.003), (0.021, 0.032), (0.017, 0.040), (0.0105, 0.044),
+                                (0.0105, 0.052), (0.0115, 0.053), (0.0115, 0.056), (0.0, 0.056)], segments=40)
+    assign(body, glass)
+    band = lathe('ink_label', [(0.0212, 0.010), (0.0214, 0.012), (0.0214, 0.026), (0.0212, 0.028)], segments=40)
+    assign(band, label)
+    ink = lathe('ink_surface', [(0.0, 0.0561), (0.0095, 0.0561)], segments=24)
+    assign(ink, M['ink'])
+    export('ink_bottle', bake_ao([body, band, ink], 'ink_bottle', 256, 0.02))
+
+
+ONLY = argv[2].split(',') if len(argv) > 2 else None  # optional: build only these functions
+for fn in (build_brush, build_brush_rest, build_inkstone, build_water_dropper, build_seal_set, build_paperweight, build_tabletop, build_dip_pen, build_pen_rest_and_bottle):
+    if ONLY and fn.__name__ not in ONLY:
+        continue
     try:
         fn()
     except Exception as e:  # keep going; report which failed
@@ -517,9 +604,10 @@ def build_keyboard():
     export('keyboard', objs)
 
 
-try:
+if not ONLY or 'build_keyboard' in ONLY:
+  try:
     build_keyboard()
-except Exception as e:
+  except Exception as e:
     import traceback; traceback.print_exc(); print('FAILED build_keyboard', e)
 print('KEYBOARD_DONE')
 
@@ -708,8 +796,9 @@ def merge_by_material(objs, prefix):
     return out
 
 
-try:
+if not ONLY or 'build_grand_piano' in ONLY:
+  try:
     build_grand_piano()
-except Exception as e:
+  except Exception as e:
     import traceback; traceback.print_exc(); print('FAILED build_grand_piano', e)
 print('GRAND_DONE')

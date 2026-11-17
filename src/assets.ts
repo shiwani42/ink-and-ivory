@@ -25,7 +25,7 @@ export default defineAssets({
   },
   // Writing set built in Blender (tools/blender/build_assets.py; textures CC0 Poly Haven).
   ...Object.fromEntries(
-    ['brush', 'brush-rest', 'inkstone', 'water-dropper', 'seal-set', 'paperweight', 'tabletop', 'keyboard', 'grand-piano'].map((id) => [
+    ['brush', 'brush-rest', 'inkstone', 'water-dropper', 'seal-set', 'paperweight', 'tabletop', 'keyboard', 'grand-piano', 'dip-pen', 'pen-rest', 'ink-bottle'].map((id) => [
       `model-${id}`,
       {
         url: publicAssetUrl(`models/${id.replace(/-/g, '_')}.glb`),

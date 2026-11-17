@@ -46,7 +46,7 @@ export const STAMP_X = -0.088; // where the finished character is stamped
 export const STAMP_Z = 0.138;
 export const HANKO_HOME = { x: -0.205, z: 0.135 };
 
-function paperTexture(): CanvasTexture {
+function paperTexture(grid = true): CanvasTexture {
   const w = 640;
   const h = Math.round((w * PAPER_D) / PAPER_W);
   const c = document.createElement('canvas');
@@ -76,6 +76,13 @@ function paperTexture(): CanvasTexture {
       y + Math.sin(a) * l,
     );
     ctx.stroke();
+  }
+  if (!grid) {
+    // Lettering paper: the ruled lines are drawn per lesson (they depend on the letter size).
+    const t = new CanvasTexture(c);
+    t.colorSpace = SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
   }
   // Practice grid (mizige): box, centre cross and diagonals, faint vermilion.
   const px = w / PAPER_W;
@@ -213,6 +220,12 @@ export interface DeskSet {
   hanko: Group; // the jade seal itself, animated to stamp the page
   cursor: Mesh; // where your fingertip will touch: shrinks and darkens as you approach
   callig: Group; // the calligraphy set (mat, paper, tools); hidden in piano mode
+  brushSet: Group; // inkstone, brush on its rest, water dropper (Japanese, Chinese)
+  penSet: Group; // ink bottle, dip pen on its rest (English)
+  restingBrush: Object3D; // hidden while the brush is in your hand
+  restingPen: Object3D;
+  /** Brush paper with the practice grid, or plain lettering paper. */
+  setPaper: (style: 'grid' | 'lined') => void;
   virtualTable: Object3D; // shown only when no real desk was found
 }
 
@@ -252,8 +265,10 @@ export function createDeskSet(): DeskSet {
   callig.add(contactShadow(MAT_W * 1.25, MAT_D * 1.2, 0.4));
 
   // Washi: painted colour + grid, real fibre normals and roughness.
+  const gridTex = paperTexture(true);
+  let plainTex: CanvasTexture | undefined;
   const paperMat = new MeshStandardMaterial({
-    map: paperTexture(),
+    map: gridTex,
     normalMap: tex('paper-normal', 2),
     roughnessMap: tex('paper-rough', 2),
     roughness: 1,
@@ -274,35 +289,62 @@ export function createDeskSet(): DeskSet {
   weight.position.set(0, SURFACE_Y - 0.0002, -PAPER_D / 2 + 0.012);
   callig.add(weight);
 
+  // The brush set (Japanese, Chinese) and the pen set (English) share the right side of the mat.
+  const brushSet = new Group();
+  brushSet.name = 'brush-set';
+  callig.add(brushSet);
+  const penSet = new Group();
+  penSet.name = 'pen-set';
+  penSet.visible = false;
+  callig.add(penSet);
+
   // Inkstone with stick and pool (long axis along z), right of the mat.
   const inkstone = model('model-inkstone');
   inkstone.position.set(MAT_W / 2 + 0.06, 0, -0.08);
   inkstone.rotation.y = 0.08;
-  callig.add(inkstone);
+  brushSet.add(inkstone);
   const sInk = contactShadow(0.11, 0.16, 0.45);
   sInk.position.set(inkstone.position.x, 0.0005, inkstone.position.z);
-  callig.add(sInk);
+  brushSet.add(sInk);
 
   // Brush resting on its celadon rest, tip pointing away from the writer.
   const rest = model('model-brush-rest');
   rest.position.set(MAT_W / 2 + 0.05, 0, 0.1);
   rest.rotation.y = Math.PI / 2;
-  callig.add(rest);
+  brushSet.add(rest);
   const brush = model('model-brush');
   brush.position.set(MAT_W / 2 + 0.05, 0.011, 0.08);
   brush.rotation.y = Math.PI / 2;
-  callig.add(brush);
+  brushSet.add(brush);
   const sBrush = contactShadow(0.05, 0.12, 0.3);
   sBrush.position.set(rest.position.x, 0.0005, 0.09);
-  callig.add(sBrush);
+  brushSet.add(sBrush);
 
   // Water dropper, back right.
   const dropper = model('model-water-dropper');
   dropper.position.set(MAT_W / 2 + 0.07, 0, -0.205);
-  callig.add(dropper);
+  brushSet.add(dropper);
   const sDrop = contactShadow(0.07, 0.07, 0.4);
   sDrop.position.set(dropper.position.x, 0.0005, dropper.position.z);
-  callig.add(sDrop);
+  brushSet.add(sDrop);
+
+  // Pen set: a glass ink bottle where the inkstone is, the dip pen on a walnut rest.
+  const bottle = model('model-ink-bottle');
+  bottle.position.set(MAT_W / 2 + 0.06, 0, -0.07);
+  penSet.add(bottle);
+  const sBottle = contactShadow(0.07, 0.07, 0.45);
+  sBottle.position.set(bottle.position.x, 0.0005, bottle.position.z);
+  penSet.add(sBottle);
+  const penRest = model('model-pen-rest');
+  penRest.position.set(MAT_W / 2 + 0.05, 0, 0.1);
+  penSet.add(penRest);
+  const pen = model('model-dip-pen');
+  pen.position.set(MAT_W / 2 + 0.05, 0.0085, 0.07);
+  pen.rotation.y = Math.PI / 2;
+  penSet.add(pen);
+  const sPen = contactShadow(0.04, 0.13, 0.3);
+  sPen.position.set(penRest.position.x, 0.0005, 0.08);
+  penSet.add(sPen);
 
   // Seal and paste dish, left near corner. Split the jade seal out so it can stamp.
   const sealSet = model('model-seal-set');
@@ -362,5 +404,17 @@ export function createDeskSet(): DeskSet {
   virtualTable.visible = false;
   root.add(virtualTable);
 
-  return { root, body, paper, seal, sealRing, stamp, hanko, cursor, callig, virtualTable };
+  const setPaper = (style: 'grid' | 'lined') => {
+    if (style === 'lined' && !plainTex) plainTex = paperTexture(false);
+    const map = style === 'grid' ? gridTex : plainTex!;
+    if (paperMat.map !== map) {
+      paperMat.map = map;
+      paperMat.needsUpdate = true;
+    }
+  };
+
+  return {
+    root, body, paper, seal, sealRing, stamp, hanko, cursor, callig, virtualTable,
+    brushSet, penSet, restingBrush: brush, restingPen: pen, setPaper,
+  };
 }
