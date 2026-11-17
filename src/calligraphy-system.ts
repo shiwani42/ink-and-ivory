@@ -35,6 +35,8 @@ import {
 } from './desk/desk.js';
 import { GhostHand, JointBlender } from './ghost/ghost-hand.js';
 import { HeldTool } from './ghost/held-tool.js';
+import { HandCues } from './hands/hand-cues.js';
+import { HoldGate, thumbsUpConfidence } from './hands/hand-gestures.js';
 import { GhostPoseBuilder, JOINT_COUNT, type Handedness } from './ghost/ghost-pose.js';
 import { Sparks } from './fx/sparks.js';
 import { type FingerTip, PianoMode } from './piano/piano-mode.js';
@@ -130,7 +132,31 @@ const NIB_X = Math.cos((40 * Math.PI) / 180);
 const NIB_Z = -Math.sin((40 * Math.PI) / 180); // up the page is -z
 /** Ghost opacity for each help level (full guide, outline, from memory), before in-attempt fading. */
 const HELP = [1, 0.55, 0.2];
+/** Poke feedback: a fingertip within this distance in front of a button hovers it. */
+const POKE_HOVER = 0.07;
+/** Tracking loss: grace before a stroke is called off, and before the hint shows. */
+const STROKE_LOST_GRACE = 0.15;
+const HINT_AFTER_TIMED = 0.3; // piano playing, or mid-stroke: the lesson pauses at once
+const HINT_AFTER_IDLE = 2.5; // waiting phases: resting hands are fine, so be patient
+/**
+ * Poke hover and press: UIKit "important" class layers outrank inline and
+ * :hover styles, and come off cleanly. Dark buttons (Next lesson, Write it
+ * again) get a darker gold so their cream label keeps its contrast.
+ */
+const HOVER_LIGHT = { important: { backgroundColor: '#ecd29a' } };
+const HOVER_DARK = { important: { backgroundColor: '#6b4a1c' } };
+const PRESS_LIGHT = { important: { backgroundColor: '#d9a441' } };
+const PRESS_DARK = { important: { backgroundColor: '#a8231a' } };
+type StyleClass = typeof HOVER_LIGHT;
+interface ClassListOwner {
+  classList: { add(c: StyleClass): void; remove(c: StyleClass): void };
+}
+/** Microgestures on the hand's xr-standard gamepad (IWSDK/IWER mapping). */
+const MG_SWIPE_LEFT = 5;
+const MG_SWIPE_RIGHT = 6;
+const MG_TAP = 9;
 
+const NO_PIANO_EVENT = { type: 'none' } as const;
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 const smooth = (t: number): number => t * t * (3 - 2 * t);
 
@@ -180,6 +206,7 @@ export class CalligraphySystem extends createSystem({
   private lastTriggerId = '';
   private lastTriggerAt = 0;
   private captionActionsShown = false;
+  private nextButton?: PokeButton;
   private sparks = new Sparks();
   private sparkClock = 0;
   private craft: Craft = 'calligraphy';
@@ -306,6 +333,25 @@ export class CalligraphySystem extends createSystem({
   private axis = new Vector3();
   private lastPoseLog = -10;
 
+  // hand-input feedback and gestures
+  private cues = new HandCues();
+  private hoverButton?: PokeButton;
+  private hoverStyle?: StyleClass;
+  private pressButton?: PokeButton;
+  private pressStyle?: StyleClass;
+  private pressUntil = 0;
+  private pokeBest: (PokeButton | undefined)[] = [undefined, undefined];
+  private pokeBestDepth = [0, 0];
+  private panelQuat = new Quaternion();
+  private thumbsGate = new HoldGate(0.6, 0.7, 0.35);
+  private thumbsAt = new Vector3();
+  private thumbsLogged = 0;
+  private handsLostFor = 0;
+  private strokeLostFor = 0;
+  private handsHint = false;
+  private captionRecord = ['HANDS OF A MASTER', ' ', ' ', ' '];
+  private mgPrev = [0, 0];
+
   /** Dev aid: console lines the IWSDK CLI can read (`iwsdk browser logs`). */
   private log(message: string): void {
     if (import.meta.env.DEV) console.info(`[hoam] ${message}`);
@@ -422,6 +468,7 @@ export class CalligraphySystem extends createSystem({
     this.userTool = new HeldTool(false);
     this.world.createTransformEntity(this.ghostTool.root, { persistent: true });
     this.world.createTransformEntity(this.userTool.root, { persistent: true });
+    this.world.createTransformEntity(this.cues.root, { persistent: true });
     void this.createPanels();
     this.loadLesson(this.lessonIndex);
     this.enter2D();
@@ -559,9 +606,15 @@ export class CalligraphySystem extends createSystem({
     );
     on(this.menu, 'btn-again', () => this.startLesson(this.lessonIndex, false));
 
+    this.nextButton = this.pokeById('btn-next');
     this.refreshMenu();
     this.refreshWelcome();
     this.applyPanelVisibility();
+  }
+
+  private pokeById(id: string): PokeButton | undefined {
+    for (const b of this.pokeButtons) if (b.id === id) return b;
+    return undefined;
   }
 
   private async checkXrSupport(): Promise<void> {
@@ -696,7 +749,13 @@ export class CalligraphySystem extends createSystem({
    * tells us when it pushes through the surface.
    */
   private updatePoke(): void {
-    if (this.penDown || this.pokeButtons.length === 0) return;
+    this.pokeBest[0] = this.pokeBest[1] = undefined;
+    if (this.penDown || this.pokeButtons.length === 0) {
+      this.cues.hidePoke(0);
+      this.cues.hidePoke(1);
+      this.setPokeHover(undefined);
+      return;
+    }
     const frame = this.xrFrame;
     const ref = this.renderer.xr.getReferenceSpace();
     const session = this.renderer.xr.getSession();
@@ -733,11 +792,79 @@ export class CalligraphySystem extends createSystem({
         const over = Math.abs(lx) <= 0.55 && Math.abs(ly) <= 0.6;
         const prev = b.depth[slot];
         b.depth[slot] = depth;
+        // Hover: the nearest button this fingertip is over, within reach in front.
+        if (over && depth < POKE_HOVER && depth > -0.03) {
+          const best = this.pokeBest[slot];
+          if (!best || depth < this.pokeBestDepth[slot]) {
+            this.pokeBest[slot] = b;
+            this.pokeBestDepth[slot] = depth;
+          }
+        }
         if (over && prev > 0.004 && depth <= 0.004 && depth > -0.03) {
           this.trigger(b.id, b.fn);
+          this.flashPress(b);
         }
       }
+      // The poke cursor: on the panel surface, straight under the fingertip.
+      const best = this.pokeBest[slot];
+      if (best) {
+        const d = this.pokeBestDepth[slot];
+        const pe = best.panel.matrixWorld.elements;
+        this.v2.set(pe[8], pe[9], pe[10]).normalize();
+        best.panel.getWorldQuaternion(this.panelQuat);
+        const surf = Math.max(0, d) - 0.0015; // just proud of the panel
+        this.cues.showPoke(
+          slot,
+          this.pokeTip.x - this.v2.x * surf,
+          this.pokeTip.y - this.v2.y * surf,
+          this.pokeTip.z - this.v2.z * surf,
+          this.panelQuat,
+          d,
+          POKE_HOVER,
+        );
+      } else {
+        this.cues.hidePoke(slot);
+      }
     }
+    for (let s = handIndex; s < 2; s++) this.cues.hidePoke(s);
+    // One hovered button at a time: the one a fingertip is closest to.
+    const a = this.pokeBest[0];
+    const b = this.pokeBest[1];
+    this.setPokeHover(a && b ? (this.pokeBestDepth[0] <= this.pokeBestDepth[1] ? a : b) : (a ?? b));
+    if (this.pressButton && this.clock > this.pressUntil) this.setPokePress(undefined);
+  }
+
+  private darkButton(b: PokeButton): boolean {
+    return b.id === 'btn-next' || b.id === 'btn-again';
+  }
+
+  /** Light up the button under a fingertip (poke has no UIKit pointer, so no :hover). */
+  private setPokeHover(b: PokeButton | undefined): void {
+    if (b === this.hoverButton) return;
+    if (this.hoverButton && this.hoverStyle) (this.hoverButton.el as unknown as ClassListOwner).classList.remove(this.hoverStyle);
+    this.hoverButton = b;
+    this.hoverStyle = undefined;
+    if (b) {
+      this.hoverStyle = this.darkButton(b) ? HOVER_DARK : HOVER_LIGHT;
+      (b.el as unknown as ClassListOwner).classList.add(this.hoverStyle);
+      this.log(`poke hover ${b.id}`);
+    }
+  }
+
+  private setPokePress(b: PokeButton | undefined): void {
+    if (this.pressButton && this.pressStyle) (this.pressButton.el as unknown as ClassListOwner).classList.remove(this.pressStyle);
+    this.pressButton = b;
+    this.pressStyle = undefined;
+    if (b) {
+      this.pressStyle = this.darkButton(b) ? PRESS_DARK : PRESS_LIGHT;
+      (b.el as unknown as ClassListOwner).classList.add(this.pressStyle);
+    }
+  }
+
+  /** A short flash on the button a fingertip pushed through, so the press reads at a glance. */
+  private flashPress(b: PokeButton): void {
+    this.setPokePress(b);
+    this.pressUntil = this.clock + 0.28;
   }
 
   /**
@@ -808,6 +935,14 @@ export class CalligraphySystem extends createSystem({
   }
 
   private setCaption(eyebrow: string, title: string, body: string, score = ' '): void {
+    const rec = this.captionRecord;
+    rec[0] = eyebrow;
+    rec[1] = title;
+    rec[2] = body;
+    rec[3] = score;
+    // While the "bring your hands back" hint holds the card, keep the latest
+    // caption and put it back when the hands return.
+    if (this.handsHint) return;
     this.text(this.caption, 'cap-eyebrow', eyebrow);
     this.text(this.caption, 'cap-title', title);
     this.text(this.caption, 'cap-body', body);
@@ -1661,7 +1796,13 @@ export class CalligraphySystem extends createSystem({
       this.tipFilter.reset();
       return;
     }
-    if (bestSource !== this.tipSource) this.tipFilter.reset();
+    if (bestSource !== this.tipSource) {
+      this.tipFilter.reset();
+      // A different hand takes the brush (or one comes back from tracking
+      // loss): it must be seen lifting before it can ink, so a hand that
+      // reappears already on the paper never starts a stroke mid-page.
+      if (!this.penDown && this.tipSource) this.needLift = true;
+    }
     this.tipSource = bestSource;
     this.tipFilter.filter(this.v2.x, this.v2.y, this.v2.z, dt, this.tip);
     const ddx = this.tip.x - this.tipPrev.x;
@@ -1769,7 +1910,9 @@ export class CalligraphySystem extends createSystem({
       this.ghostTip.y += (HOVER_Y + bob - this.ghostTip.y) * Math.min(1, dt * 6);
       this.easeLean(0, 0, dt);
       this.updateStartMarker(path, true);
-      if (this.needLift && (!this.tipValid || h > UP_H || !this.tipOnPaper())) this.needLift = false;
+      // Only a seen lift clears it: a hand that vanishes and reappears on the
+      // paper (tracking loss) has not lifted.
+      if (this.needLift && this.tipValid && (h > UP_H || !this.tipOnPaper())) this.needLift = false;
       if (!this.needLift && this.tipValid && this.tipOnPaper() && h < DOWN_H && h > -0.08) {
         this.penDownStart();
       }
@@ -1822,7 +1965,14 @@ export class CalligraphySystem extends createSystem({
       // A fingertip that plunges well below the surface right after "touching"
       // is a hand passing through the paper, not a brush stroke.
       if (this.clock - this.capStart < 0.25 && h < -0.05) this.fellThrough = true;
-      const lifted = !this.tipValid || h > UP_H || h < -0.12 || !this.tipOnPaper();
+      // Tracking can drop for a frame or two mid-stroke: hold the pen through a
+      // short gap; a longer one calls the stroke off rather than scoring a stub.
+      this.strokeLostFor = this.tipValid ? 0 : this.strokeLostFor + dt;
+      if (!this.tipValid) {
+        if (this.strokeLostFor > STROKE_LOST_GRACE) this.cancelStroke();
+        return;
+      }
+      const lifted = h > UP_H || h < -0.12 || !this.tipOnPaper();
       if (lifted) this.penUp();
     }
   }
@@ -1876,6 +2026,26 @@ export class CalligraphySystem extends createSystem({
       );
     }
     if (this.current) this.current.material.color.copy(on ? GOLD : INK_COLOR);
+  }
+
+  /** The hand left tracking mid-stroke: take the ink back and let the learner write it again. */
+  private cancelStroke(): void {
+    this.penDown = false;
+    this.strokeLostFor = 0;
+    this.sfx.setMusicMood('calm');
+    this.sfx.setScratch(0);
+    this.setLocked(false);
+    const ribbon = this.current;
+    this.current = undefined;
+    if (ribbon) this.fadeOut(ribbon, 0.6);
+    this.phase = 'ready';
+    this.needLift = false;
+    this.log(`stroke ${this.strokeIndex} cancelled: tracking lost`);
+    this.setCaption(
+      this.lessonEyebrow(),
+      'Your hand left the view',
+      'That stroke does not count. Keep your hand in front of you and write it again.',
+    );
   }
 
   private penUp(): void {
@@ -2001,8 +2171,8 @@ export class CalligraphySystem extends createSystem({
         : this.lesson.glyph === '永'
           ? 'You have written all eight principles of the brush in one character.'
           : this.lessonIndex === 0 && record.attempts === 1
-            ? `The seal is yours. Try ${others.join(' or ')} too: choose on the menu, or press "Next lesson".`
-            : `The seal is yours. "Next lesson" is on the menu to your ${this.ghost.handedness === 'left' ? 'right' : 'left'}.`;
+            ? `The seal is yours. Try ${others.join(' or ')} on the menu, or hold a thumbs up for the next lesson.`
+            : `The seal is yours. Hold a thumbs up, or press "Next lesson" on your ${this.ghost.handedness === 'left' ? 'right' : 'left'}.`;
     this.setCaption(
       this.lessonEyebrow(),
       `${cap(this.lesson.meaning)} complete  ${stars}`,
@@ -2423,6 +2593,142 @@ export class CalligraphySystem extends createSystem({
     this.fading.push({ ribbon, t: 0, dur });
   }
 
+  // ---------------------------------------------------------------- hand input: loss, gestures
+
+  /**
+   * Tracking loss, handled gently. WebXR has no confidence value: when Quest
+   * loses a hand (out of the cameras' view, occluded, poor light) its joints
+   * stop resolving or the input source goes away. A timed moment (piano
+   * playing) pauses at once and a body-locked card asks for the hands back;
+   * waiting moments are patient, since resting your hands is allowed.
+   * Returns true while the piano should hold still.
+   */
+  private updateTracking(dt: number): boolean {
+    // A hand that reappears already on the paper must lift before it inks,
+    // so tracking coming back never starts a stroke in the middle of the page.
+    if (this.tipValid && this.handsLostFor > 0.1 && this.mode === 'practice' && !this.penDown) this.needLift = true;
+    this.handsLostFor = this.tipValid ? 0 : this.handsLostFor + dt;
+    const pianoPlay = this.mode === 'piano' && this.piano.phase === 'play';
+    const waiting = this.mode === 'calibrate' || this.mode === 'practice' || pianoPlay;
+    const show = waiting && this.handsLostFor > (pianoPlay ? HINT_AFTER_TIMED : HINT_AFTER_IDLE);
+    if (show !== this.handsHint) {
+      this.handsHint = show;
+      this.log(show ? `hands lost: hint shown (${this.mode})` : 'hands back');
+      if (show) {
+        // The reading card over the work carries it (where the learner looks
+        // while working); the body-locked card also says it if they look away.
+        const where = this.craft === 'piano' ? 'over the keys' : 'over the paper';
+        const eyebrow = pianoPlay ? 'PAUSED' : 'HANDS OUT OF VIEW';
+        const body = `Hold them ${where}, in front of you, in good light. ${pianoPlay ? 'The song waits for you.' : 'The master waits for you.'}`;
+        this.setStatus(eyebrow, 'Bring your hands back', body);
+        this.text(this.caption, 'cap-eyebrow', eyebrow);
+        this.text(this.caption, 'cap-title', 'Bring your hands back');
+        this.text(this.caption, 'cap-body', body);
+        this.text(this.caption, 'cap-score', ' ');
+      } else {
+        const rec = this.captionRecord;
+        this.setCaption(rec[0], rec[1], rec[2], rec[3]);
+      }
+    }
+    if (this.status && this.mode !== 'placing') {
+      // Looking at the work (within about 35 degrees): the caption is enough,
+      // and a card at arm's length along the gaze would sink into the desk.
+      let away = true;
+      if (show) {
+        this.desk.paper.getWorldPosition(this.v);
+        this.v.sub(this.head).normalize();
+        away = this.v.dot(this.earF) < 0.82;
+      }
+      this.status.visible = show && away;
+    }
+    return pianoPlay && this.handsLostFor > HINT_AFTER_TIMED;
+  }
+
+  /**
+   * Thumbs up = "Next lesson", only while that button is offered. It must be
+   * held for 0.6 s with high confidence, a ring beside the thumb fills as it is
+   * held, and a pose already shown when the button appears has to be let go
+   * first, so a celebratory thumbs up never skips ahead by accident.
+   */
+  private updateThumbsUp(dt: number): void {
+    const next = this.nextButton;
+    const live = !!next && this.captionActionsShown && !this.penDown && this.buttonActive(next);
+    if (!live) {
+      this.thumbsGate.reset(true);
+      this.cues.setHold(0, this.thumbsAt, this.head);
+      return;
+    }
+    const frame = this.xrFrame as
+      | (XRFrame & { fillPoses?: (spaces: XRSpace[], base: XRSpace, out: Float32Array) => boolean })
+      | undefined;
+    const ref = this.renderer.xr.getReferenceSpace();
+    const session = this.renderer.xr.getSession();
+    if (!frame?.fillPoses || !ref || !session) return;
+    let best = 0;
+    let h = 0;
+    for (const source of session.inputSources) {
+      if (!source.hand || h > 1) continue;
+      let spaces = this.jointSpaces.get(source);
+      if (!spaces) {
+        spaces = Array.from(source.hand.values());
+        this.jointSpaces.set(source, spaces);
+      }
+      const buf = this.handJoints[h++];
+      if (!frame.fillPoses(spaces, ref, buf)) continue;
+      const c = thumbsUpConfidence(buf);
+      if (c > best) {
+        best = c;
+        this.thumbsAt.set(buf[4 * 16 + 12], buf[4 * 16 + 13] + 0.045, buf[4 * 16 + 14]);
+      }
+    }
+    if (!this.playerIsIdentity) this.thumbsAt.applyMatrix4(this.player.matrixWorld);
+    if (best > 0.3 && this.clock - this.thumbsLogged > 0.5) {
+      this.thumbsLogged = this.clock;
+      this.log(`thumbs-up confidence ${best.toFixed(2)} hold ${this.thumbsGate.progress.toFixed(2)}`);
+    }
+    const fired = this.thumbsGate.update(best, dt);
+    this.cues.setHold(this.thumbsGate.progress, this.thumbsAt, this.head);
+    if (fired && next) {
+      this.log('gesture thumbs-up: next');
+      this.sfx.chime(3, 0.12);
+      this.flashPress(next);
+      this.trigger(next.id, next.fn);
+    }
+  }
+
+  /**
+   * Microgestures (thumb tap and swipes on the side of the index finger), as
+   * IWSDK maps them on the hand's xr-standard gamepad: 5 swipe left, 6 swipe
+   * right, 9 tap. Meta documents them for Unity and native OpenXR, not for
+   * Quest Browser, so these are optional shortcuts: tap = "Next lesson" when it
+   * is offered, swipes page the units. Absent buttons simply never press.
+   */
+  private updateMicrogestures(): void {
+    const session = this.renderer.xr.getSession();
+    if (!session) return;
+    let h = 0;
+    for (const source of session.inputSources) {
+      if (!source.hand || h > 1) continue;
+      const slot = h++;
+      const buttons = source.gamepad?.buttons;
+      let bits = 0;
+      if (buttons) {
+        if (buttons[MG_SWIPE_LEFT]?.pressed) bits |= 1;
+        if (buttons[MG_SWIPE_RIGHT]?.pressed) bits |= 2;
+        if (buttons[MG_TAP]?.pressed) bits |= 4;
+      }
+      const rise = bits & ~this.mgPrev[slot];
+      this.mgPrev[slot] = bits;
+      if (!rise || this.penDown) continue;
+      const id = rise & 4 ? 'btn-next' : rise & 1 ? 'btn-unit-prev' : 'btn-unit-next';
+      const b = this.pokeById(id);
+      if (!b || !this.buttonActive(b)) continue;
+      this.log(`microgesture ${rise & 4 ? 'tap' : rise & 1 ? 'swipe-left' : 'swipe-right'}: ${id}`);
+      this.flashPress(b);
+      this.trigger(b.id, b.fn);
+    }
+  }
+
   // ---------------------------------------------------------------- frame
 
   update(delta: number): void {
@@ -2479,6 +2785,7 @@ export class CalligraphySystem extends createSystem({
 
     switch (this.mode) {
       case 'demo2d': {
+        this.cues.hideAll();
         if (!this.stepChoreo(dt, true)) {
           this.demoLoopPause += dt;
           if (this.demoLoopPause > 2.2) {
@@ -2492,6 +2799,7 @@ export class CalligraphySystem extends createSystem({
       }
       case 'placing': {
         this.updateTools();
+        this.cues.hideAll();
         this.placingClock += dt;
         if (this.tryPlaceOnPlane()) this.finishPlacing(true);
         else if (this.placingClock > PLACE_TIMEOUT) {
@@ -2510,11 +2818,15 @@ export class CalligraphySystem extends createSystem({
     if (this.world.visibilityState.peek() === VisibilityState.VisibleBlurred) {
       if (this.penDown) this.penUp();
       this.sfx.setScratch(0);
+      this.cues.hideAll();
       return;
     }
     this.readTip(dt);
     this.updatePoke();
     this.updateCursor();
+    const handsPaused = this.updateTracking(dt);
+    this.updateThumbsUp(dt);
+    this.updateMicrogestures();
     this.lockBlend += ((this.locked ? 1 : 0) - this.lockBlend) * Math.min(1, dt * 8);
     this.ghost.gold = this.lockBlend;
 
@@ -2539,7 +2851,8 @@ export class CalligraphySystem extends createSystem({
       if (this.piano.phase === 'play') this.ghost.opacity += (this.ghostOpacity() - this.ghost.opacity) * Math.min(1, dt * 4);
       else if (this.piano.phase === 'watch') this.ghost.opacity = 0.8;
       this.readAllTips();
-      const ev = this.piano.update(dt, this.tips, this.surfaceOffset);
+      // Hands lost while playing: the song holds still (its clock only runs on dt).
+      const ev = handsPaused ? NO_PIANO_EVENT : this.piano.update(dt, this.tips, this.surfaceOffset);
       this.ghostTip.copy(this.piano.ghostTip);
       this.easeLean(0, 0, dt);
       this.ghost.gold = Math.max(this.lockBlend, this.piano.gold);

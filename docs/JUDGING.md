@@ -82,6 +82,9 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
   - Pressure-proxy brush width.
   - The writing hand is chosen by height over the paper. Hands resting below it are ignored.
   - Fingertip poke for UI, using a custom press test against each UIKit button's rectangle, alongside pinch-ray. The emulator's touch pointer didn't click UIKit buttons, so we added our own; both paths share one debounced trigger.
+  - Poke feedback per Meta's touch guidance: hover lights the button within 7 cm, a cursor ring on the panel shows the fingertip's distance, and a press flashes.
+  - A thumbs-up pose detector from the 25 joints (confidence 0 to 1, held 0.6 s, latched, live only when "Next lesson" is offered), with a fill ring as feedback.
+  - Tracking loss handled gently: a 150 ms grace mid-stroke, then the stroke is called off rather than scored; the piano pauses; a card asks for the hands back. See [INTEGRATION-handtracking.md](INTEGRATION-handtracking.md) for the full comparison with Meta's hand-tracking guidance.
 - **Scene understanding:**
   - Horizontal `XRPlane`s at seated height, preferring the `table` / `desk` label.
   - The writing set is clamped inside the plane polygon and slid toward the centroid until its whole footprint fits (handles round tables).
