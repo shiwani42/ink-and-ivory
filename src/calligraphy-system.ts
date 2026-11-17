@@ -558,7 +558,7 @@ export class CalligraphySystem extends createSystem({
     this.log(`immersive-ar supported: ${supported}`);
     if (supported || !this.welcome) return;
     this.welcome.getElementById('xr-button')?.setProperties({ display: 'none' });
-    this.welcome.getElementById<UIKit.Text>('xr-note')?.setProperties({ fontSize: 17, lineHeight: 24, color: '#3d342c' });
+    this.welcome.getElementById<UIKit.Text>('xr-note')?.setProperties({ fontSize: 17, color: '#3d342c' });
     this.text(
       this.welcome,
       'xr-note',
