@@ -52,3 +52,6 @@ artifacts/
 __pycache__/
 .vercel
 .env*
+
+# Agent worktrees
+.claude/worktrees/
