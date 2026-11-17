@@ -4,10 +4,10 @@
  * whole journey (an idea from The Nanauts' debug presets, our own code).
  *
  *   ?state=practice&lesson=6               write 永 now, calibration skipped
- *   ?state=watch&craft=piano&lesson=7      the master plays Für Elise
+ *   ?state=watch&craft=piano&lesson=26     the master plays Für Elise
  *   ?state=practice&craft=piano&lesson=1   play Happy Birthday now
  *   ?state=listen                          "Play your own tune"
- *   ?state=watch&lang=chinese              Chinese calligraphy, lesson 1
+ *   ?state=watch&lang=english             English italic, lesson 1
  *   ?state=fresh                           forget all progress: a first-time visitor
  *   ...&scene=room                         stay in passthrough (no dissolve)
  *

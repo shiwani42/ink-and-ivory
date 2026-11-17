@@ -33,6 +33,7 @@ The app writes `[hoam] ...` lines to the console **in dev builds only**. The dri
 |---|---|
 | **Piano ladder:** 1 lesson, `--piano 8 --compose`, 3 mm jitter | **PASS**. Happy Birthday 83, white keys 93, sharps 91, flats 78, Twinkle 92, Ode to Joy 93, Für Elise 89, Sakura 85; your tune learned exactly, 79. Every key right in every song; the lower scores are rhythm (the emulated hand travels slower to the black keys) |
 | **Everything + new songs:** 6 lessons, `--negative`, 5 songs, `--compose`, 3 mm jitter (keyboard A3 to E5) | **PASS**. Lessons 87, 88, 90, 91, 90, 92. Songs: Für Elise 89, Five fingers 96, Twinkle 92, Ode to Joy 93, Sakura 85. Your tune: learned C E G E D C exactly, played back 79. Negative 3 of 3 |
+| **Course update (18 Nov):** `--lessons 3 --lang english --piano 1 --compose`, then `--lessons 6 --negative` | **PASS**. English i 92, l 89, t 90; Happy Birthday taught in 4 phrases (86, 86, 88, 86) then whole, 84, every key right; your tune learned exactly, played back 79. Japanese 90, 89, 92, 92, 91, 93; negative 3 of 3. Found and fixed: hidden menu buttons took pokes at their old position |
 | **Everything:** 6 lessons, `--negative`, 4 piano songs, 3 mm jitter, places and dissolve on (final code) | **PASS**. Lessons: one 88, two 88, ten 90, person 86, big 91, eternity 93. Songs: Five fingers 96, Twinkle 92, Ode to Joy 93, Sakura 85. Negative cases 3 of 3 |
 | 1 lesson + 2 songs after merging the grand piano | PASS (88; 96, 92) |
 | Right hand, 6 lessons, `--negative`, 4 mm jitter (final code) | **PASS**: all 15 strokes on the first try. Lesson averages: one 90, two 88, ten 90, person 88, big 91, eternity 92 |
@@ -130,3 +131,6 @@ Also passing:
 - `npm run typecheck`;
 - `npm run build`;
 - `vite preview` serves the page, bundle, hand models, panels and scene (all 200), with dev logs stripped from the bundle.
+
+## Emulator note: a locked screen stops the headed browser
+Chromium stops drawing a headed window that can't be seen (screen locked or asleep). The app then logs one frame and freezes in "Finding your desk", with no errors. Run the emulator headless for unattended tests: `npx iwsdk dev restart --headless --open --allow-browser-automation`.

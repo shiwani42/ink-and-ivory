@@ -28,9 +28,9 @@ Crafts of the hand, like calligraphy and the piano, are learned by watching a ma
 - **Feedback.** Each stroke is scored on path, direction, order, speed and sync, with a plain-language correction when it misses.
 - **Completion.** Finish a character and the master's seal is stamped on your page.
 
-- **Piano.** Switch craft and a keyboard lands on your table, then you're in a white music room at a black concert grand. The master's hand plays each phrase, then waits on the next key, which glows. Press with any fingertip and a note floats up, gold if you were on the beat. It starts with Happy Birthday, the song everyone knows, then teaches the keyboard itself (white keys, sharps and flats) before Twinkle, Ode to Joy, Für Elise and Sakura. Or bring your own: play a tune to the master and it learns it and teaches it back, or add a MIDI file on the start page.
+- **Piano.** Switch craft and a keyboard lands on your table, then you're in a white music room at a black concert grand. The master plays a phrase and you echo it, phrase by phrase, then the whole song. It counts you in, and the next key pulses exactly on the beat. Press with any fingertip and a note floats up, gold if you were on the beat. It starts with Happy Birthday, the song everyone knows, then teaches the keyboard itself (the black-key map, hand positions, sharps and flats, scales) before songs from around the world, from Frère Jacques to Für Elise. Every day brings a new phrase to echo. Or bring your own: play a tune to the master and it learns it and teaches it back, add a MIDI file, or send someone a link and their master already knows your tune.
 
-Calligraphy comes in Japanese and Chinese, each with its own readings, place and music. There are six characters, ending with 永 ("eternity"), whose five strokes contain the Eight Principles of the brush. Your best scores and daily streak are saved. As your best score rises, the master's hand and the tracing guide fade: the master lets go.
+Calligraphy comes in Japanese (with hiragana), Chinese and English italic, each with its own place: a Kyoto temple, a Chinese garden, a medieval cloister. English is written with a broad nib, so strokes swell and thin like a real pen. About 180 short lessons are grouped into units like a language course, from 永 ("eternity", the Eight Principles of the brush) to words. The master lets go as you learn: each time you pass a lesson it helps less (full guide, then the outline, then from memory), and within a stroke it fades while you keep up and returns if you slip. A daily goal, a streak and a Review button bring you back.
 
 Everything works with hands alone, one hand is enough, and left-handed writers are detected automatically. Tempo and guide strength are adjustable, and every instruction has a caption.
 
@@ -74,7 +74,7 @@ Hands-first design is mostly about feedback and forgiveness. The real desk gives
 
 ### Credits
 - KanjiVG stroke data (CC BY-SA 3.0, Ulrich Apel and contributors).
-- Kennin-ji 360 photograph by AsPJT (CC0, Wikimedia Commons); Chinese Garden and Ballroom HDRIs (CC0, Poly Haven).
+- Kennin-ji 360 photograph by AsPJT (CC0, Wikimedia Commons); Chinese Garden, Ballroom and Historic Cloister Passage HDRIs (CC0, Poly Haven). English italic letters: original.
 - Music: "Yoiyami Core Theme", "Oriental Somber", and "Asianoriental1" and "Asianoriental2" by Tozan (all CC0, OpenGameArt).
 - Salamander Grand Piano samples by Alexander Holm (CC-BY 3.0).
 - Textures from Poly Haven and ambientCG (CC0).
@@ -107,7 +107,8 @@ Record on the headset (Quest's built-in recorder, or MQDH casting on Windows) at
 | `?state=watch&lesson=6&scene=room` | The master writing 永 in your own room (no dissolve) |
 | `?state=watch&lang=chinese` | Chinese calligraphy |
 | `?state=watch&craft=piano&lesson=1` | The master plays Happy Birthday |
-| `?state=practice&craft=piano&lesson=7` | Play Für Elise now |
+| `?state=practice&craft=piano&lesson=26` | Play Für Elise now |
+| `?state=watch&lang=english&lesson=10` | The master writes an italic "a" with the broad nib |
 | `?state=listen` | "Play your own tune" |
 
 The dissolve starts right after placement. For the passthrough shots (0:00 to 1:05), press **Scene** on the menu to stay in your room, then press it again to film the dissolve.

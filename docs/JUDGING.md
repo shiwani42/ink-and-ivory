@@ -34,12 +34,13 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
 ## Criterion 1: Innovation & Creativity
 - **Ghost-hand apprenticeship on your real desk.** The master's hand writes beside yours in your own room, and you learn by moving with it, not by reading instructions.
 - **Lock-in moment.** Matching the master's timing and path blends the ghost onto your own tracked hand and turns it gold. This only works with tracked hands in passthrough.
-- **Skill-adaptive guidance.** The ghost and the tracing guide fade as your best score rises. This follows the CHI '26 finding that skill-adaptive ghost instructors beat static ones for retention, which also names calligraphy as a target domain.
-- **Two crafts, one idea.** The same apprenticeship works for the piano: the master's hand plays each phrase on a keyboard on your real table, then waits on the next key while you play it. It starts with Happy Birthday, the song everyone knows, then teaches the keyboard (white keys, sharps, flats) before Für Elise and other songs.
+- **Skill-adaptive guidance, inside each attempt.** As in the CHI '26 study of skill-adaptive ghost instructors (Quest 3 hand tracking, a keyboard on a real desk; pitch retention 99.6% vs 87.8% for a fixed ghost), the ghost's opacity follows your recent error from moment to moment: it fades fast while you keep up and returns slowly after a slip. Between sessions each pass lowers the help further: full guide, outline only, then from memory (the guidance hypothesis: help that never fades harms retention). The study also names calligraphy as a target domain.
+- **Two crafts, one idea.** The same apprenticeship works for the piano: the master plays a phrase on a keyboard on your real table and you echo it (call and response, as in Faber's first lessons and the CHI study's phrase-by-phrase structure), then you join the phrases into the whole song. A count-in and a key that pulses on the beat make rhythm visible. It starts with Happy Birthday, then teaches the keyboard (twos and threes, positions, sharps and flats, scales) before songs from around the world.
+- **A course, not a demo.** About 180 short lessons in units (Japanese with hiragana, Chinese, English italic with a broad nib; 26 piano songs and drills), a daily goal, Review of the weakest lesson, and Today's echo, a new phrase every day.
 - **The master learns from you.** Play your own tune and the master listens, learns it and teaches it back; or add any MIDI file and the master takes its melody.
 - **You travel to where the craft lives.** After the paper lands on your real table, your room dissolves like ink soaking into washi into the place the craft belongs to: Kennin-ji's moss garden veranda for Japanese, a classical garden for Chinese, a white music room with a concert grand for piano. A desk stands exactly where your real table is, so your fingertip still touches something real.
 - **Lane check:** research of 2026 entries and prior art found no hands-only calligraphy tutor. Pen-based (MX Ink) and controller-based apps exist; see the kit's research notes.
-- **Repeat usage:** a daily streak, best score per character, unlockable stars, and the adaptive guide, which makes the next session visibly different.
+- **Repeat usage:** a daily goal and streak, one star per pass (and less help each pass), Review, Today's echo, saved and shareable tunes, and a course long enough to come back to for weeks.
 
 ## Criterion 2: Experience Design
 - **Purposeful passthrough, then presence.** Placement happens in passthrough, so the paper or keyboard lands on your real table. Then the room dissolves into the place, and the virtual desk sits on your real table's surface: you still touch the real desk to put ink down or press a key, which gives physical feedback hand tracking can't. The Scene button dissolves back to your room at any time. Only one world shows at a time, never a mix.
@@ -122,7 +123,7 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
 ## Special awards fit
 | Award | Fit |
 |---|---|
-| Best Reason to Come Back | Daily streak, best score and stars per character and song, two languages and two crafts, your own songs (played or from MIDI), and the master fading as you improve |
+| Best Reason to Come Back | A course of about 180 lessons in units, daily goal and streak, Review, Today's echo, three languages and two crafts, your own tunes (played, MIDI, or shared by link), and the master helping less each time you pass |
 | Boldest Original Concept | Learning a physical craft by moving inside a master's hands on your own desk depends on hand tracking, passthrough and real-world scale |
 | Best Accessibility Forward | One-handed play, auto left-handed mode, adjustable tempo, guide modes, full captions, large hit targets |
 | Best First Five Minutes | Writing within about 30 seconds of entry, taught by demonstration rather than text, with gold and the seal stamp as payoff |
