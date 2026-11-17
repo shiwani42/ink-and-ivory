@@ -42,3 +42,15 @@ IWSDK 1.1.0 already restores a persistent anchor at the reference-space origin t
 - *Leaving known geometry is never a failure:* return the object or character to its last safe place and keep a "bring it back" item in the menu.
 - *Reloading the room mid-session:* keep the previous geometry alive until the next reload so references stay valid; reload on an interval and after a settle time.
 - *Use the original engine's own collision for real surfaces* when porting a game: convert the room into its native format and swap partitions around the character's step, rather than writing a second physics.
+
+## Rooms you never tested (Hands of a Master, 18 Nov 2026; reference: src/mr/room-placement.ts, desk-memory.ts)
+1. **Restrict by label, both vocabularies.** Refuse `couch`, `bed`, `screen`, `lamp`, `plant`, `wall art` and frames. Accept `table` (Quest/IWER) and `desk` (WebXR registry). Keep unlabelled and `other`. Normalise spaces and underscores.
+2. **Tilt check.** Plane-local Y is the normal (`matrixWorld.elements[5]`). Refuse more than 6° if you place content level, and say why in a log.
+3. **Small-table fallback.** Centre content on a real surface that is too small rather than float a virtual desk. Refuse under 20 cm a side.
+4. **Keep placement maths pure** (plane matrix plus polygon in, spot out), so `node file.mjs` can test synthetic rooms (tiny, slanted, couch, rotated, round, out of reach, none) without a browser. HOAM: `tools/test-room-placement.mjs`.
+5. **Remembering placement across sessions, concrete recipe.** Replace the "store the content's pose relative to it" paragraph with the `desk-memory.ts` pattern:
+   - Save `inverse(anchoredGroup.matrixWorld) × content.matrixWorld` plus the UUID from `localStorage['iwsdk_scene_anchor_uuid']`.
+   - On the first placement, wait up to 1.5 s for `xrAnchor`. Trust the saved pose only if the UUID matches and the spot is within reach.
+   - Never use it for user-requested re-placements.
+   - The private fields come from `world.getSystem(SceneUnderstandingSystem)`.
+6. **Placement report line**, the web stand-in for MRUK's Scene Debugger: one log line per placement saying why each plane was passed over.

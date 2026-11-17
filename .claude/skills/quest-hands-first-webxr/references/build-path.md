@@ -52,3 +52,6 @@ Every option renders on the same Quest 3/3S mobile GPU; that sets the ceiling. M
 - Whether EnvironmentDepth is used at run time, or merely included.
 - Boundary behaviour in Quest Browser `immersive-ar` sessions.
 - Nothing was run, on a headset or otherwise. The downloaded APK stays in the session scratchpad only, not in this folder.
+
+## Meta Platform SDK from the web
+11. **Platform SDK on web = IAP only, and only as a Store PWA** (Digital Goods + Payment Request). If a project needs leaderboards, invites, Destinations or matchmaking from Meta, that is a reason to choose native. Source: hands-of-a-master/docs/INTEGRATION-meta-xr.md.

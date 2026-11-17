@@ -98,3 +98,9 @@ The rules accept emulator footage ("as viewed on a Meta Quest device or via XR S
 ## Lessons from Mario 64 MR (Unity, studied Nov 2026; ideas only, see reference-winners/mario64mr-REPORT.md)
 - *Headless tests of the game core* drive the real build through its menus to a known state, inject room and hand geometry, and assert outcomes. Each player-reported bug becomes one named case.
 - *Platform arithmetic:* undefined float-to-integer casts behave differently on the headset's arm64 CPU; test pure maths on arm64 or clamp before casting.
+
+## Emulated rooms and anchors
+7. **Switch IWER rooms at runtime:** in a `browser run` script, evaluate `window.IWER_DEVICE.sem.loadDefaultEnvironment(name)` (or `sem.deleteAll()` for no Space Setup) in every frame. The rooms are `sunlit_living_room`, `home_office`, `kitchen`, `bedroom`, `conference_room`, `music_studio`, `open_office` and `open_studio`. Then sit the emulated user at each table-height plane and re-place. HOAM: `tools/room.mjs`, `tools/e2e_room.py`.
+8. **Entering XR resets the headset pose**, so `set-device-state` before `xr enter` doesn't seat the user. Seat after entering, then trigger placement again (a dev key).
+9. **IWER persists anchors** in `localStorage` (`@immersive-web-emulation-runtime/persistent-anchors`), so a cross-session anchor test works in the emulator. Shift+R-style resets that clear `localStorage` wipe them as well.
+10. The MQDH-to-`metavr` table in hands-of-a-master/docs/META-XR-RESOURCES.md §5. Note that `metavr tools list` 1.10 now lists `xrsim` and `spatial-editor` for Linux x64, but we have not tried them, and `build-path.md` still says that Meta XR Simulator is Windows/macOS only.
