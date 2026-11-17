@@ -56,7 +56,9 @@ You start in your own room: the paper or keyboard lands on your real table. Then
 
 **Controls (all hands):**
 - Write with your index fingertip.
-- **Poke** menu buttons with a fingertip, or **pinch** with the hand ray.
+- **Poke** menu buttons with a fingertip, or **pinch** with the hand ray. A button lights up as your fingertip nears it, and a small ring on the panel shows how close you are.
+- **Thumbs up** (held for a moment, a gold ring fills beside your thumb) = "Next lesson", whenever that button is offered.
+- If your hands leave the cameras' view, the lesson waits: a card asks you to bring them back, a stroke cut off by tracking loss doesn't count, and a piano song pauses.
 - Menu options:
   - lessons;
   - tempo (30 to 100%);

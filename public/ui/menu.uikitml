@@ -19,6 +19,8 @@
   .primary:hover { background-color: #3a2f25; }
   .primary:active { background-color: #a8231a; }
   .primary-label { color: #f4ede0; font-family: inter; font-size: 20px; font-weight: 700; }
+  .with-icon { flex-direction: row; gap: 10px; }
+  .next-icon { width: 24px; height: 24px; color: #e6cf9f; }
   .grid { flex-direction: row; flex-wrap: wrap; gap: 8px; }
   .tile { flex-direction: column; width: 110px; height: 84px; border-radius: 16px; background-color: #ebe1cf; padding-left: 10px; padding-top: 6px; cursor: pointer; }
   .tile:hover { background-color: #e0d2b8; }
@@ -61,7 +63,7 @@
     <div id="btn-review" class="btn"><div class="btn-label">Review</div></div>
   </div>
   <div id="menu-actions" class="actions" style="display: none">
-    <div id="btn-next" class="primary"><div class="primary-label">Next lesson</div></div>
+    <div id="btn-next" class="primary with-icon"><div class="primary-label">Next lesson</div><ThumbsUp id="btn-next-icon" class="next-icon"></ThumbsUp></div>
     <div id="btn-again" class="primary"><div class="primary-label">Write it again</div></div>
   </div>
   <div class="row">

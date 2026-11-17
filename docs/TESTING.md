@@ -9,6 +9,7 @@ python3 tools/e2e.py --lessons 6 --negative   # full run, about 6 minutes
 python3 tools/e2e.py --lessons 2 --hand left  # left-handed writer
 python3 tools/e2e.py --jitter 6               # noisier fingertip (mm)
 python3 tools/e2e.py --lessons 6 --negative --piano 4 --jitter 3   # everything, about 15 minutes
+python3 tools/e2e_hands.py                      # hand-input features: poke hover, thumbs up, tracking loss, microgestures
 ```
 
 **What it covers:**
@@ -95,6 +96,10 @@ Connect over USB from Linux: `adb reverse tcp:8081 tcp:8081`, then open `https:/
 - [ ] System menu (palm-up pinch, left hand) pauses; returning resumes.
 - [ ] Room with no table, or in poor light: virtual desk fallback, and the tracking-light tip in the caption.
 - [ ] On the virtual desk, the menu shows **Scan my room** (the log says `room capture available`). Pressing it opens Quest's room scan; afterwards the paper moves onto the real table. Check that a saved anchor survives the scan.
+- [ ] Poke feedback: a button lights as the fingertip nears it, and the vermilion ring on the panel shrinks as you approach; a press flashes.
+- [ ] Thumbs up on the lesson-complete screen: the gold ring fills beside the thumb, then the next lesson starts. A thumbs up while writing does nothing. Watch the `thumbs-up confidence` log for real hands.
+- [ ] Hands out of view: drop both hands to your lap during practice. After about 2.5 s the caption says "Bring your hands back"; look away and the body-locked card says it too. Mid-stroke, hide the hand behind the other: the stroke is called off, not scored. During a piano song: it pauses at once and resumes when the hands return.
+- [ ] Microgestures (thumb tap or swipe on the index finger): check whether Quest Browser sends them at all (`microgesture` log lines). Swipes page the units; tap = Next lesson when offered.
 - [ ] Performance capture during practice: 72 fps target, never below 60.
 - [ ] Production URL loads logged out or in incognito.
 
