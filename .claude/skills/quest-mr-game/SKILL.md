@@ -41,3 +41,8 @@ Core loop; each secret mechanic seen and unseen; correct and wrong accusation or
 | Character cut at the tabletop | clipping-plane hack | full seated body + seat + `DepthOccludable` |
 | Free GPU quota gone mid-build | ~1–3 image-to-3D models a day | hero assets first; procedural fallback for every asset |
 | Two agents broke the same file | no ownership | each agent gets a no-touch list and an integration note |
+
+## Lessons from Mario 64 MR (Unity, studied Nov 2026; ideas only, see reference-winners/mario64mr-REPORT.md)
+- *Fixed-step simulation, interpolated to the display:* tick the rules at a fixed rate, render between the last two states, and **skip interpolation on teleports and world changes**.
+- *Two-handed stretch to open or scale* a portal or board; a hysteresis pair for "head inside the portal".
+- *Portals:* stencil IDs per region (inside the window, out in the room, shadows out in the room), and clip modes for geometry crossing the window plane.

@@ -34,3 +34,8 @@ Score yourself on the four criteria; walk the headset-only list in testing.md; c
 
 ## Recording the trailer (Meta's guidance)
 Record landscape 1920 × 1080 (`metavr capture video start --width 1920 --height 1080`, from Linux too). Meta suggests 36 fps (variable), image stabilisation low, and slow, deliberate head movement. Mixed Reality Capture doesn't apply to WebXR. Use `?state=` presets to jump to each shot.
+
+## Lessons from Mario 64 MR (Unity, studied Nov 2026; ideas only, see reference-winners/mario64mr-REPORT.md)
+- *Top of README and Devpost:* one looping GIF of the single magic moment, with descriptive alt text, before any text.
+- *Troubleshooting by symptom,* each with the exact fix. Pre-empt scary-looking false alarms by explaining what the script does.
+- *Release notes per version* that say what changed, what the user must update, and credit the testers.

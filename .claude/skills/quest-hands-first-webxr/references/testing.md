@@ -92,3 +92,7 @@ The rules accept emulator footage ("as viewed on a Meta Quest device or via XR S
   - Route Chromium to a null sink: `pactl load-module module-null-sink sink_name=rec`, then `pactl move-sink-input <id> rec`. New Chromium streams follow (stream-restore).
   - Record with `ffmpeg -f pulse -i rec.monitor`.
   - **Move the streams back and unload the sink afterwards,** or Chromium stays silent for the user.
+
+## Lessons from Mario 64 MR (Unity, studied Nov 2026; ideas only, see reference-winners/mario64mr-REPORT.md)
+- *Headless tests of the game core* drive the real build through its menus to a known state, inject room and hand geometry, and assert outcomes. Each player-reported bug becomes one named case.
+- *Platform arithmetic:* undefined float-to-integer casts behave differently on the headset's arm64 CPU; test pure maths on arm64 or clamp before casting.

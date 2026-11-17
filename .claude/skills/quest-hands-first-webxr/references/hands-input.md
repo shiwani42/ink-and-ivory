@@ -85,8 +85,29 @@ When a full place covers the room (a street, a hall), passthrough hands disappea
   - `depart` before dropping a hand, so it doesn't sweep through a tilted panel.
   - A `browser screenshot` takes about 3 s; catch sub-second states with a `browser run` loop over `page.screenshot`.
 
+## Intent guardrails: never do what the player didn't mean (Chausar, 18 Nov 2026; source: Meta's Chess Club, Hand Physics Lab and Table Troopers stories)
+The shared lesson of all three: when input is ambiguous, don't execute an action and don't punish; give a way back.
+- **Tracking lost while holding something:** decide by the speed at the moment of loss. Keep the last good pinch-point velocity; if it was above about 0.8 m/s the motion blurred a throw, so release with that velocity. Otherwise freeze the object where it was, show a "show your hand again" cue after about 0.6 s, and:
+  - hand returns pinching within about 30 cm → glide the object back into the hand over about 0.2 s (never snap; Hand Physics Lab lerps rather than teleports);
+  - hand returns open → the player let go while unseen: cancel, put the object back, don't guess a throw;
+  - nothing after about 2.5 s → cancel the same way.
+  Keep counting any "hidden hand" mechanic during the freeze: cameras lose hands below a table edge exactly when the player is hiding them.
+  Have the input layer report `justLost` and `lostSpeed` and leave the decision to the game, instead of turning loss into a release.
+- **Commit a choice deliberately:** hover previews (the piece lifts about 1.5 cm, its destination swells, a soft tick); a pinch commits at once; a resting fingertip commits only after about 0.3 s dwell, with glow that fills. A fingertip brushing past on its way to another target must not commit.
+- **Undo is a take-back window, not a button:** for about 2.4 s after a choice made between options, touching the moved piece again restores a snapshot of the state and reopens the choice. Arm it only after the choosing hand has left the piece (about 6 cm), or the finger that chose takes it straight back.
+- **Grab affordance before the grab:** when a pinch point comes within range, brighten the object and tick once, so the player knows a pinch will take it.
+- **Controllers still have haptics:** `inputSource.gamepad.hapticActuators[0].pulse(v, ms)` in a try/catch, skipped for hands. Pair every pulse with the sound and glow that hands rely on.
+- **Answer the gestures players already make:** a raised open hand waving (three or more left/right sign flips of horizontal velocity above about 0.3 m/s within 1.6 s, palm near head height, not pinching) gets an in-character reply, on a 25 s cooldown and only in calm phases.
+- **Already-good defaults these stories confirm:** release velocity from a window that skips the last ~40 ms (Table Troopers aims with the position from just before the pinch opened); physical objects as UI (an eraser, a gong) rather than gesture vocabularies; one-handed play; hands and controllers interchangeable at any time.
+- **Emulator:** after `xr set-connected {connected: true}` the hand may come back still pinching; send `{pinch: 0}` before the next pick-up. A phase log written before an animation starts reports the pre-animation positions.
+
 ## A tool in the hand (brush, pen)
 - **Keep the fingertip as the contact point,** so the real desk still gives the touch. Draw the tool with its tip where the ink lands and its shaft through the web between thumb and index (the midpoint of `thumb-phalanx-proximal` and `index-finger-phalanx-proximal`). Lean a brush toward vertical; a pen lies back along the hand.
 - **Give the ghost master the same tool,** using its rendered joints.
 - **Hide the resting copy** on the desk while the tool is in the hand.
 - **Pivot the model once at load:** tip at the origin, shaft along +Y. Then each frame it's `position = tip`, `quaternion.setFromUnitVectors(up, dir)`.
+
+## Lessons from Mario 64 MR (Unity, studied Nov 2026; ideas only, see reference-winners/mario64mr-REPORT.md)
+- *Controllers in hand:* a hands-first app must still recognise controllers. If `inputSources` has a gamepad without `hand`, show "Put your controllers down" plus where to turn on hand tracking, not the tracking-loss card. Optionally map the grip pose and trigger to the fingertip and pinch so the journey still completes (source: Mario 64 MR switches layouts live).
+- *Freeze the target while the hand reaches in:* anything a hand must touch holds still while the hand is inside its volume, then eases back to motion (Mario 64 MR `_freezeWeight`, `Thaw`).
+- *Hands as kinematic colliders rebuilt every frame* (boxes per bone), a flat-palm test before anything may stand on a hand, and carrying by adding the hand's per-frame delta. Exclude goal items from "touch to collect" so the core verb stays the player's.

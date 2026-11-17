@@ -26,3 +26,29 @@ Every option renders on the same Quest 3/3S mobile GPU; that sets the ceiling. M
 - **Unity** when the project needs a rich room model (MRUK: walls, furniture, scene mesh), gaze interactions, heavy realistic art, Passthrough Camera Access, or Asset Store content, *and* there are weeks, not days, plus Windows or Mac and a headset.
 - **Unreal** only with an experienced Unreal team; its mobile path drops its headline features.
 - **Spatial SDK (Kotlin)** for apps that mix 2D Android panels with 3D; not a visual upgrade over Unity.
+
+## A proven Unity MR stack (from studying Mario 64 MR, Nov 2026)
+- A proven Quest MR stack as of Nov 2026: Unity 6000.3 (IL2CPP, URP), Meta XR Core v201, MRUK, Interaction SDK, Unity XR Hands, Immersive Debugger.
+- Manifest choices:
+  - hand tracking `V2.0`, frequency `HIGH`;
+  - `USE_SCENE` plus `USE_ANCHOR_API`;
+  - `BOUNDARY_VISIBILITY` (request it hidden only while passthrough shows the room);
+  - `passthrough-contextual` splash;
+  - hand tracking optional when controllers are a fallback.
+- Boot config: fragment density map (foveation) and low-latency audio.
+- **`adb install -g` grants the scene permission silently**, so the in-app permission prompt path goes untested; test once with a plain install (issue #13).
+- *IP separation pattern:* ship an engine shell; build user-owned content locally and load it at run time from the app's private folder (`dlopen`), with an in-headset notice when it is missing.
+
+**`references/process.md` / tooling**
+- *Patch, don't fork:* when an SDK in `node_modules` (e.g. IWSDK) needs a change, use a `tools/patch-<sdk>.mjs` that pins the version, starts from pristine files, and fails loudly unless each anchor occurs exactly once. Link it in the write-up as engineering depth.
+- *Installer and tool scripts:*
+  - check the cheapest and likeliest failure first (a ROM, a key, a device) before any download;
+  - print progress every 30 s during silent steps;
+  - write a completion marker last so interrupted steps rerun;
+  - print the exact install command when a tool is missing.
+
+## 9. Not verified
+- The Unity C# source (not public): every **(APK)** item is inferred from identifier and shader property names, not from reading the code.
+- Whether EnvironmentDepth is used at run time, or merely included.
+- Boundary behaviour in Quest Browser `immersive-ar` sessions.
+- Nothing was run, on a headset or otherwise. The downloaded APK stays in the session scratchpad only, not in this folder.

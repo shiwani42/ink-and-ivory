@@ -36,3 +36,9 @@ IWSDK 1.1.0 already restores a persistent anchor at the reference-space origin t
 
 ## Depth occlusion and opaque worlds
 `DepthOccludable` on UI or props is right in passthrough, but **wrong once an opaque world covers the room**: real objects nobody can see (a laptop on the table, a sofa in the emulator room) punch holes in cards that show the virtual world behind. Under a full place, rely on the hand window (hands-input.md) for hands-over-UI and leave UI non-occludable. Never put it on the world itself either: the real walls cut the street, and it forces materials transparent.
+
+## Lessons from Mario 64 MR (Unity, studied Nov 2026; ideas only, see reference-winners/mario64mr-REPORT.md)
+- *Room geometry chain:* scene mesh → Space Setup anchors/planes → floor → virtual surface. Test on a headset with no scan (Quest 2, or a Quest 3 user who skipped the scan): Mario 64 MR v1.0 broke there.
+- *Leaving known geometry is never a failure:* return the object or character to its last safe place and keep a "bring it back" item in the menu.
+- *Reloading the room mid-session:* keep the previous geometry alive until the next reload so references stay valid; reload on an interval and after a settle time.
+- *Use the original engine's own collision for real surfaces* when porting a game: convert the room into its native format and swap partitions around the character's step, rather than writing a second physics.

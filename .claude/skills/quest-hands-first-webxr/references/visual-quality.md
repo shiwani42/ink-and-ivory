@@ -118,3 +118,9 @@ Primitive-built people (boxes, cylinders) read as "broken" at VR conversation di
   - Talk by rotating the jaw bone (about 0.22 rad), never by scaling it. Blink by moving the lid bones down about 8 mm.
   - Hard cel bands blotch a real face. Use a soft `MeshStandardMaterial` (vertex colours, roughness about 0.8) with the world's grade and reveal patched in.
   - Load as `priority: 'critical'` GLTF assets. Changes to `assets.ts` need a dev restart.
+
+## Lessons from Mario 64 MR (Unity, studied Nov 2026; ideas only, see reference-winners/mario64mr-REPORT.md)
+- *Self-measurement:* a slow-frame counter with a fixed log tag (`[app] perf slow=… of … p95=…ms`), on in dev and behind `?perf=1` in production; ask testers for those lines.
+- *Height cue on real surfaces:* a soft shadow under anything hovering over the table (a fingertip, a held piece) on an otherwise invisible receiver; softer than a virtual-floor shadow.
+- *Ports from flat screens:* disable the original's frustum and back-face culling for content seen from a free head; billboards face the head around the world's up, not the original camera; extend skies and backdrops beyond the original view.
+- *Per-device defaults:* Quest 2 at 72 Hz with more foveation; Quest 3/3S at 90 Hz if a trace shows headroom; persist the user's choices with a "Defaults" button.
