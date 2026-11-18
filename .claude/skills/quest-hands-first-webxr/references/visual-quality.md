@@ -141,3 +141,11 @@ Whatever sits in view the whole session (the counter on the user's table, a desk
   - Let the legs follow the real table height (`setHeight`).
 - **Cel-lit worlds blow out dark, saturated "cloth" colours** (a banana leaf, a green desk cloth) into neon. Remove them or give them real materials; darkening the hex barely helps.
 - **Cabins:** a full-width dark slab standing in for the user's table fills the lower view during a ride. Make it a narrow padded strip at the user's edge.
+
+
+## First visit and close-ups (Chausar, 18 Nov 2026)
+- **Film the first visit, not just the warm reload.** Open the deployed (or `vite preview`) build in a new page of the managed browser with the cache disabled and the network throttled (CDP `Network.setCacheDisabled`, `Network.emulateNetworkConditions`), and take a frame every 0.7 to 0.9 s. Reference: `chausar/tools/gallery/loadfilm.mjs`. The dev server's unbundled modules are not a fair test.
+- **Never start the show before its pieces arrive.** Gate the entrance on every asset in it: the character (and anything worn, like a turban, loaded *before* attaching), the dome texture, the IBL (`scene.environment` is set), the props and the fonts; cap the wait (about 30 s). Show an HTML loading screen in `index.html` so the first frame is never a blank page, and fill its bar from the game. Without an IBL, metal renders black.
+- **A fallback model must stay hidden until the real one fails.** A procedural stand-in shown "until the GLB arrives" is what a first-time visitor sees for seconds.
+- **Bright IBL whitens hair, skin edges and silk.** Hair cards: roughness about 0.88, `envMapIntensity` about 0.2, base colour darkened if the texture has light strands. Skin, cloth: about 0.5. Keep full reflections only for metal and eyes.
+- **Shade garment back faces** (`if (!gl_FrontFacing) gl_FragColor.rgb *= 0.22` before dithering): double-sided clothing otherwise shows its lit inside at collars and cuffs.

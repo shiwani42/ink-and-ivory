@@ -47,6 +47,13 @@ Small, high-visibility items. Park them in the project's final checklist so they
 2. **A soft shadow under the guide's fingertip or tool tip** on the work surface (an invisible receiver, a blurred disc that tightens and darkens as it nears the surface). It shows hovering versus touching at a glance, for the ghost and the learner alike.
 3. **A slow-frame logger:** count frames over budget with a fixed tag (`[app] perf slow=N of M p95=X ms`), on in dev and behind `?perf=1` in production. Ask the first headset tester for those lines; they're the cheapest real performance numbers you'll get.
 
+## Gallery stills from the emulator (Devpost wants 3:2, ≤5 MB, up to 15)
+- Start the dev server with `--allow-browser-automation`, then use `npx @iwsdk/cli browser run <script.mjs>` (Playwright against the managed page). Reference: `chausar/tools/gallery/` (`window.mjs`, `snap.mjs`, `shoot.py`).
+- **Resize the window, not the viewport, and do it before entering XR.** `page.setViewportSize` is undone when the script ends, and an XR session keeps the framebuffer size it started with, so XR frames come out at 800 px in a black frame. Use CDP `Browser.setWindowBounds` (it persists), then reload and enter XR.
+- Capture 1800×1260 and crop the top 60 px (the emulator's Runtime/Editor buttons) to get 1800×1200; save as JPEG q90 (about 300 KB each).
+- `xr run-sequence` turns the head toward its targets: set the camera again after a hand sequence, before the shot. A screenshot takes about 3 s to start, so moments shorter than that (a title card) need another route.
+- Devpost renames uploads to random IDs and lists them in completion order. Match captions to images by blob byte size, and set the order through the gallery list's sortable (it posts `/software_photos/positions`). Note in a caption that the stills are emulator captures.
+
 ## Recording the trailer (Meta's guidance)
 Record landscape 1920 × 1080 (`metavr capture video start --width 1920 --height 1080`, from Linux too). Meta suggests 36 fps (variable), image stabilisation low, and slow, deliberate head movement. Mixed Reality Capture doesn't apply to WebXR. Use `?state=` presets to jump to each shot.
 
