@@ -59,7 +59,8 @@ export function isPanorama(width: number, height: number): boolean {
 }
 
 /** Turn a photo into a 4096 x 2048 equirectangular panorama and save it. */
-export async function makeOwnPano(file: File): Promise<{ blob: Blob; converted: boolean }> {
+export async function makeOwnPano(file: File): Promise<{ blob: Blob; converted: boolean; ms: number }> {
+  const t0 = performance.now();
   const img = await createImageBitmap(file);
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -70,9 +71,16 @@ export async function makeOwnPano(file: File): Promise<{ blob: Blob; converted: 
     ctx.drawImage(img, 0, 0, W, H);
   } else {
     // Ambient wrap: the whole photo stretched round the sphere, very blurred.
-    ctx.filter = 'blur(70px) saturate(1.1)';
-    ctx.drawImage(img, -W * 0.08, -H * 0.12, W * 1.16, H * 1.24);
-    ctx.filter = 'none';
+    // Blurred at 1/8 size and scaled up: the same soft look for a fraction of
+    // the cost (a full-size canvas blur is slow on a headset's mobile GPU).
+    const small = document.createElement('canvas');
+    small.width = W / 8;
+    small.height = H / 8;
+    const sctx = small.getContext('2d')!;
+    sctx.filter = 'blur(9px) saturate(1.1)';
+    sctx.drawImage(img, -small.width * 0.08, -small.height * 0.12, small.width * 1.16, small.height * 1.24);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(small, 0, 0, W, H);
     // The photo itself, in front of you (the centre of the panorama), with feathered edges.
     const w = W * (100 / 360);
     const h = Math.min(H * 0.62, (w * img.height) / img.width);
@@ -107,5 +115,5 @@ export async function makeOwnPano(file: File): Promise<{ blob: Blob; converted: 
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode failed'))), 'image/jpeg', 0.88),
   );
   await saveOwnPano(blob);
-  return { blob, converted };
+  return { blob, converted, ms: Math.round(performance.now() - t0) };
 }

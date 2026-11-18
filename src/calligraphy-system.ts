@@ -740,7 +740,7 @@ export class CalligraphySystem extends createSystem({
   private async addPano(file: File): Promise<void> {
     this.text(this.welcome, 'midi-note', 'Making your background...');
     try {
-      const { blob, converted } = await makeOwnPano(file);
+      const { blob, converted, ms } = await makeOwnPano(file);
       if (this.ownPanoUrl) URL.revokeObjectURL(this.ownPanoUrl);
       this.ownPanoUrl = URL.createObjectURL(blob);
       this.ownPanoVersion++;
@@ -756,7 +756,7 @@ export class CalligraphySystem extends createSystem({
           ? 'Your photo is now a 360 background: it hangs in front of you, and its colours wrap all the way round. In the headset, the menu\'s Scene button switches it on or off.'
           : 'Your 360 panorama is your background. In the headset, the menu\'s Scene button switches it on or off.',
       );
-      this.log(`own background ${converted ? 'converted from a photo' : 'panorama'}`);
+      this.log(`own background ${converted ? 'converted from a photo' : 'panorama'} in ${ms} ms, ${(blob.size / 1e6).toFixed(1)} MB`);
       if (this.mode !== 'demo2d') this.applyScene();
     } catch (error) {
       this.text(this.welcome, 'midi-note', 'That image could not be used. Try a JPG or PNG photo.');
