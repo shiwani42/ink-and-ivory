@@ -61,3 +61,6 @@ Record landscape 1920 × 1080 (`metavr capture video start --width 1920 --height
 - *Top of README and Devpost:* one looping GIF of the single magic moment, with descriptive alt text, before any text.
 - *Troubleshooting by symptom,* each with the exact fix. Pre-empt scary-looking false alarms by explaining what the script does.
 - *Release notes per version* that say what changed, what the user must update, and credit the testers.
+
+## Verify the judge URL by content, not by title (Nov 2026)
+A `vercel alias set name.vercel.app` can fail quietly (the name belongs to another account), and a stranger's site can even share your page title. On some accounts new aliases sit behind Vercel's login (HTTP 302 to SSO); only the project's production domain is public. Before putting a URL in the README, Devpost or a trailer, check three things signed out: the `Permissions-Policy: xr-spatial-tracking` header, a file only your build has (e.g. `/models/<your>.glb` returns 200), and the bundle name matching your local `dist/index.html`. Re-check after every deploy.
