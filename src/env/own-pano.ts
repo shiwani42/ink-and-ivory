@@ -70,17 +70,36 @@ export async function makeOwnPano(file: File): Promise<{ blob: Blob; converted: 
   if (!converted) {
     ctx.drawImage(img, 0, 0, W, H);
   } else {
-    // Ambient wrap: the whole photo stretched round the sphere, very blurred.
-    // Blurred at 1/8 size and scaled up: the same soft look for a fraction of
-    // the cost (a full-size canvas blur is slow on a headset's mobile GPU).
+    // Ambient wrap, seamless all the way round: the photo across the front
+    // half, and each of its halves mirrored outwards so they meet behind you
+    // on the same column (no seam where the panorama wraps). Blurred at 1/8
+    // size and scaled up: the same soft look for a fraction of the cost (a
+    // full-size canvas blur is slow on a headset's mobile GPU).
     const small = document.createElement('canvas');
-    small.width = W / 8;
-    small.height = H / 8;
+    const sw = W / 8;
+    const sh = H / 8;
+    small.width = sw;
+    small.height = sh;
     const sctx = small.getContext('2d')!;
-    sctx.filter = 'blur(9px) saturate(1.1)';
-    sctx.drawImage(img, -small.width * 0.08, -small.height * 0.12, small.width * 1.16, small.height * 1.24);
+    const iw = img.width;
+    const ih = img.height;
+    sctx.drawImage(img, 0, 0, iw, ih, sw / 4, 0, sw / 2, sh); // the photo, front half
+    sctx.save();
+    sctx.scale(-1, 1); // mirrored halves
+    sctx.drawImage(img, 0, 0, iw / 2, ih, -sw / 4, 0, sw / 4, sh); // left half, mirrored into [0, sw/4]
+    sctx.drawImage(img, iw / 2, 0, iw / 2, ih, -sw, 0, sw / 4, sh); // right half, mirrored into [3sw/4, sw]
+    sctx.restore();
+    const blurred = document.createElement('canvas');
+    blurred.width = sw;
+    blurred.height = sh;
+    const bctx = blurred.getContext('2d')!;
+    bctx.filter = 'blur(4px) saturate(1.08)';
+    // Draw three times side by side so the blur also wraps round without a seam.
+    bctx.drawImage(small, -sw, 0);
+    bctx.drawImage(small, 0, 0);
+    bctx.drawImage(small, sw, 0);
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(small, 0, 0, W, H);
+    ctx.drawImage(blurred, 0, 0, W, H);
     // The photo itself, in front of you (the centre of the panorama), with feathered edges.
     const w = W * (100 / 360);
     const h = Math.min(H * 0.62, (w * img.height) / img.width);
