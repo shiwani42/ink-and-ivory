@@ -1456,7 +1456,7 @@ export class CalligraphySystem extends createSystem({
     this.log(`placement ${describeReport(this.placeReport)}`);
     this.deskMemory.disarm();
     this.desk.root.visible = true;
-    this.desk.virtualTable.visible = !realDesk && this.craft !== 'piano';
+    this.desk.virtualTable.visible = !realDesk && this.craft !== 'piano' && !this.seeThrough;
     this.onRealDesk = realDesk;
     this.desk.root.updateWorldMatrix(true, false);
     this.piano.fitToFloor(this.desk.root.matrixWorld.elements[13]);
@@ -2388,6 +2388,8 @@ export class CalligraphySystem extends createSystem({
   private toggleSeeThrough(): void {
     this.seeThrough = !this.seeThrough;
     this.desk.setSeeThrough(this.seeThrough);
+    // Your real pad sits on your real table: no virtual table under it.
+    this.desk.virtualTable.visible = !this.seeThrough && !this.onRealDesk && this.craft !== 'piano';
     this.text(this.menu, 'btn-pad-label', this.seeThrough ? 'Paper: my real pad' : 'Paper: virtual');
     this.log(`paper ${this.seeThrough ? 'real pad' : 'virtual'}`);
     if (this.seeThrough && this.craft === 'calligraphy') {
@@ -2775,7 +2777,7 @@ export class CalligraphySystem extends createSystem({
     else this.env.hide();
     // In the place, a desk stands exactly where your real table is (the real
     // one is hidden); at the piano the grand takes its place.
-    this.desk.virtualTable.visible = this.craft !== 'piano' && (this.immersive || !this.onRealDesk);
+    this.desk.virtualTable.visible = this.craft !== 'piano' && !this.seeThrough && (this.immersive || !this.onRealDesk);
     // Light the objects with the same place they sit in.
     const level = this.world.activeLevel.peek();
     if (level?.hasComponent(IBLTexture)) {
@@ -2824,7 +2826,7 @@ export class CalligraphySystem extends createSystem({
     this.desk.callig.visible = !piano;
     this.piano.root.visible = piano;
     // At the piano the grand replaces any fallback table.
-    this.desk.virtualTable.visible = !piano && !this.onRealDesk;
+    this.desk.virtualTable.visible = !piano && !this.onRealDesk && !this.seeThrough;
     this.desk.root.updateWorldMatrix(true, false);
     this.piano.fitToFloor(this.desk.root.matrixWorld.elements[13]);
     // New surroundings; background music is silenced at the piano (it would
