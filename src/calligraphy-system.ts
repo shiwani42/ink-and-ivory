@@ -193,6 +193,8 @@ export class CalligraphySystem extends createSystem({
   private deskEntity!: Entity;
   private ghost!: GhostHand;
   private poses!: Record<Handedness, GhostPoseBuilder>;
+  /** The master's hand at the piano: relaxed, curved fingers, not the writing point. */
+  private pianoPoses!: Record<Handedness, GhostPoseBuilder>;
   private blender = new JointBlender();
   private ghostJoints = new Float32Array(JOINT_COUNT * 16);
   private userJoints = new Float32Array(JOINT_COUNT * 16);
@@ -276,6 +278,8 @@ export class CalligraphySystem extends createSystem({
   /** The reference space whose 'reset' (holding the Meta button) we listen to. */
   private resetRef?: XRReferenceSpace;
   private recenterPending = false;
+  /** Whether IWSDK's own hand meshes are drawn over your tracked hands (undefined: not yet set). */
+  private handMeshesOn?: boolean;
   private sayAudio?: HTMLAudioElement;
   private penHand?: XRHandedness;
   private penM = new Matrix4();
@@ -462,6 +466,11 @@ export class CalligraphySystem extends createSystem({
     if (import.meta.env.DEV) {
       // Dev only: tools feed a test photo to the own-background converter.
       (window as unknown as { __hoamAddPano?: (f: File) => Promise<void> }).__hoamAddPano = (f) => this.addPano(f);
+      (window as unknown as { __hoamHands?: () => unknown }).__hoamHands = () => {
+        const h = this.input.xr.visualAdapters.hand;
+        const st = (a: typeof h.left) => ({ connected: a.connected, model: (a.visual as { model?: { visible: boolean } } | undefined)?.model?.visible });
+        return { on: this.handMeshesOn, left: st(h.left), right: st(h.right) };
+      };
       (window as unknown as { __hoamFireReset?: () => void }).__hoamFireReset = () =>
         this.renderer.xr.getReferenceSpace()?.dispatchEvent(new Event('reset'));
       (window as unknown as { __hoamPaint?: (t: string) => void }).__hoamPaint = (t) => {
@@ -482,6 +491,7 @@ export class CalligraphySystem extends createSystem({
     }
     this.progress = loadProgress();
     this.writeWith = this.progress.writeWith ?? 'finger';
+    this.restorePen();
     this.immersive = this.progress.scene === 'place' || this.progress.scene === 'own';
     this.ownScene = this.progress.scene === 'own';
     void loadOwnPano().then((blob) => {
@@ -543,6 +553,7 @@ export class CalligraphySystem extends createSystem({
     this.ghost = new GhostHand();
     this.world.createTransformEntity(this.ghost.root, { persistent: true });
     this.poses = { left: new GhostPoseBuilder('left'), right: new GhostPoseBuilder('right') };
+    this.pianoPoses = { left: new GhostPoseBuilder('left', true), right: new GhostPoseBuilder('right', true) };
     this.ghostTool = new HeldTool(true);
     this.userTool = new HeldTool(false);
     this.world.createTransformEntity(this.ghostTool.root, { persistent: true });
@@ -1585,6 +1596,14 @@ export class CalligraphySystem extends createSystem({
       this.calibLow = undefined;
       this.calibAsked = false;
       this.ghostTarget(this.calX + 0.03, HOVER_Y + 0.02, this.calZ + 0.02);
+      if (this.writeWith === 'pen' && this.craft === 'calligraphy' && this.penOffset) {
+        this.setCaption(
+          'STEP 2 OF 3  -  YOUR PEN',
+          'Rest your pen on the seal',
+          'Your pen is remembered. Rest its tip on the red seal for a moment: this finds your real table. Then write.',
+        );
+        return;
+      }
       if (this.writeWith === 'pen' && this.craft === 'calligraphy' && !this.surfaceTouched) {
         this.setCaption(
           'STEP 2 OF 3  -  TOUCH, THEN YOUR PEN',
@@ -2003,7 +2022,7 @@ export class CalligraphySystem extends createSystem({
 
   private poseGhost(): void {
     this.desk.paper.updateWorldMatrix(true, false);
-    this.poses[this.ghost.handedness].compose(
+    (this.craft === 'piano' ? this.pianoPoses : this.poses)[this.ghost.handedness].compose(
       this.desk.paper.matrixWorld,
       this.ghostTip.x,
       this.ghostTip.y,
@@ -2285,7 +2304,8 @@ export class CalligraphySystem extends createSystem({
       const offset = this.v.clone().applyMatrix4(this.m.copy(cand.m).invert());
       this.penCandidate = undefined;
       this.calibHold = 0;
-      if (this.v.distanceTo(cand.finger) < 0.02) {
+      const fingerUp = this.v2.copy(cand.finger).applyMatrix4(this.paperInv).y - this.surfaceOffset;
+      if (fingerUp < 0.016 && this.v.distanceTo(cand.finger) < 0.03) {
         // The index fingertip itself was on the seal: that would make the
         // "pen tip" your finger. Ask for the pen.
         this.log('pen calibration rejected: that was a fingertip');
@@ -2306,6 +2326,9 @@ export class CalligraphySystem extends createSystem({
       ring.scale.setScalar(1);
       (ring.material as { opacity: number }).opacity = 0.25;
       this.sfx.stamp();
+      this.progress.penOffset = [offset.x, offset.y, offset.z];
+      this.progress.penHand = this.penHand;
+      saveProgress(this.progress);
       this.log(`pen calibrated ${(offset.length() * 100).toFixed(1)} cm from the knuckle, ${this.penHand} hand`);
       this.needLift = false; // already lifted
       this.beginPractice();
@@ -2358,6 +2381,15 @@ export class CalligraphySystem extends createSystem({
     );
   }
 
+  /** Use the pen learned earlier, if any. */
+  private restorePen(): boolean {
+    const o = this.progress.penOffset;
+    if (this.writeWith !== 'pen' || !o) return false;
+    this.penOffset = new Vector3(o[0], o[1], o[2]);
+    this.penHand = this.progress.penHand;
+    return true;
+  }
+
   /** Fingertip (default) or a real pen or brush held in the hand (beta). */
   private toggleWriteWith(): void {
     this.writeWith = this.writeWith === 'finger' ? 'pen' : 'finger';
@@ -2369,6 +2401,13 @@ export class CalligraphySystem extends createSystem({
     this.tipFilter.reset();
     this.refreshMenu();
     this.log(`write with ${this.writeWith}`);
+    // A pen already learned (this or an earlier session): just follow it, no
+    // restart, so writing with real ink can carry on.
+    if (this.writeWith === 'pen' && this.restorePen() && this.surfaceTouched) {
+      this.needLift = true;
+      this.log('pen restored, no restart');
+      return;
+    }
     if (this.craft === 'calligraphy' && (this.mode === 'practice' || this.mode === 'calibrate' || this.mode === 'complete')) {
       this.calibrated = false;
       this.startLesson(this.lessonIndex, false);
@@ -3270,6 +3309,25 @@ export class CalligraphySystem extends createSystem({
       ref.addEventListener('reset', () => {
         this.recenterPending = true;
       });
+    }
+    // In your own room (passthrough) you see your real hands, so a drawn copy
+    // of them only lags behind as a second, "ghost" pair. Draw them only when
+    // a 360 place covers the room.
+    const meshes = this.immersive;
+    if (meshes !== this.handMeshesOn && this.renderer.xr.isPresenting) {
+      this.handMeshesOn = meshes;
+      const hands = this.input.xr.visualAdapters.hand;
+      hands.left.toggleVisual(meshes);
+      hands.right.toggleVisual(meshes);
+      this.log(`hand meshes ${meshes ? 'on' : 'off'}`);
+    }
+    if (this.handMeshesOn === false) {
+      // IWSDK can show the model again when a hand (re)connects: keep it hidden.
+      const hands = this.input.xr.visualAdapters.hand;
+      for (const adapter of [hands.left, hands.right]) {
+        const model = (adapter.visual as { model?: { visible: boolean } } | undefined)?.model;
+        if (model?.visible) model.visible = false;
+      }
     }
     if (this.recenterPending && this.renderer.xr.isPresenting) {
       this.recenterPending = false;

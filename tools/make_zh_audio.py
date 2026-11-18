@@ -11,8 +11,11 @@ Resumable: existing clips are skipped. Python stdlib only.
   python3 tools/make_zh_audio.py                    # Mandarin (default)
   python3 tools/make_zh_audio.py --lang ja          # Japanese (kanji + hiragana)
   python3 tools/make_zh_audio.py --lang en          # English italic letters + words
+  python3 tools/make_zh_audio.py --lang zh --force   # overwrite every clip
+  python3 tools/make_zh_audio.py --lang zh --model eleven_flash_v2_5
   python3 tools/make_zh_audio.py --lang zh --stop zh-one zh-two
       # regenerate these ids with a sentence-final mark (。 or .) appended
+      # (--stop must come last)
 """
 import json
 import os
@@ -24,7 +27,9 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LESSONS = os.path.join(ROOT, 'src', 'lessons', 'lessons.ts')
-MODEL = 'eleven_multilingual_v2'
+# Turbo/flash v2.5 enforce language_code; multilingual_v2 ignores it and
+# reads lone kanji as Japanese. Override with --model.
+MODELS = ['eleven_turbo_v2_5', 'eleven_flash_v2_5']
 STOP = {'zh': '。', 'ja': '。', 'en': '.'}
 
 # Kana for the Japanese reading each kanji lesson teaches (the romaji `ja`
@@ -83,9 +88,9 @@ def items_for(lang):
     return uniq
 
 
-def tts(key, voice, text, lang):
+def tts(key, voice, text, lang, model):
     url = 'https://api.elevenlabs.io/v1/text-to-speech/%s?output_format=mp3_44100_64' % voice
-    body = {'text': text, 'model_id': MODEL}
+    body = {'text': text, 'model_id': model}
     if lang:
         body['language_code'] = lang
     req = urllib.request.Request(
@@ -103,26 +108,31 @@ def main():
     args = sys.argv[1:]
     lang = args[args.index('--lang') + 1] if '--lang' in args else 'zh'
     force_stop = set(args[args.index('--stop') + 1:]) if '--stop' in args else set()
-    force_stop.discard('--lang')
+    force = '--force' in args
+    models = [args[args.index('--model') + 1]] if '--model' in args else list(MODELS)
     out_dir = os.path.join(ROOT, 'public', 'audio', lang)
     os.makedirs(out_dir, exist_ok=True)
     items = items_for(lang)
-    print('%d %s lesson items' % (len(items), lang))
+    print('%d %s lesson items, model %s' % (len(items), lang, models[0]))
     use_lang = True
     failed = []
     for lid, text in items:
         path = os.path.join(out_dir, lid + '.mp3')
-        if os.path.exists(path) and lid not in force_stop:
+        if os.path.exists(path) and not force and lid not in force_stop:
             continue
         if lid in force_stop and not text.endswith(STOP[lang]):
             text += STOP[lang]
         data = None
-        for attempt in range(3):
+        for attempt in range(4):
             try:
-                data = tts(key, voice, text, lang if use_lang else None)
+                data = tts(key, voice, text, lang if use_lang else None, models[0])
                 break
             except urllib.error.HTTPError as e:
                 detail = e.read().decode('utf-8', 'replace')[:300]
+                if e.code in (400, 404, 422) and len(models) > 1 and 'model' in detail.lower():
+                    print('model %s rejected (HTTP %d); falling back to %s' % (models[0], e.code, models[1]))
+                    models.pop(0)
+                    continue
                 if e.code in (400, 422) and use_lang and 'language' in detail.lower():
                     print('language_code rejected; dropping it')
                     use_lang = False
@@ -149,7 +159,7 @@ def main():
     with open(os.path.join(out_dir, 'index.json'), 'w', encoding='utf-8') as f:
         json.dump(index, f, ensure_ascii=False, indent=2)
         f.write('\n')
-    print('%d clips in index.json; failed: %s' % (len(index), failed or 'none'))
+    print('%d clips in index.json; model %s; failed: %s' % (len(index), models[0], failed or 'none'))
 
 
 if __name__ == '__main__':

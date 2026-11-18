@@ -1,5 +1,6 @@
 import { Matrix4, Vector3 } from '@iwsdk/core';
 import poseData from './point-pose.json';
+import relaxedData from './relaxed-pose.json';
 
 /**
  * Builds the master's hand pose for any fingertip position on the paper.
@@ -41,9 +42,10 @@ export class GhostPoseBuilder {
   private readonly v = new Vector3();
   private readonly up = new Vector3(0, 1, 0);
 
-  constructor(readonly handedness: Handedness) {
+  /** `relaxed`: IWER's relaxed hand (all fingers gently curved), for the piano. */
+  constructor(readonly handedness: Handedness, relaxed = false) {
     this.sign = handedness === 'right' ? 1 : -1;
-    const data = poseData as { matrices: number[][] };
+    const data = (relaxed ? relaxedData : poseData) as { matrices: number[][] };
     for (const arr of data.matrices) {
       const values =
         handedness === 'right' ? arr.map((x, i) => x * MIRROR[i]) : arr.slice();

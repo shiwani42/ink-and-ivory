@@ -99,7 +99,7 @@ What we want to do next:
 - **More real-world testing:** more rooms and more people, with performance captured on the headset.
 - **Feedback teachers use:** the master's correction marks in vermilion ink on your page, finger numbers for the piano, and playing a duet with the master.
 - **Writing with a real pen or brush:** this is in beta. A fingertip touch finds your table, then you rest the pen's tip on the seal and the app learns where the tip is from your hand. Our headset tester found it first learned the fingertip instead of the pen; that is fixed, and it needs more headset testing before it can become the default.
-- **More of our tester's ideas:** writing surfaces you choose from objects on the desk (calligraphy grid paper, parchment, a zen sand garden, water, snow), lining the set up to the real table with a tracked controller, and quick controls in the top cap of the 360 place.
+- **More of our tester's ideas:** writing surfaces you choose from objects on the desk (calligraphy grid paper, parchment, a zen sand garden, water, snow), lining the set up to the real table with a tracked controller, quick controls in the top cap of the 360 place, and a see-through mode that maps your real paper pad into XR so the master's strokes appear on your actual paper.
 
 ## Credits
 
