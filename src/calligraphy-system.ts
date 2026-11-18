@@ -76,7 +76,7 @@ import {
 } from './progress.js';
 
 /**
- * Hands of a Master: the whole experience in one system.
+ * Ink and Ivory: the whole experience in one system.
  *
  * Flow in mixed reality:
  *   placing   find the real desk (detected table plane), else a virtual table
@@ -371,7 +371,7 @@ export class CalligraphySystem extends createSystem({
   private handsLostFor = 0;
   private strokeLostFor = 0;
   private handsHint = false;
-  private captionRecord = ['HANDS OF A MASTER', ' ', ' ', ' '];
+  private captionRecord = ['INK AND IVORY', ' ', ' ', ' '];
   private mgPrev = [0, 0];
 
   /** Dev aid: console lines the IWSDK CLI can read (`iwsdk browser logs`). */

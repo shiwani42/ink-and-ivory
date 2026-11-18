@@ -44,7 +44,7 @@
   .credits { color: #85776a; font-family: inter; font-size: 11px; font-weight: 500; line-height: 15px; margin-top: 2px; padding-left: 4px; }
 </style>
 <div class="card">
-  <div class="eyebrow">HANDS OF A MASTER</div>
+  <div class="eyebrow">INK AND IVORY</div>
   <div class="crafts">
     <div id="craft-cal" class="craft"><div id="craft-cal-label" class="craft-label">Calligraphy</div></div>
     <div id="craft-piano" class="craft"><div id="craft-piano-label" class="craft-label">Piano</div></div>

@@ -1,4 +1,4 @@
-# Testing: Hands of a Master
+# Testing: Ink and Ivory
 
 ## 1. Automated end-to-end test (emulator, hands only)
 `tools/e2e.py` drives the IWSDK emulator (IWER, Meta Quest 3 profile, "sunlit living room") the way a judge would. It uses only emulated hands.

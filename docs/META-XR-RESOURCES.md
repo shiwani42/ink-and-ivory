@@ -1,6 +1,6 @@
 # Meta XR resources: what a WebXR team can use, and what a native team would use
 
-A short, sourced guide for future projects, written 18 Nov 2026 while building Hands of a Master (HOAM). HOAM is a WebXR app for Quest Browser built with IWSDK 1.1.0. The four resources are the Meta XR SDK (Interaction SDK and Platform SDK), the hand-tracking docs, the mixed-reality docs and Meta Quest Developer Hub.
+A short, sourced guide for future projects, written 18 Nov 2026 while building Ink and Ivory (HOAM). HOAM is a WebXR app for Quest Browser built with IWSDK 1.1.0. The four resources are the Meta XR SDK (Interaction SDK and Platform SDK), the hand-tracking docs, the mixed-reality docs and Meta Quest Developer Hub.
 
 Every link below is a developers.meta.com page fetched on 18 Nov 2026. Meta serves the same pages under `/horizon/` and `/vr/`; the `/horizon/` path is cited. HOAM's own comparison against these resources is in [INTEGRATION-meta-xr.md](INTEGRATION-meta-xr.md), and the hand-tracking one is in [INTEGRATION-handtracking.md](INTEGRATION-handtracking.md).
 

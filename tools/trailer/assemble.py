@@ -80,7 +80,7 @@ def segment(k, clip, start, end, caption, crop):
 def main():
     parts = [card('title', 4.5, [
         ('永', SERIF, 150, VERMILION, 300),
-        ('Hands of a Master', SERIF, 96, INK, 500),
+        ('Ink and Ivory', SERIF, 96, INK, 500),
         ("Learn a craft inside a master's hands.", SANS, 46, '0x5e5246', 640),
     ])]
     for k, seg in enumerate(SEGMENTS):
@@ -88,7 +88,7 @@ def main():
     parts.append(card('end', 6.0, [
         ('Hands only. Your real desk. The master lets go.', SERIF, 60, INK, 380),
         ('Calligraphy in Japanese, Chinese and English  ·  Piano', SANS, 40, '0x5e5246', 500),
-        ('hands-of-a-master.vercel.app', SANS_BOLD, 50, VERMILION, 610),
+        ('ink-and-ivory.vercel.app', SANS_BOLD, 50, VERMILION, 610),
         ('Meta Quest 3 / 3S, in the browser. Footage recorded in the Meta Quest 3 emulator (IWSDK).', SANS, 28, '0x85776a', 760),
     ]))
     lst = os.path.join(OUT, 'parts.txt')

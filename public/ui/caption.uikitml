@@ -14,7 +14,7 @@
   .score { color: #7a520a; font-family: inter; font-size: 23px; font-weight: 700; margin-top: 2px; }
 </style>
 <div class="card">
-  <div id="cap-eyebrow" class="eyebrow">HANDS OF A MASTER</div>
+  <div id="cap-eyebrow" class="eyebrow">INK AND IVORY</div>
   <div id="cap-title" class="title">Finding your desk</div>
   <div id="cap-body" class="body">Sit at a table in good light.</div>
   <div id="cap-score" class="score"> </div>

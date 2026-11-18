@@ -1,5 +1,5 @@
 """
-Builds the writing-set models for Hands of a Master and exports them as GLB.
+Builds the writing-set models for Ink and Ivory and exports them as GLB.
 
 Run (from the project root):
   blender -b --python tools/blender/build_assets.py -- <texture_dir> <out_dir>

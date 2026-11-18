@@ -1,4 +1,4 @@
-# Submission pack: Hands of a Master
+# Submission pack: Ink and Ivory
 
 Everything needed for the Devpost entry.
 
@@ -6,7 +6,7 @@ Everything needed for the Devpost entry.
 - **No changes are allowed after the deadline,** so submit hours early.
 
 ## Form fields
-- **Project name:** Hands of a Master
+- **Project name:** Ink and Ivory
 - **Tagline (under 200 characters):** Learn calligraphy or piano inside a master's hands. A ghost hand works beside yours on your real desk; move in unison and your hands lock in gold. Hands only.
 - **Track:** Productivity
 - **Division:** New Experience
@@ -115,7 +115,7 @@ Record on the headset (Quest's built-in recorder, or MQDH casting on Windows) at
 | 1:35 to 1:55 | The full 永: five strokes, gold, the seal stamp | "Eight principles of the brush, in five strokes." |
 | 1:55 to 2:25 | Switch to Piano: keyboard lands, the music room and grand appear, the master plays, you play Ode to Joy, gold notes float up | "The same apprenticeship, for any craft of the hand." |
 | 2:25 to 2:45 | Progression and access: stars and streak, the ghost fainter on a mastered character, left hand, slow tempo, captions, Chinese | "As you improve, the master lets go." |
-| 2:45 to 2:58 | Title card: Hands of a Master. Quest 3 / 3S, open in your browser | (URL) |
+| 2:45 to 2:58 | Title card: Ink and Ivory. Quest 3 / 3S, open in your browser | (URL) |
 
 **Shortcuts for filming** (add to the URL on the headset; each one applies after the paper or keyboard lands):
 

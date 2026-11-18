@@ -1,5 +1,5 @@
 /**
- * Sound for Hands of a Master.
+ * Sound for Ink and Ivory.
  *
  * - Music: CC0 tracks from OpenGameArt per place (credited in README.md),
  *   streamed through an <audio> element and alternated so long sessions

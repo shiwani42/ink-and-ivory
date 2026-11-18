@@ -1,4 +1,6 @@
-# Hands of a Master
+# Ink and Ivory
+
+**Try it:** open <https://ink-and-ivory.vercel.app> in Meta Quest Browser on a Quest 3 or 3S, sit at a table and press "Begin at my desk". No install. Trailer and Devpost: see [docs/SUBMISSION.md](docs/SUBMISSION.md).
 
 **Learn a craft inside a master's hands. Meta Quest, hands only.** A master's translucent "ghost" hand works beside yours on your real desk. Follow it with your own fingertip; stay in step and the two hands lock together in gold. As you improve, the master fades away and lets you work alone.
 

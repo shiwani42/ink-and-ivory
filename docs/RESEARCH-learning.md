@@ -1,6 +1,6 @@
 # Research: teaching piano and calligraphy better
 
-Research for "Hands of a Master" (17 Nov 2026, about 20 hours before submission). It looks at what teachers, motor-learning studies and competing apps say, and turns that into changes to this app.
+Research for "Ink and Ivory" (17 Nov 2026, about 20 hours before submission). It looks at what teachers, motor-learning studies and competing apps say, and turns that into changes to this app.
 
 **Where the app stands (read from the code):**
 - **Piano** (`src/piano/piano-mode.ts`): the master plays the whole song, then the learner plays the whole song in "wait mode". There are no phrase chunks, no finger numbers, no count-in and no pulse. The master's hand is a single pointing fingertip. The ghost only fades between sessions, driven by your best score.

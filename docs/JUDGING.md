@@ -1,4 +1,4 @@
-# Judging self-assessment: Hands of a Master
+# Judging self-assessment: Ink and Ivory
 
 How the build meets the Meta VR Start Developer Competition 2026 rules and judging criteria (four criteria, 25% each).
 
