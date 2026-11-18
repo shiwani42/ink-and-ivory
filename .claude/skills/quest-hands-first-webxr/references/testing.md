@@ -104,3 +104,8 @@ The rules accept emulator footage ("as viewed on a Meta Quest device or via XR S
 8. **Entering XR resets the headset pose**, so `set-device-state` before `xr enter` doesn't seat the user. Seat after entering, then trigger placement again (a dev key).
 9. **IWER persists anchors** in `localStorage` (`@immersive-web-emulation-runtime/persistent-anchors`), so a cross-session anchor test works in the emulator. Shift+R-style resets that clear `localStorage` wipe them as well.
 10. The MQDH-to-`metavr` table in hands-of-a-master/docs/META-XR-RESOURCES.md §5. Note that `metavr tools list` 1.10 now lists `xrsim` and `spatial-editor` for Linux x64, but we have not tried them, and `build-path.md` still says that Meta XR Simulator is Windows/macOS only.
+
+## Tour mode: screenshots of what the user actually sees
+Add a `TOUR=1` switch to the end-to-end journey that shoots once at each first-of-its-kind moment: placing, mid-reveal, each stall's arrival, intro card, the player's turn, the result, paying, picking, a ride mid-way, and the finale. Use `shot('tour-<name>')` after about 0.6 s of settle.
+- One run gives the whole experience as a contact sheet (PIL, 300 px tiles, JPEG at 70 %). That's the polish audit: users judge "raw/broken" from exactly these moments.
+- The emulated seated head often pitches down, so faces crop at the top. Read layout and clutter from these shots, and check faces separately from a set seat-eye camera.

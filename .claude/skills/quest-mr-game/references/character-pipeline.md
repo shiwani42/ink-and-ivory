@@ -153,3 +153,9 @@ Use this when users say NPCs look "junky" or "broken". Painted-on clothes and ha
   - `MeshStandardMaterial` under lights tuned for cel/toon bands over-exposes plain cloth to white. Scale plain-colour materials by about 0.5 and textured ones by about 0.75, or light the characters separately.
 - Stream the characters: the first NPC is `priority: 'critical'`, the rest `'background'`. Build lazily in `update()` once `AssetManager.getGLTF(key)` returns.
 - Review with Blender renders of a mid-clip frame per clip (`preview_anim.py`), plus in-app shots of idle, talking and offering.
+
+**Polish layers that users notice (Sadak VR):**
+- **Solid counters:** after the mocap and IK, test the hand and three fingertips (middle, index, thumb `_03`) against the counter's footprint in the holder frame. If any is below the top plus 2 cm, re-run the arm IK with the hand raised by the overlap. Recorded motion never knows the furniture exists.
+- **Lip sync from real audio:** tap an `AnalyserNode` (fftSize 256) on the voice bus. Each frame, loudness = mean magnitude × 3.2, and brightness = the energy share above 18 % of the bins. Map loudness to mouth opening and brightness to the viseme (E/I bright, aa middle, O/U dark), with PP closures in the gaps. Fall back to a syllable rhythm with no audio.
+- **Accessories over hair** (caps, turbans): size them from the hair and scalp vertices above the crown, never the bald head, or hair pokes through or the cap sits on a bald scalp.
+- **Kurta over loose trousers:** cut the hidden trousers *before* building the kurta skirt, and keep each ring at least as wide as the ring above, so cloth falls instead of stepping out.

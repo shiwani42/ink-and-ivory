@@ -125,3 +125,19 @@ Primitive-built people (boxes, cylinders) read as "broken" at VR conversation di
 - *Height cue on real surfaces:* a soft shadow under anything hovering over the table (a fingertip, a held piece) on an otherwise invisible receiver; softer than a virtual-floor shadow.
 - *Ports from flat screens:* disable the original's frustum and back-face culling for content seen from a free head; billboards face the head around the world's up, not the original camera; extend skies and backdrops beyond the original view.
 - *Per-device defaults:* Quest 2 at 72 Hz with more foveation; Quest 3/3S at 90 Hz if a trace shows headroom; persist the user's choices with a "Defaults" button.
+
+## Hero surfaces get real materials (Sadak VR polish, Nov 2026)
+Whatever sits in view the whole session (the counter on the user's table, a desk, a dashboard) reads as "raw" when it's a flat-colour box, even in a stylised world.
+- **Free textures (CC0) from Poly Haven, via its API:**
+  - `https://api.polyhaven.com/files/<asset>` returns JSON. Take `Diffuse`, `nor_gl` and `Rough` → `1k` → `jpg` URLs.
+  - Good woods: `wood_table_001` (dark polished top), `weathered_brown_planks` (panels), `brown_planks_03`, `old_wood_floor`.
+  - Downscale to 512 px for Quest.
+  - Credit "Poly Haven (CC0)".
+- **Build:**
+  - The top is a bevelled `RoundedBoxGeometry` (`three/examples/jsm/geometries/RoundedBoxGeometry.js`) with map, normal and roughness.
+  - Panels are planks tinted toward the stall's colour (`color.lerp(white, 0.45)`), with a darker trim and legs.
+  - Set texture `repeat` from the real size, so grain scale stays constant across widths.
+  - Patch the world's reveal and grade into the materials.
+  - Let the legs follow the real table height (`setHeight`).
+- **Cel-lit worlds blow out dark, saturated "cloth" colours** (a banana leaf, a green desk cloth) into neon. Remove them or give them real materials; darkening the hex barely helps.
+- **Cabins:** a full-width dark slab standing in for the user's table fills the lower view during a ride. Make it a narrow padded strip at the user's edge.
