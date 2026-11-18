@@ -199,6 +199,21 @@ export class PianoMode {
     return 60 / (this.song.bpm * this.tempo);
   }
 
+  /** A silent glow on one key (the piano's calibration target), set directly: update() is not running. */
+  beacon(id: string, amount: number): void {
+    const k = this.keyById.get(id);
+    if (!k) return;
+    k.glowColor.copy(VERMILION);
+    k.glow = amount;
+    k.material.color.copy(k.baseColor).lerp(k.glowColor, Math.min(1, amount));
+    k.material.emissive.copy(k.glowColor).multiplyScalar(0.55 * amount);
+  }
+
+  /** Height of a key's top above the desk (keyboard-local). */
+  keyTop(id: string): number {
+    return this.keyById.get(id)?.top ?? 0.012;
+  }
+
   keyCentre(id: string, out: Vector3): Vector3 {
     const k = this.keyById.get(id)!;
     // Aim at the front third of black keys and the middle of white keys.

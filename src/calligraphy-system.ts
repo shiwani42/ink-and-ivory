@@ -328,6 +328,8 @@ export class CalligraphySystem extends createSystem({
   private lockBlend = 0;
   private calibHold = 0;
   private needLift = false;
+  private calibLow?: number; // lowest still touch over the calibration target, paper-local
+  private calibAsked = false;
   private fellThrough = false;
 
   // scratch
@@ -1313,12 +1315,22 @@ export class CalligraphySystem extends createSystem({
       this.mode = 'calibrate';
       this.log('calibrate');
       this.calibHold = 0;
+      this.calibLow = undefined;
+      this.calibAsked = false;
       this.ghostTarget(this.calX + 0.03, HOVER_Y + 0.02, this.calZ + 0.02);
       if (this.writeWith === 'pen' && this.craft === 'calligraphy') {
         this.setCaption(
           'STEP 2 OF 3  -  YOUR PEN',
           'Rest your pen on the seal',
           'Hold a real pen, brush or chopstick the way you write. Rest its tip on the red seal, keep still while the ring grows, then lift.',
+        );
+        return;
+      }
+      if (this.craft === 'piano') {
+        this.setCaption(
+          'BEFORE YOU PLAY  -  TOUCH',
+          'Rest a fingertip on the glowing C',
+          'Middle C, glowing red. Rest your fingertip on it for a moment: this tells the keys where your table is.',
         );
         return;
       }
@@ -1892,23 +1904,61 @@ export class CalligraphySystem extends createSystem({
       this.calibratePen(dt);
       return;
     }
-    const near = Math.hypot(this.tip.x - this.calX, this.tip.z - this.calZ) < 0.03;
-    if (near && this.tip.y < 0.045 && this.tipSpeed < 0.05) {
+    if (this.craft === 'piano') this.piano.beacon('C4', 0.35 + 0.45 * pulse);
+    // Where the fingertip actually rests is the real surface. Usually that is
+    // within a centimetre or two of the detected table; but a room scan can be
+    // stale (a standing desk raised or lowered since), so the touch can be far
+    // above or below. Near: accept after a short hold, as before. Far: keep
+    // the lowest still touch and confirm it when the finger lifts (a hand
+    // hovering above the target never counts), then move the set onto it.
+    const near = Math.hypot(this.tip.x - this.calX, this.tip.z - this.calZ) < 0.035;
+    const h = this.tip.y;
+    if (this.calibLow !== undefined && h > this.calibLow + 0.02) {
+      this.finishCalibration(this.calibLow); // lifted: that lowest touch was the surface
+      return;
+    }
+    if (near && h > -0.3 && h < 0.3 && this.tipSpeed < 0.05) {
       this.calibHold += dt;
-      if (this.calibHold > 0.35) {
-        this.surfaceOffset = Math.min(0.04, Math.max(-0.03, this.tip.y - TIP_CONTACT_Y));
-        this.progress.calibratedOffset = this.surfaceOffset;
-        this.calibrated = true;
-        this.desk.sealRing.scale.setScalar(1);
-        (this.desk.sealRing.material as { opacity: number }).opacity = 0.25;
-        this.sfx.stamp();
-        this.log(`calibrated offset ${this.surfaceOffset.toFixed(4)}`);
-        this.needLift = true; // the finger is still resting on the seal
-        this.beginPractice();
+      if (this.calibHold > 0.35 && (this.calibLow === undefined || h < this.calibLow - 0.002)) this.calibLow = h;
+      if (this.calibLow !== undefined && Math.abs(this.calibLow - TIP_CONTACT_Y) < 0.03) {
+        this.finishCalibration(this.calibLow);
+        return;
       }
-    } else {
+      if (this.calibLow !== undefined && this.calibHold > 0.35 && !this.calibAsked) {
+        this.calibAsked = true;
+        this.setCaption('STEP 2 OF 3  -  TOUCH', 'Now lift your finger', 'Your table is at a different height than the room scan said. Lift your finger and everything moves onto it.');
+      }
+    } else if (this.calibLow === undefined) {
       this.calibHold = 0;
     }
+  }
+
+  /** The fingertip rested at height `touch` (paper-local) over the calibration target. */
+  private finishCalibration(touch: number): void {
+    const offset = touch - TIP_CONTACT_Y;
+    this.calibLow = undefined;
+    this.calibAsked = false;
+    this.calibHold = 0;
+    if (Math.abs(offset) > 0.015) {
+      // Move the whole set (paper or keyboard, panels) onto the real surface.
+      this.desk.root.position.y += offset;
+      this.desk.root.updateWorldMatrix(true, true);
+      this.piano.fitToFloor(this.desk.root.matrixWorld.elements[13]);
+      this.surfaceOffset = 0;
+      this.tipFilter.reset();
+      this.log(`desk height corrected by ${(offset * 100).toFixed(1)} cm`);
+    } else {
+      this.surfaceOffset = offset;
+    }
+    this.progress.calibratedOffset = this.surfaceOffset;
+    this.calibrated = true;
+    this.desk.sealRing.scale.setScalar(1);
+    (this.desk.sealRing.material as { opacity: number }).opacity = 0.25;
+    if (this.craft === 'piano') this.piano.beacon('C4', 0);
+    this.sfx.stamp();
+    this.log(`calibrated offset ${this.surfaceOffset.toFixed(4)}`);
+    this.needLift = Math.abs(offset) <= 0.015; // still resting on the target (a far touch was confirmed by a lift)
+    this.beginPractice();
   }
 
   /**
@@ -2372,11 +2422,19 @@ export class CalligraphySystem extends createSystem({
     // compete with the notes).
     this.applyScene();
     this.layoutPanels();
-    // The calibration seal sits on the paper, or beside the keyboard.
-    this.calX = piano ? 0.215 : SEAL_X;
-    this.calZ = piano ? 0.085 : SEAL_Z;
+    // Calibration: the seal on the paper; at the piano, middle C itself
+    // (a calligraphy seal has no place on a keyboard).
+    if (piano) {
+      this.piano.keyCentre('C4', this.v);
+      this.calX = this.v.x;
+      this.calZ = this.v.z;
+    } else {
+      this.calX = SEAL_X;
+      this.calZ = SEAL_Z;
+    }
+    this.desk.seal.visible = !piano;
     this.desk.seal.position.set(this.calX, this.desk.seal.position.y, this.calZ);
-    this.desk.sealRing.position.set(this.calX, this.desk.sealRing.position.y, this.calZ);
+    this.desk.sealRing.position.set(this.calX, piano ? this.piano.keyTop('C4') + 0.0012 : SURFACE_Y + 0.0006, this.calZ);
     this.desk.cursor.visible = false;
     this.startLesson(this.firstUnpassed(), true);
   }
@@ -2967,7 +3025,8 @@ export class CalligraphySystem extends createSystem({
       if (!this.stepChoreo(dt, false)) {
         const cycle = (this.clock % 2.4) / 2.4;
         const tap = cycle < 0.45 ? Math.sin((cycle / 0.45) * Math.PI) : 0;
-        this.ghostTip.set(this.calX + 0.004, TIP_CONTACT_Y + (1 - tap) * 0.035, this.calZ);
+        const top = this.craft === 'piano' ? this.piano.keyTop('C4') - SURFACE_Y : 0;
+        this.ghostTip.set(this.calX + 0.004, top + TIP_CONTACT_Y + (1 - tap) * 0.035, this.calZ);
         this.easeLean(0, 0, dt);
       }
       this.updateCalibrate(dt);
