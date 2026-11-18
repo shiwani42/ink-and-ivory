@@ -54,7 +54,7 @@ It runs in the browser (WebXR), so a judge or a student opens a link and starts.
 - **Placement:** the app finds a table among the detected planes, ignores couches, beds and tilted surfaces, and anchors the set so it can return to the same spot next session.
 - **Lesson data:** stroke order and shapes come from KanjiVG (Chinese and Japanese, including hiragana). The English italic letters are our own drawings, written in the order a scribe would write them.
 - **Models:** every object, from the brush to the grand piano, is built by one Blender Python script, with baked shadows where parts meet.
-- **Assets:** 360-degree places from Poly Haven and Wikimedia Commons (CC0), sampled grand piano notes, and public-domain melodies with our own arrangements.
+- **Assets:** 360-degree places from Poly Haven (CC0) and a garden 360 shot by our team, sampled grand piano notes, and public-domain melodies with our own arrangements.
 - **Sound:** spatial, so each note comes from its key and the brush sounds where it touches.
 - **Testing:** we didn't have a headset for most of the build. We wrote automated tests that drive the IWSDK emulator's hands through the experience:
   - every lesson, plus wrong strokes that must get the right hint;
