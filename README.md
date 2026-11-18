@@ -5,7 +5,7 @@
 **Learn a craft inside a master's hands. Meta Quest, hands only.** A master's translucent "ghost" hand works beside yours on your real desk. Follow it with your own fingertip; stay in step and the two hands lock together in gold. As you improve, the master fades away and lets you work alone.
 
 Two crafts, four places, and a full course (about 180 short lessons in units, like a language app):
-- **Calligraphy** in **Japanese** (on the veranda of Kennin-ji, Kyoto's oldest Zen temple: 75 lessons, kanji interleaved with hiragana), **Chinese** (a classical garden: 50 lessons) or **English italic** with a broad nib (a medieval cloister: 32 lessons, letter families, then words).
+- **Calligraphy** in **Japanese** (on the veranda of a Japanese garden veranda: 75 lessons, kanji interleaved with hiragana), **Chinese** (a classical garden: 50 lessons) or **English italic** with a broad nib (a medieval cloister: 32 lessons, letter families, then words).
 - **Piano** at a black concert grand in a music room: 26 songs and drills in 5 units, starting with **Happy Birthday**, plus **Today's echo** (a new phrase every day) and **your own music**: play a tune to the master and it learns it, add a MIDI file, or open a tune someone shared as a link.
 - **Practice that adapts:** each pass of a lesson lowers the help (full guide, outline only, from memory), and within an attempt the master fades while you keep up and comes back after a slip. A daily goal, a streak and a Review button bring the weakest lesson back.
 
@@ -130,7 +130,7 @@ To add a character, drop its KanjiVG SVG into `tools/kanjivg/`, run `npm run dat
 
 ## Credits
 - **Places (360-degree photographs):**
-  - Kennin-ji moss garden veranda, by AsPJT, **CC0**, via Wikimedia Commons.
+  - Japanese garden veranda 360 by Yosun Chang (Ink and Ivory team).
   - Chinese Garden and Ballroom HDRIs, **Poly Haven**, CC0.
   - Historic Cloister Passage HDRI by Elvis Posa, **Poly Haven**, CC0.
   - Studio lighting: Brown Photostudio 02 HDRI by Sergej Majboroda, **Poly Haven**, CC0.

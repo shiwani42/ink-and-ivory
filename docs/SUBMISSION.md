@@ -21,7 +21,7 @@ Crafts of the hand, like calligraphy and the piano, are learned by watching a ma
 
 ### What it does
 - **The paper arrives.** Sit at any table and put on your Quest. A writing set unrolls onto your real desk: felt mat, washi paper with a practice grid, a brush on its rest, an inkstone and a seal set.
-- **You travel there.** Your room dissolves, like ink soaking into washi, into the place the craft belongs to: the veranda of Kennin-ji's moss garden in Kyoto for Japanese, a classical garden for Chinese. A desk stands exactly where your real table is, so you still touch something real. One tap on Scene brings your room back.
+- **You travel there.** Your room dissolves, like ink soaking into washi, into the place the craft belongs to: a Japanese garden veranda for Japanese, a classical garden for Chinese. A desk stands exactly where your real table is, so you still touch something real. One tap on Scene brings your room back.
 - **Watch the master.** A translucent hand writes the character in vermilion ink.
 - **Your turn, stroke by stroke.** The master waits at a glowing start point, then leads the stroke at your tempo. You follow with your index fingertip and touch the real desk to put ink down. A ring under your fingertip shows where the ink will land.
 - **Lock-in.** Stay in step and the master's hand slides onto yours and turns gold, a bell rings, and your ink turns gold.
@@ -30,7 +30,7 @@ Crafts of the hand, like calligraphy and the piano, are learned by watching a ma
 
 - **Piano.** Switch craft and a keyboard lands on your table, then you're in a white music room at a black concert grand. The master plays a phrase and you echo it, phrase by phrase, then the whole song. It counts you in, and the next key pulses exactly on the beat. Press with any fingertip and a note floats up, gold if you were on the beat. It starts with Happy Birthday, the song everyone knows, then teaches the keyboard itself (the black-key map, hand positions, sharps and flats, scales) before songs from around the world, from Frère Jacques to Für Elise. Every day brings a new phrase to echo. Or bring your own: play a tune to the master and it learns it and teaches it back, add a MIDI file, or send someone a link and their master already knows your tune.
 
-Calligraphy comes in Japanese (with hiragana), Chinese and English italic, each with its own place: a Kyoto temple, a Chinese garden, a medieval cloister. English is written with a broad nib, so strokes swell and thin like a real pen. About 180 short lessons are grouped into units like a language course, from 永 ("eternity", the Eight Principles of the brush) to words. The master lets go as you learn: each time you pass a lesson it helps less (full guide, then the outline, then from memory), and within a stroke it fades while you keep up and returns if you slip. A daily goal, a streak and a Review button bring you back.
+Calligraphy comes in Japanese (with hiragana), Chinese and English italic, each with its own place: a Japanese garden veranda, a Chinese garden, a medieval cloister. English is written with a broad nib, so strokes swell and thin like a real pen. About 180 short lessons are grouped into units like a language course, from 永 ("eternity", the Eight Principles of the brush) to words. The master lets go as you learn: each time you pass a lesson it helps less (full guide, then the outline, then from memory), and within a stroke it fades while you keep up and returns if you slip. A daily goal, a streak and a Review button bring you back.
 
 Everything works with hands alone, one hand is enough, and left-handed writers are detected automatically. Tempo and guide strength are adjustable, and every instruction has a caption.
 
@@ -93,7 +93,7 @@ Hands-first design is mostly about feedback and forgiveness. The real desk gives
 
 ### Credits
 - KanjiVG stroke data (CC BY-SA 3.0, Ulrich Apel and contributors).
-- Kennin-ji 360 photograph by AsPJT (CC0, Wikimedia Commons); Chinese Garden, Ballroom and Historic Cloister Passage HDRIs (CC0, Poly Haven). English italic letters: original.
+- Chinese Garden, Ballroom and Historic Cloister Passage HDRIs (CC0, Poly Haven). English italic letters: original.
 - Music: "Yoiyami Core Theme", "Oriental Somber", and "Asianoriental1" and "Asianoriental2" by Tozan (all CC0, OpenGameArt).
 - Salamander Grand Piano samples by Alexander Holm (CC-BY 3.0).
 - Textures from Poly Haven and ambientCG (CC0).
@@ -110,7 +110,7 @@ Record on the headset (Quest's built-in recorder, or MQDH casting on Windows) at
 | 0:08 to 0:20 | Your hand follows the ghost on the first stroke. **Lock-in: the hands merge and the ink turns gold, with a bell** | "Move with the master, and your hands become one." |
 | 0:20 to 0:35 | Wide shot: a person seated, no controllers, writing with a fingertip on a real table | "Hands only. Any table. No controllers." |
 | 0:35 to 1:05 | Onboarding: start, paper arrives, watch, touch the seal, the first stroke on 一 with the hover ring | "It teaches by showing, not telling." |
-| 1:05 to 1:20 | **The room dissolves like ink into Kennin-ji's moss garden**; the desk stays under your hand | "Then go where the craft lives." |
+| 1:05 to 1:20 | **The room dissolves like ink into a Japanese moss garden**; the desk stays under your hand | "Then go where the craft lives." |
 | 1:20 to 1:35 | A mistake: a reversed stroke. "Other direction" hint, ink fades, try again, then gold | "Kind, precise corrections, stroke by stroke." |
 | 1:35 to 1:55 | The full 永: five strokes, gold, the seal stamp | "Eight principles of the brush, in five strokes." |
 | 1:55 to 2:25 | Switch to Piano: keyboard lands, the music room and grand appear, the master plays, you play Ode to Joy, gold notes float up | "The same apprenticeship, for any craft of the hand." |

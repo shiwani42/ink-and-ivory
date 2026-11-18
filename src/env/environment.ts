@@ -1,3 +1,4 @@
+import { createLogoCap } from './logo-cap.js';
 import {
   AssetManager,
   BackSide,
@@ -38,16 +39,16 @@ export interface SceneDef {
 
 export const SCENES: Record<string, SceneDef> = {
   japan: {
-    // The veranda of Kennin-ji's moss garden, Kyoto's oldest Zen temple, with
-    // a calligraphy scroll on the wall: where shodo is practised.
+    // A Japanese moss-and-gravel garden seen from a tatami room's veranda: a
+    // full 360 panorama made by our teammate Yosun Chang for Ink and Ivory.
     id: 'japan',
-    name: 'Kennin-ji, Kyoto',
-    panorama: 'env/kenninji.jpg',
-    light: 'env/kenninji.jpg',
-    credit: 'Kennin-ji 360 by AsPJT, CC0, via Wikimedia Commons',
+    name: 'Garden veranda',
+    panorama: 'env/yosun_garden.jpg',
+    light: 'env/yosun_garden.jpg',
+    credit: 'Garden 360 by Yosun Chang (Ink and Ivory team)',
     tracks: ['audio/practice-somber.mp3', 'audio/practice-yoiyami.mp3'],
-    yaw: Math.PI * 0.5 - 1.05, // face the moss garden, not the corridor
-    calm: 1,
+    yaw: Math.PI * 0.5, // the garden straight ahead
+    calm: 0.55,
   },
   china: {
     id: 'china',
@@ -154,7 +155,13 @@ export class Environment {
     this.mesh.renderOrder = -100;
     this.mesh.frustumCulled = false;
     this.mesh.visible = false;
+    // The Ink and Ivory seal caps the top of every place (it also hides the
+    // point where a panorama pinches together).
+    this.cap = createLogoCap();
+    this.mesh.add(this.cap);
   }
+
+  private readonly cap: Mesh;
 
   get scene(): SceneDef | undefined {
     return this.current;
@@ -224,5 +231,6 @@ export class Environment {
       ? Math.min(this.target, u.uOpacity.value + step)
       : Math.max(this.target, u.uOpacity.value - step);
     this.mesh.visible = u.uOpacity.value > 0.001 && !!u.uMap.value;
+    (this.cap.material as { opacity: number }).opacity = Math.min(1, u.uOpacity.value * 1.2);
   }
 }

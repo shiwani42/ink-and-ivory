@@ -449,6 +449,9 @@ export class CalligraphySystem extends createSystem({
     if (import.meta.env.DEV) {
       // Dev only: tools feed a test photo to the own-background converter.
       (window as unknown as { __hoamAddPano?: (f: File) => Promise<void> }).__hoamAddPano = (f) => this.addPano(f);
+      void import('./env/logo-cap.js').then(({ drawLogo }) => {
+        (window as unknown as { __hoamLogo?: () => string }).__hoamLogo = () => drawLogo(1024).toDataURL('image/png');
+      });
     }
     if (this.preset?.state === 'fresh') {
       clearProgress();
