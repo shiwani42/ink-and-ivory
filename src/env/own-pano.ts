@@ -2,11 +2,13 @@
  * Your own background: any photo becomes the 360-degree place around you.
  *
  * - A 360 panorama (about 2:1, equirectangular) is used as it is.
- * - Any other photo goes through a simple image-to-panorama converter: the
- *   photo sits in front of you like a large window, about 100 degrees wide on
- *   the horizon, with feathered edges, and the rest of the sphere is filled
- *   with a heavily blurred stretch of the same photo, so its colours and light
- *   wrap all the way round.
+ * - A wide partial panorama (2.3:1 or wider) wraps across its own field of
+ *   view, estimated from its shape (3:1 is about 180 degrees).
+ * - Any other photo sits in front of you like a large window, about 100
+ *   degrees wide on the horizon.
+ * In both cases the edges are feathered and the rest of the sphere is filled
+ * with a blurred, seamless (mirrored) stretch of the same image, so its
+ * colours and light wrap all the way round.
  *
  * The result (a 4096 x 2048 JPEG) is kept in IndexedDB, in this browser only.
  */
@@ -100,12 +102,18 @@ export async function makeOwnPano(file: File): Promise<{ blob: Blob; converted: 
     bctx.drawImage(small, sw, 0);
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(blurred, 0, 0, W, H);
-    // The photo itself, in front of you (the centre of the panorama), with feathered edges.
-    const w = W * (100 / 360);
-    const h = Math.min(H * 0.62, (w * img.height) / img.width);
-    const ww = (h * img.width) / img.height;
+    // The photo itself, centred in front of you, with feathered edges. An
+    // ordinary photo spans about 100 degrees, like a big window. A wide
+    // partial panorama (2.3:1 or wider) wraps across its own field of view,
+    // estimated from its shape at about 60 degrees tall (3:1 is about 180).
+    const aspect = img.width / img.height;
+    const partial = aspect >= 2.3;
+    const hfov = partial ? Math.min(330, aspect * 60) : 100;
+    const w = W * (hfov / 360);
+    const h = Math.min(H * (partial ? 0.8 : 0.62), w / aspect);
+    const ww = h * aspect;
     const x = W / 2 - ww / 2;
-    const y = H / 2 - h * 0.55;
+    const y = H / 2 - h * (partial ? 0.5 : 0.55);
     const tile = document.createElement('canvas');
     tile.width = Math.round(ww);
     tile.height = Math.round(h);
