@@ -1,5 +1,9 @@
 import {
   AssetManager,
+  BufferGeometry,
+  Float32BufferAttribute,
+  LineBasicMaterial,
+  LineSegments,
   CanvasTexture,
   CircleGeometry,
   Color,
@@ -227,6 +231,8 @@ export interface DeskSet {
   /** Brush paper with the practice grid, or plain lettering paper. */
   setPaper: (style: 'grid' | 'lined') => void;
   virtualTable: Object3D; // shown only when no real desk was found
+  /** Your real paper pad: hide the virtual mat and sheet (passthrough shows the real one); an outline marks where to lay it. */
+  setSeeThrough: (on: boolean) => void;
 }
 
 export function createDeskSet(): DeskSet {
@@ -262,7 +268,8 @@ export function createDeskSet(): DeskSet {
   felt.normalScale.set(0.7, 0.7);
   const mat = new Mesh(matGeo, felt);
   callig.add(mat);
-  callig.add(contactShadow(MAT_W * 1.25, MAT_D * 1.2, 0.4));
+  const matShadow = contactShadow(MAT_W * 1.25, MAT_D * 1.2, 0.4);
+  callig.add(matShadow);
 
   // Washi: painted colour + grid, real fibre normals and roughness.
   const gridTex = paperTexture(true);
@@ -413,8 +420,29 @@ export function createDeskSet(): DeskSet {
     }
   };
 
+  // Outline of the sheet and its centre lines, for lining up a real pad.
+  const hw = PAPER_W / 2;
+  const hd = PAPER_D / 2;
+  const outlinePts = [
+    -hw, 0, -hd, hw, 0, -hd, hw, 0, -hd, hw, 0, hd, hw, 0, hd, -hw, 0, hd, -hw, 0, hd, -hw, 0, -hd,
+    0, 0, -hd, 0, 0, hd, -hw, 0, 0, hw, 0, 0,
+  ];
+  const outlineGeo = new BufferGeometry();
+  outlineGeo.setAttribute('position', new Float32BufferAttribute(outlinePts, 3));
+  const outline = new LineSegments(outlineGeo, new LineBasicMaterial({ color: '#c8321f', transparent: true, opacity: 0.85 }));
+  outline.position.y = SURFACE_Y + 0.0006;
+  outline.visible = false;
+  callig.add(outline);
+  const setSeeThrough = (on: boolean) => {
+    mat.visible = !on;
+    matShadow.visible = !on;
+    paperMesh.visible = !on;
+    weight.visible = !on;
+    outline.visible = on;
+  };
+
   return {
     root, body, paper, seal, sealRing, stamp, hanko, cursor, callig, virtualTable,
-    brushSet, penSet, restingBrush: brush, restingPen: pen, setPaper,
+    brushSet, penSet, restingBrush: brush, restingPen: pen, setPaper, setSeeThrough,
   };
 }

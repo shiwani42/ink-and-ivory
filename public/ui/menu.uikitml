@@ -106,6 +106,7 @@
   </div>
   <div class="row">
     <div id="btn-recenter" class="btn grow"><div class="btn-label">Recenter in front of me</div></div>
+    <div id="btn-pad" class="btn grow"><div id="btn-pad-label" class="btn-label">Paper: virtual</div></div>
   </div>
   <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0; italic letters original. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, ambientCG; garden 360 and voice by Yosun Chang. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
 </div>

@@ -75,6 +75,17 @@ def main():
     except TimeoutError:
         print('    FAIL: nothing spoken'); ok = False
 
+    print('5. paper pad mode (see-through)')
+    m5 = E.mark()
+    E.press('btn-pad', 'hand-left')
+    try:
+        E.wait_for(r'paper real pad', m5, 8)
+        time.sleep(1)
+        E.shot('paper-pad')
+        print('    on')
+    except TimeoutError:
+        print('    FAIL: paper toggle'); ok = False
+
     print('PASS' if ok else 'FAIL')
     return 0 if ok else 1
 

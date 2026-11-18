@@ -278,6 +278,8 @@ export class CalligraphySystem extends createSystem({
   /** The reference space whose 'reset' (holding the Meta button) we listen to. */
   private resetRef?: XRReferenceSpace;
   private recenterPending = false;
+  /** Paper pad mode: your real paper shows through; the master's strokes and your ink draw on it. */
+  private seeThrough = false;
   /** Whether IWSDK's own hand meshes are drawn over your tracked hands (undefined: not yet set). */
   private handMeshesOn?: boolean;
   private sayAudio?: HTMLAudioElement;
@@ -657,6 +659,7 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'btn-tool', () => this.toggleWriteWith());
     on(this.menu, 'btn-say', () => this.sayCharacter());
     on(this.menu, 'btn-recenter', () => this.recenter('menu'));
+    on(this.menu, 'btn-pad', () => this.toggleSeeThrough());
     on(this.menu, 'lang-english', () => this.setLanguage('english'));
     on(this.welcome, 'share-button', () => void this.copyTuneLink());
     on(this.menu, 'btn-slower', () => this.setTempo(this.tempo - 0.1));
@@ -2379,6 +2382,21 @@ export class CalligraphySystem extends createSystem({
       () => this.log(`say ${this.lesson.id}`),
       (error: unknown) => this.log(`say ${this.lesson.id} failed ${String(error)}`),
     );
+  }
+
+  /** Menu "Paper": the virtual sheet, or your real paper pad seen through it (beta). */
+  private toggleSeeThrough(): void {
+    this.seeThrough = !this.seeThrough;
+    this.desk.setSeeThrough(this.seeThrough);
+    this.text(this.menu, 'btn-pad-label', this.seeThrough ? 'Paper: my real pad' : 'Paper: virtual');
+    this.log(`paper ${this.seeThrough ? 'real pad' : 'virtual'}`);
+    if (this.seeThrough && this.craft === 'calligraphy') {
+      this.setCaption(
+        this.lessonEyebrow(),
+        'Your real paper pad',
+        'Lay your pad inside the red outline (Recenter or "Move paper here" moves the outline). The master writes on your paper; follow with your pen or brush.',
+      );
+    }
   }
 
   /** Use the pen learned earlier, if any. */
