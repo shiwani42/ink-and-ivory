@@ -41,3 +41,15 @@ Taken from the reference tutor's `src/` and verified in the IWSDK emulator. They
 - **Import a MIDI file** on the 2D start page: a UIKit button clicks a hidden `<input type="file" accept=".mid,.midi">` (the panel click counts as the user gesture), plus `dragover`/`drop` on `window`; remove both in `cleanupFuncs`. Parser (~100 lines, no dependency): SMF format 0/1, ticks per quarter (reject SMPTE), running status, first tempo meta, skip channel 10 and velocity-0 note-ons, skyline (highest note per onset within division/16 ticks), fit into range by whole octaves then fold, cap at 40 notes, durations in quarter beats rounded to 0.25.
 - **Storage:** localStorage under a versioned key, try/catch; reset that slot's score when its content changes; show its name on the last tile.
 - **Unit test** the parser with a MIDI written by a few lines of Python (header, tempo track, chords, a drum note, running status), bundled with esbuild and run in node.
+
+## Several fingers and chords (piano-style keys)
+- **Each extended fingertip presses its own key.** A finger that isn't its hand's lowest must clearly touch (about 60% of the press height), so a neighbour dipping as the hand lands stays silent. Curled fingers never play. Reuse one preallocated `pressed` array per frame.
+- **Scoring:** if any press is the expected key, count it and let the others just sound. Count at most one wrong note per press, so an extra finger never costs the learner.
+- **Perform-to-teach:** keep a chord's top note (taps within 80 ms merge; keep the higher MIDI), the same skyline rule as MIDI import.
+- **Test:** an open hand, palm down, fingers forward, dropped onto the keys must sound at least 2 keys (`tools/e2e_chord.py`).
+
+## Headset off and on
+- Quest may blur the session (system menu, headset off briefly), so pause cleanly on `visible-blurred`.
+- Or it may end the session (sleep), so after restarting, everything must work again: placement, calibration, writing and menu pokes.
+- Test with `xr exit` then `xr enter` mid-journey (`tools/e2e_restart.py`).
+- The emulator CLI can't drive the blurred state; ask a headset tester what they see: the 2D page, a frozen scene, or dead hands.

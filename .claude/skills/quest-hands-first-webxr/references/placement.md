@@ -54,3 +54,14 @@ IWSDK 1.1.0 already restores a persistent anchor at the reference-space origin t
    - Never use it for user-requested re-placements.
    - The private fields come from `world.getSystem(SceneUnderstandingSystem)`.
 6. **Placement report line**, the web stand-in for MRUK's Scene Debugger: one log line per placement saying why each plane was passed over.
+
+## The room scan can be stale: let the first touch fix the height (Quest 3S tester, 18 Nov 2026)
+A Space Setup table plane is a snapshot. A standing desk raised or lowered since then leaves content floating below or above the real top, and you can't reach virtual keys sunk inside a real desk. The calibration touch already measures the real surface, so use it to move the content:
+- Accept touches over the target within about ±30 cm, but only when the finger is still.
+- **Near** (within 3 cm of expected): accept after a short hold, as before.
+- **Far:** keep the *lowest* still touch and confirm it when the finger lifts 2 cm. A hand hovering above the target never counts.
+- **Then move the whole set** (`root.position.y += offset`) and zero the contact offset. Panels parented to the set follow. Say "Your table is at a different height than the room scan said. Lift your finger and everything moves onto it."
+- **Test it:** `tools/e2e_height.py` in Hands of a Master (table +10 cm and −8 cm, then write on it).
+
+## Calibration targets belong to the activity
+A calligraphy seal on a piano reads wrong. Use the activity's own object: a glowing middle C that the guide taps. Make the target glow even when the activity's update loop isn't running (set the material directly).

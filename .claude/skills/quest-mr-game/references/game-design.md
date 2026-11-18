@@ -12,6 +12,12 @@
 - **Expressions** follow game state: smug baseline, a modest squint when watching, laugh, anger, sneer (character-pipeline.md §5).
 - **Bring the game to the NPC:** a seated character can't reach the far side of a real table; let objects slide or "obey" him.
 
+### Tells of knowledge, not only of motion (Chausar, 18 Nov 2026)
+A cheat who **knows the result early** is a second, audible tell: Shakuni names the total of a loaded throw while the dice are still in the air (the forced faces are known at release). Honest results are named only after they land, if at all, so the tell is *timing*, not speech. Make it probabilistic (about 3 in 4) so it stays a tell, not a giveaway, but force it on the scripted first cheat so every player meets it. A whispered hint ("he named it before they stopped…") comes only after the tutorial cheat.
+
+### Let the player inspect the evidence
+After the first exposure (once per visit), present the NPC's tool for inspection: float it in front of the player about 0.43 m away, below and to the side of the captions (comfort: never move the view; keep presented objects below eye level), scale it up about 1.5×, turn each piece on its own long axis so every face shows, glow it in the colour the cheat used, and tell the legend *as legend*. A touch spins it and rings. Shrink it back smoothly before it returns.
+
 ## 3. Rules first, as pure code
 - Pure TypeScript module, no three.js; run thousands of AI-vs-AI games with `node file.ts` (`scripts/test/rules-sim.example.ts`).
 - Gate before 3D: session length and balance in range.
@@ -30,6 +36,9 @@ Use the detected plane's outline (core placement.md) to lay a themed cover cut t
 - Wall-replacing dome faded out below about −15° so the table, hands and floor stay passthrough (core visual-quality.md §4); reveal with the NPC's entrance, dissolve back to the real room on the win ("your room, your kingdom"). Reference: `reference/runtime/palace.ts`.
 - 3D pieces in front of the dome: an arch framing the NPC, symmetric pillars or lamps flanking the seat; nothing between the player and the play area.
 - Real-world scale: chairs 0.9 m, standing lamps 1.1–1.2 m, pillars 2.6–2.9 m, arches ~2.7 m, table props ~0.1 m. Floor at −tableHeight in board space.
+
+- **Put the wager on the table:** "wealth disappears" works best as objects the player can see change hands. Chausar: eight stacks of ten gold mohurs on the board's right-hand margin (one `InstancedMesh` of lathe-turned coins, full metal, reflecting the room's IBL), half each; a capture sweeps a stack across to the captor coin by coin on an arc (top coin first, a synthesised clink cascade on landing), getting caught costs a stack, exposing the NPC wins one, the winner takes the rest. A take-back returns the stack. Ask the shadow rig for a refresh while stacks move (instance matrices don't trip object-motion watching).
+- **End on a question, not a score:** a closing line chosen from per-match counts (player's cheats landed, NPC cheats caught vs missed), grounded in the source (e.g. "Vidura warned them, and the elders kept silent"). It turns the mechanic into the theme.
 
 ## 7. Juice (see `chausar/src/game/juice.ts`)
 - Piece hops: anticipation squash → stretch → squash on landing → settle with overshoot; a landing dust puff and a pitched tap per step; a bigger thump and a ring on the last step.

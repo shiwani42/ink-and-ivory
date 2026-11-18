@@ -143,4 +143,5 @@ Score the four criteria honestly. List what only a headset can prove (testing.md
 | A test of tracking loss can't resume the hold | IWER reconnects a hand open (pinch 0) | `xr set-device-state` with `connected`, `position` and `pinchValue` in one call |
 | A take-back or flip window test is flaky | each CLI call costs ~1 s | pre-position the hand before the window opens |
 | A skinned hand or character draws nothing (or sits at the origin) after `clone(true)` | `Object3D.clone` keeps a SkinnedMesh bound to the *original* bones | use the loaded scene once, or `SkeletonUtils.clone` |
+| Only the last of two narrator lines appears | a subtitle system that replaces queued lines of the same voice | send a multi-sentence passage as one call (it pages itself) |
 | `metavr asset search` "Invalid API response" | server-side gate (Nov 2026) | Poly Haven, ambientCG, Commons, Blender scripts |
