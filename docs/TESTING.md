@@ -157,3 +157,9 @@ Chromium stops drawing a headed window that can't be seen (screen locked or asle
 - `python3 tools/e2e_pen.py`: **PASS**. A tripod grip with the pen tip 9.1 cm from the index knuckle; the app learned 9.1 cm; stroke 88. Calibration takes the lowest still pose over the seal and confirms it on lift, so a hovering hand can't calibrate. Only a headset can show how much a real wrist's rotation moves the tip (a 9 cm lever: 10 degrees is about 1.6 cm).
 - Controllers instead of hands: the card says "Put your controllers down" and where to turn on hand tracking (checked in the emulator by switching the input mode).
 - Regression after both: `e2e.py --lessons 2 --piano 1 --compose` PASS (85, 84, 86, 83, 86), `e2e_hands.py` 7/7 PASS.
+
+## Yosun's headset feedback (Quest 3S, 18 Nov)
+- Keys below a standing desk: `tools/e2e_height.py` PASS (table +10 cm and -8 cm; the set moved 10.0 and 7.9 cm; strokes 88). The piano calibrates on a glowing middle C, not a seal.
+- Several fingers: `tools/e2e_chord.py` PASS (an open hand sounds 3-4 keys). In a song, the right key counts and the others only sound; a chord in "your tune" is learned by its top note.
+- Headset off and on: `tools/e2e_restart.py` PASS (a stroke after the session ends and restarts scored 92; menu pokes work). A blurred session (system menu) can't be driven from this emulator; it pauses by design (visibility "visible-blurred").
+- Regression: `e2e.py --lessons 1 --piano 2 --compose` PASS (87, 83, 87, 86), `e2e_hands.py` 7/7.

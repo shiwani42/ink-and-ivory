@@ -100,6 +100,7 @@ export class PianoMode {
   private inTime = 0;
   private fingerDown = new Array<boolean>(10).fill(false);
   private lowest = [-1, -1];
+  private readonly pressed: Key[] = [];
   private tapClock = 1; // seconds since the master last tapped
   private target = new Vector3();
   private tmp = new Vector3();
@@ -277,12 +278,14 @@ export class PianoMode {
   }
 
   /**
-   * A new key press by any hand, or undefined. Songs are one note at a time,
-   * so per hand only the lowest extended fingertip can play: curled
-   * neighbours that dip near the desk as the hand comes down must not sound
-   * the keys beside it.
+   * New key presses this frame, one per finger, into `this.pressed`. Every
+   * extended fingertip can play its own key, so chords and several fingers
+   * work. Curled fingers never play, and a finger that is not the lowest of
+   * its hand must clearly touch (a stricter height), so a neighbour dipping as
+   * the hand comes down does not sound the key beside it.
    */
-  private detectPress(tips: FingerTip[], surfaceOffset: number): Key | undefined {
+  private detectPresses(tips: FingerTip[], surfaceOffset: number): Key[] {
+    this.pressed.length = 0;
     this.lowest[0] = this.lowest[1] = -1;
     for (let f = 0; f < tips.length; f++) {
       if (!tips[f].valid || !tips[f].extended || !this.keyAt(tips[f].x, tips[f].z)) continue;
@@ -296,23 +299,21 @@ export class PianoMode {
         this.fingerDown[f] = false;
         continue;
       }
-      if (f !== this.lowest[0] && f !== this.lowest[1]) {
-        if (tip.y - surfaceOffset > UP_H) this.fingerDown[f] = false;
-        continue;
-      }
       const h = tip.y - surfaceOffset;
       if (this.fingerDown[f]) {
         if (h > UP_H) this.fingerDown[f] = false;
         continue;
       }
-      if (h >= DOWN_H || h < -0.06) continue;
+      if (!tip.extended) continue;
+      const lowest = f === this.lowest[0] || f === this.lowest[1];
+      if (h >= (lowest ? DOWN_H : DOWN_H * 0.6) || h < -0.06) continue;
       const key = this.keyAt(tip.x, tip.z);
       if (!key) continue;
       this.fingerDown[f] = true;
-      if (this.clock - key.lastHit < 0.12) continue;
-      return key;
+      if (this.clock - key.lastHit < 0.12 || this.pressed.includes(key)) continue;
+      this.pressed.push(key);
     }
-    return undefined;
+    return this.pressed;
   }
 
   private hit(k: Key, velocity: number, color: Color): void {
@@ -364,7 +365,12 @@ export class PianoMode {
     if (this.phase === 'play') {
       const expected = this.song.notes[this.noteIndex];
       this.keyCentre(expected.note, this.target);
-      const key = this.detectPress(tips, surfaceOffset);
+      const presses = this.detectPresses(tips, surfaceOffset);
+      // Several keys at once: the right one counts; the others just sound.
+      // Only when none of them is right does it count as one wrong note.
+      let key: Key | undefined = presses[0];
+      for (const k of presses) if (k.id === expected.note) key = k;
+      for (const other of presses) if (other !== key) this.hit(other, 0.5, VERMILION);
       if (key) {
         const correct = key.id === expected.note;
         if (correct) {
@@ -409,10 +415,15 @@ export class PianoMode {
     }
 
     if (this.phase === 'listen') {
-      const key = this.detectPress(tips, surfaceOffset);
-      if (key) {
+      for (const key of this.detectPresses(tips, surfaceOffset)) {
         this.hit(key, 0.85, GOLD);
-        this.taps.push({ midi: key.midi, t: this.clock });
+        // A chord is remembered by its top note (the melody), like a MIDI import.
+        const prev = this.taps[this.taps.length - 1];
+        if (prev && this.clock - prev.t < 0.08) {
+          if (key.midi > prev.midi) prev.midi = key.midi;
+        } else {
+          this.taps.push({ midi: key.midi, t: this.clock });
+        }
         this.keyCentre(key.id, this.target); // the master's hand follows yours
         event = { type: 'heard', count: this.taps.length };
       }

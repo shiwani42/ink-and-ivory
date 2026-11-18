@@ -487,7 +487,10 @@ export class CalligraphySystem extends createSystem({
     this.desk.body.add(fx);
     fx.add(this.sparks.points);
     this.piano = new PianoMode({
-      play: (midi, velocity, x, y, z) => this.sfx.piano(midi, velocity, x, y, z),
+      play: (midi, velocity, x, y, z) => {
+        this.sfx.piano(midi, velocity, x, y, z);
+        if (import.meta.env.DEV) this.log(`key ${midi}`);
+      },
       sparks: (x, y, z, n) => this.sparks.burst(x, y, z, n, 0.12),
       tick: (accent) => this.sfx.tok(accent ? 1.35 : 1.1),
     });
