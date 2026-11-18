@@ -78,7 +78,9 @@ How the build meets the Meta VR Start Developer Competition 2026 rules and judgi
 ## Criterion 3: Technical Implementation
 - **Hand tracking:**
   - 25-joint tracking per hand (`getJointPose`, `fillPoses`), with One Euro smoothing.
-  - Contact detection with hysteresis plus a per-desk calibration.
+  - Contact detection with hysteresis plus a per-desk calibration. The calibration touch also fixes stale room scans: if the real table is centimetres above or below the detected plane (a standing desk moved since Space Setup, reported by a Quest 3S tester), the lowest still touch, confirmed on lift, moves the whole set onto the real surface. At the piano the target is a glowing middle C.
+  - Piano with several fingers and chords: each extended fingertip presses its own key; non-lowest fingers must clearly touch.
+  - Optional real pen or brush (beta): the tool tip is calibrated relative to the index knuckle, so a real tip touches the real desk.
   - Pressure-proxy brush width.
   - The writing hand is chosen by height over the paper. Hands resting below it are ignored.
   - Fingertip poke for UI, using a custom press test against each UIKit button's rectangle, alongside pinch-ray. The emulator's touch pointer didn't click UIKit buttons, so we added our own; both paths share one debounced trigger.

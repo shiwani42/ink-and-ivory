@@ -41,12 +41,31 @@ Everything works with hands alone, one hand is enough, and left-handed writers a
 - **Lock-in:** we blend the master's joints onto your tracked joints.
 - **Strokes:** shapes and order come from KanjiVG and are converted to timed paths with a press-travel-settle profile.
 - **Ink:** preallocated ribbons, with width driven by fingertip speed as a stand-in for brush pressure, and a dry-brush texture.
-- **Fingertip tracking:** One Euro smoothing, touch detection with hysteresis, and a one-touch calibration on the seal.
+- **Fingertip tracking:** One Euro smoothing and touch detection with hysteresis. One touch on the seal (or on middle C at the piano) calibrates contact. If your table isn't where the room scan says (a standing desk moved since setup), that touch moves the whole set onto the real surface.
+- **A tool in the hand:** the master holds a brush for Chinese and Japanese and a broad-edge dip pen for English, and so does your hand, with the tip where your fingertip writes. In beta, you can write with a real pen or brush instead: rest its tip on the seal and the app learns where the tip is relative to your knuckle.
 - **Places:** 360-degree photographs on a sphere that follows your head. One shader softens the place so the paper stays the focus, and runs the ink-bleed dissolve between your room and the place.
-- **Piano:** for each hand, the lowest extended fingertip over a key presses it, with hysteresis and a debounce, so a resting hand doesn't play. Real sampled grand piano notes; rhythm judged against the beat.
+- **Piano:** every extended fingertip plays its own key, so chords sound. A finger that isn't its hand's lowest must clearly touch, so a dipping neighbour stays silent, and curled fingers never play. Presses use hysteresis and a debounce. Long songs are taught phrase by phrase, with a count-in and a key that pulses on the beat. Real sampled grand piano notes; rhythm judged against the beat.
+- **Hand input per Meta's guidance:**
+  - poke hover and press feedback;
+  - thumbs-up for Next lesson (held 0.6 s);
+  - lost tracking pauses the work rather than scoring it;
+  - a "Put your controllers down" prompt if a judge picks them up.
+- **Rooms you never tested:**
+  - couches, beds, screens and tilted surfaces are refused;
+  - small side tables are used;
+  - the desk comes back to the same spot next session (persistent anchor).
 - **Models:** every object, from the brush to the grand piano, is built by one Blender Python script and exported as glTF.
 - **Sound:** CC0 music per place, sampled piano, and effects synthesized with Web Audio.
-- **Testing:** we wrote an automated test that drives the IWSDK emulator's hands through every lesson, including wrong strokes that must get the right hint.
+- **Testing:** automated tests drive the IWSDK emulator's hands through the experience:
+  - every lesson, including wrong strokes that must get the right hint;
+  - phrases, chords and your own tune;
+  - hand-tracking loss, thumbs-up and microgestures;
+  - real-pen calibration;
+  - tables higher and lower than the room scan;
+  - session restarts;
+  - six simulated rooms.
+
+  A tester with a Quest 3S checked it on the headset.
 
 ### Challenges we ran into
 - **Touch without haptics.** We used the real desk as the surface, calibrated per desk, and added a hover ring and a paper-scratch sound.
