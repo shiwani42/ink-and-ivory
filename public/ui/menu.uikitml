@@ -41,7 +41,7 @@
   .unit-box { flex-grow: 1; flex-direction: column; align-items: center; }
   .unit-count { color: #a8231a; font-family: inter; font-size: 12px; font-weight: 700; letter-spacing: 1.6px; }
   .unit-title { color: #1d1813; font-family: merriweather; font-size: 19px; font-weight: 700; }
-  .credits { color: #85776a; font-family: inter; font-size: 11px; font-weight: 500; line-height: 15px; margin-top: 2px; padding-left: 4px; }
+  .credits { color: #5e5246; font-family: inter; font-size: 11px; font-weight: 500; line-height: 15px; margin-top: 2px; padding-left: 4px; }
 </style>
 <div class="card">
   <div class="eyebrow">INK AND IVORY</div>
@@ -100,8 +100,8 @@
     <div id="btn-tool" class="btn grow"><div id="btn-tool-label" class="btn-label">Write with: fingertip</div></div>
   </div>
   <div class="row">
-    <div id="btn-scene" class="btn grow"><div id="btn-scene-label" class="btn-label">Scene: on</div></div>
+    <div id="btn-scene" class="btn grow"><div id="btn-scene-label" class="btn-label">Scene: my room</div></div>
     <div id="btn-place" class="btn grow"><div id="btn-place-label" class="btn-label">Move paper here</div></div>
   </div>
-  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0; italic letters original. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
+  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0; italic letters original. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, Wikimedia Commons, ambientCG. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
 </div>

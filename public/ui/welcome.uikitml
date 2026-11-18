@@ -29,6 +29,9 @@
   <div id="midi-button" class="cta secondary">
     <div class="cta-label secondary-label">Add your own piano song (MIDI)</div>
   </div>
+  <div id="pano-button" class="cta secondary">
+    <div id="pano-label" class="cta-label secondary-label">Add your own 360 background (any photo)</div>
+  </div>
   <div id="share-button" class="cta secondary" style="display: none">
     <div id="share-label" class="cta-label secondary-label">Copy a link to your tune</div>
   </div>

@@ -176,7 +176,8 @@ export class Environment {
     }
     let tex: Texture | null = null;
     try {
-      tex = await AssetManager.loadTexture(`${baseUrl}${scene.panorama}`, `pano-${scene.id}`);
+      const url = /^(blob:|data:|https?:)/.test(scene.panorama) ? scene.panorama : `${baseUrl}${scene.panorama}`;
+      tex = await AssetManager.loadTexture(url, `pano-${scene.id}`);
     } catch (error) {
       console.warn('[hands-of-a-master] panorama failed to load', error);
     }

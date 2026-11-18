@@ -54,7 +54,8 @@ import { parsePreset, type Preset } from './presets.js';
 import { dailyEcho, phrasesOf, SONG_UNITS, SONGS, type PianoSong } from './piano/songs.js';
 import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ribbon.js';
 
-import { Environment, SCENES } from './env/environment.js';
+import { Environment, SCENES, type SceneDef } from './env/environment.js';
+import { loadOwnPano, makeOwnPano } from './env/own-pano.js';
 import { DeskMemory } from './mr/desk-memory.js';
 import { gatherPlanes } from './mr/plane-source.js';
 import { describeReport, emptyReport, findTableSpot, type PlaneInput, resetReport } from './mr/room-placement.js';
@@ -215,7 +216,13 @@ export class CalligraphySystem extends createSystem({
   private craft: Craft = 'calligraphy';
   private language: Language = 'japanese';
   private env = new Environment(); // the place you practise in (real 360 photographs)
-  private immersive = true; // surroundings on (false = your own room)
+  /** Surroundings on (false = your own room, the default: mixed reality first). */
+  private immersive = false;
+  /** With surroundings on: your own photo instead of the craft's place. */
+  private ownScene = false;
+  private ownPanoUrl?: string;
+  private ownPanoVersion = 0;
+  private panoInput?: HTMLInputElement;
   private onRealDesk = false;
   private piano!: PianoMode;
   private tips: FingerTip[] = Array.from({ length: 10 }, () => ({ x: 0, y: 0, z: 0, valid: false, extended: false }));
@@ -437,6 +444,10 @@ export class CalligraphySystem extends createSystem({
       window.addEventListener('keydown', onKey);
       this.cleanupFuncs.push(() => window.removeEventListener('keydown', onKey));
     }
+    if (import.meta.env.DEV) {
+      // Dev only: tools feed a test photo to the own-background converter.
+      (window as unknown as { __hoamAddPano?: (f: File) => Promise<void> }).__hoamAddPano = (f) => this.addPano(f);
+    }
     if (this.preset?.state === 'fresh') {
       clearProgress();
       clearCustomSong();
@@ -446,6 +457,14 @@ export class CalligraphySystem extends createSystem({
     }
     this.progress = loadProgress();
     this.writeWith = this.progress.writeWith ?? 'finger';
+    this.immersive = this.progress.scene === 'place' || this.progress.scene === 'own';
+    this.ownScene = this.progress.scene === 'own';
+    void loadOwnPano().then((blob) => {
+      if (!blob) return;
+      this.ownPanoUrl = URL.createObjectURL(blob);
+      this.ownPanoVersion++;
+      this.text(this.menu, 'btn-scene-label', this.sceneLabel());
+    });
     const code = tuneCodeFromUrl();
     const shared = code ? decodeTune(code) : undefined;
     if (shared) {
@@ -611,11 +630,8 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'craft-cal', () => this.setCraft('calligraphy'));
     on(this.menu, 'lang-japanese', () => this.setLanguage('japanese'));
     on(this.menu, 'lang-chinese', () => this.setLanguage('chinese'));
-    on(this.menu, 'btn-scene', () => {
-      this.immersive = !this.immersive;
-      this.text(this.menu, 'btn-scene-label', this.immersive ? 'Scene: on' : 'Scene: my room');
-      this.applyScene();
-    });
+    on(this.menu, 'btn-scene', () => this.cycleScene());
+    on(this.welcome, 'pano-button', () => this.pickPano());
     on(this.menu, 'craft-piano', () => this.setCraft('piano'));
     on(this.menu, 'btn-record', () => this.startListening());
     on(this.welcome, 'midi-button', () => this.pickMidi());
@@ -645,6 +661,7 @@ export class CalligraphySystem extends createSystem({
     this.nextButton = this.pokeById('btn-next');
     this.refreshMenu();
     this.refreshWelcome();
+    this.text(this.menu, 'btn-scene-label', this.sceneLabel());
     this.applyPanelVisibility();
   }
 
@@ -678,6 +695,94 @@ export class CalligraphySystem extends createSystem({
     }
   }
 
+  private sceneLabel(): string {
+    if (!this.immersive) return 'Scene: my room';
+    return this.ownScene ? 'Scene: your photo' : 'Scene: 360 place';
+  }
+
+  /** Menu "Scene": your room, then the craft's 360 place, then your own photo (if added), then back. */
+  private cycleScene(): void {
+    if (!this.immersive) {
+      this.immersive = true;
+      this.ownScene = false;
+    } else if (!this.ownScene && this.ownPanoUrl) {
+      this.ownScene = true;
+    } else {
+      this.immersive = false;
+      this.ownScene = false;
+    }
+    this.progress.scene = !this.immersive ? 'room' : this.ownScene ? 'own' : 'place';
+    saveProgress(this.progress);
+    this.text(this.menu, 'btn-scene-label', this.sceneLabel());
+    this.log(`scene ${this.progress.scene}`);
+    this.applyScene();
+  }
+
+  /** Start page: add your own background (a 360 panorama, or any photo converted into one). */
+  private pickPano(): void {
+    if (!this.panoInput) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.style.display = 'none';
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (file) void this.addPano(file);
+        input.value = '';
+      });
+      document.body.appendChild(input);
+      this.panoInput = input;
+      this.cleanupFuncs.push(() => input.remove());
+    }
+    this.panoInput.click();
+  }
+
+  private async addPano(file: File): Promise<void> {
+    this.text(this.welcome, 'midi-note', 'Making your background...');
+    try {
+      const { blob, converted } = await makeOwnPano(file);
+      if (this.ownPanoUrl) URL.revokeObjectURL(this.ownPanoUrl);
+      this.ownPanoUrl = URL.createObjectURL(blob);
+      this.ownPanoVersion++;
+      this.immersive = true;
+      this.ownScene = true;
+      this.progress.scene = 'own';
+      saveProgress(this.progress);
+      this.text(this.menu, 'btn-scene-label', this.sceneLabel());
+      this.text(
+        this.welcome,
+        'midi-note',
+        converted
+          ? 'Your photo is now a 360 background: it hangs in front of you, and its colours wrap all the way round. In the headset, the menu\'s Scene button switches it on or off.'
+          : 'Your 360 panorama is your background. In the headset, the menu\'s Scene button switches it on or off.',
+      );
+      this.log(`own background ${converted ? 'converted from a photo' : 'panorama'}`);
+      if (this.mode !== 'demo2d') this.applyScene();
+    } catch (error) {
+      this.text(this.welcome, 'midi-note', 'That image could not be used. Try a JPG or PNG photo.');
+      console.warn('[hoam] own background failed', error);
+    }
+  }
+
+  /** Your own photo as a place, turned so its centre is straight ahead of the writer. */
+  private ownSceneDef(base: SceneDef): SceneDef {
+    this.desk.root.getWorldPosition(this.v);
+    if (this.mode !== 'demo2d') this.player.head.getWorldPosition(this.head);
+    const fx = this.v.x - this.head.x;
+    const fz = this.v.z - this.head.z;
+    const yaw = Math.hypot(fx, fz) > 1e-3 ? -Math.atan2(fz, fx) : 0;
+    return {
+      ...base,
+      id: `own-${this.ownPanoVersion}`,
+      name: 'Your photo',
+      panorama: this.ownPanoUrl!,
+      light: 'env/studio_1k.hdr',
+      credit: 'Your own photo',
+      yaw,
+      calm: 0.4,
+    };
+  }
+
   /** Start page: choose a MIDI file to learn as "your song" (also accepts drag and drop). */
   private pickMidi(): void {
     if (!this.midiInput) {
@@ -698,7 +803,12 @@ export class CalligraphySystem extends createSystem({
   }
 
   private async addMidi(file: File): Promise<void> {
-    const result = songFromMidi(await file.arrayBuffer(), file.name);
+    let result: ReturnType<typeof songFromMidi>;
+    try {
+      result = songFromMidi(await file.arrayBuffer(), file.name);
+    } catch {
+      result = 'That MIDI file could not be read.';
+    }
     if (typeof result === 'string') {
       this.text(this.welcome, 'midi-note', result);
       return;
@@ -1237,7 +1347,8 @@ export class CalligraphySystem extends createSystem({
     if (p.lang) this.language = p.lang;
     if (p.scene) {
       this.immersive = p.scene === 'place';
-      this.text(this.menu, 'btn-scene-label', this.immersive ? 'Scene: on' : 'Scene: my room');
+      this.ownScene = false;
+      this.text(this.menu, 'btn-scene-label', this.sceneLabel());
     }
     if (p.state === 'practice') {
       // Skip the seal: use this desk's last calibration (or none).
@@ -2365,7 +2476,8 @@ export class CalligraphySystem extends createSystem({
 
   /** The surroundings and music for the current craft and language. */
   private applyScene(): void {
-    const scene = this.craft === 'piano' ? SCENES.music : SCENES[LANGUAGES[this.language].scene];
+    const base = this.craft === 'piano' ? SCENES.music : SCENES[LANGUAGES[this.language].scene];
+    const scene = this.immersive && this.ownScene && this.ownPanoUrl ? this.ownSceneDef(base) : base;
     if (this.immersive) void this.env.show(scene, import.meta.env.BASE_URL);
     else this.env.hide();
     // In the place, a desk stands exactly where your real table is (the real
@@ -2672,7 +2784,8 @@ export class CalligraphySystem extends createSystem({
       }
       const buf = this.handJoints[h];
       if (frame.fillPoses(spaces, ref, buf)) {
-        [4, 9, 14, 19, 24].forEach((j, f) => {
+        for (let f = 0; f < 5; f++) {
+          const j = 4 + f * 5;
           // Extended = tip far from its finger's base joint (curled tips tuck in close).
           const base = f === 0 ? 1 : j - 4;
           const reach = Math.hypot(
@@ -2700,7 +2813,7 @@ export class CalligraphySystem extends createSystem({
           } else {
             t.extended = reach > 0.06;
           }
-        });
+        }
       }
       h++;
     }

@@ -2,7 +2,7 @@
 
 **Tagline:** Learn calligraphy and piano from a master's hand, at your own desk.
 
-**Try it:** open https://ink-and-ivory.vercel.app in Meta Quest Browser on a Quest 3 or 3S. Hands only, no install.
+**Try it:** open https://hands-of-a-master.vercel.app in Meta Quest Browser on a Quest 3 or 3S. Hands only, no install.
 
 ## Inspiration
 
@@ -12,7 +12,7 @@ Mixed reality can put the teacher's hand right next to yours, on your own desk, 
 
 ## What it does
 
-You put on a Quest, sit at a table and press "Begin at my desk". A writing set lands on your real table, and your room fades into a place where the craft is practised: a temple veranda in Kyoto, a Chinese garden, or a medieval cloister for English lettering.
+You put on a Quest, sit at a table and press "Begin at my desk". A writing set lands on your real table, in your own room. If you like, the Scene button fades your room into a place where the craft is practised (a temple veranda in Kyoto, a Chinese garden, or a medieval cloister for English lettering), or into a photo of your own.
 
 **Calligraphy**
 - A translucent master's hand writes the character first, holding a brush (or a broad-edge pen for English).
@@ -95,3 +95,15 @@ What we want to do next:
 - **More real-world testing:** more rooms and more people, with performance captured on the headset.
 - **Feedback teachers use:** the master's correction marks in vermilion ink on your page, finger numbers for the piano, and playing a duet with the master.
 - **Writing with a real pen or brush:** this is in beta. You hold a real pen and the app learns where its tip is, but it needs testing on a headset before it can become the default.
+
+## Credits
+
+- **Stroke order and shapes:** [KanjiVG](https://kanjivg.tagaini.net), CC BY-SA 3.0, (c) Ulrich Apel and contributors (Japanese and Chinese characters and hiragana). The English italic letters are our own.
+- **Piano samples:** Salamander Grand Piano by Alexander Holm, CC-BY 3.0.
+- **360-degree places:** Kennin-ji 360 photograph by AsPJT (CC0, Wikimedia Commons); Chinese Garden, Ballroom and Historic Cloister Passage (by Elvis Posa) HDRIs from Poly Haven (CC0). Studio lighting: Brown Photostudio 02 by Sergej Majboroda, Poly Haven (CC0).
+- **Music:** "Yoiyami Core Theme", "Oriental Somber", and "Asianoriental1" and "Asianoriental2" by Tozan, CC0 via OpenGameArt.
+- **Textures:** Poly Haven and ambientCG (CC0).
+- **Hands:** WebXR Input Profiles generic hand (MIT); base hand pose from IWER (MIT, Meta Platforms).
+- **Melodies:** traditional or by composers who died long ago (public domain); Happy Birthday's melody is public domain. Our own note sequences and exercises.
+
+Code: https://github.com/shiwani42/ink-and-ivory

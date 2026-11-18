@@ -192,7 +192,7 @@ export function songFromMidi(data: ArrayBuffer, fileName: string): PianoSong | s
   let p = 8 + b.getUint32(4);
   for (let t = 0; t < tracks && p + 8 <= u8.length; t++) {
     if (str(p) !== 'MTrk') break;
-    const end = p + 8 + b.getUint32(p + 4);
+    const end = Math.min(u8.length, p + 8 + b.getUint32(p + 4)); // a corrupt length can't run past the file
     p += 8;
     let tick = 0;
     let status = 0;

@@ -22,6 +22,8 @@ export interface Progress {
   seenLock?: boolean; // the gold lock-in has been explained once
   /** Write with the index fingertip (default) or a real pen or brush held in the hand (beta). */
   writeWith?: 'finger' | 'pen';
+  /** Surroundings: your own room (default), the craft's 360 place, or your own photo. */
+  scene?: 'room' | 'place' | 'own';
   /** Lessons completed today, toward the daily goal. */
   daily?: { day: string; count: number };
 }

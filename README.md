@@ -1,6 +1,6 @@
 # Ink and Ivory
 
-**Try it:** open <https://ink-and-ivory.vercel.app> in Meta Quest Browser on a Quest 3 or 3S, sit at a table and press "Begin at my desk". No install. Trailer and Devpost: see [docs/SUBMISSION.md](docs/SUBMISSION.md).
+**Try it:** open <https://hands-of-a-master.vercel.app> in Meta Quest Browser on a Quest 3 or 3S, sit at a table and press "Begin at my desk". No install. Trailer and Devpost: see [docs/SUBMISSION.md](docs/SUBMISSION.md).
 
 **Learn a craft inside a master's hands. Meta Quest, hands only.** A master's translucent "ghost" hand works beside yours on your real desk. Follow it with your own fingertip; stay in step and the two hands lock together in gold. As you improve, the master fades away and lets you work alone.
 
@@ -9,7 +9,7 @@ Two crafts, four places, and a full course (about 180 short lessons in units, li
 - **Piano** at a black concert grand in a music room: 26 songs and drills in 5 units, starting with **Happy Birthday**, plus **Today's echo** (a new phrase every day) and **your own music**: play a tune to the master and it learns it, add a MIDI file, or open a tune someone shared as a link.
 - **Practice that adapts:** each pass of a lesson lowers the help (full guide, outline only, from memory), and within an attempt the master fades while you keep up and comes back after a slip. A daily goal, a streak and a Review button bring the weakest lesson back.
 
-You start in your own room: the paper or keyboard lands on your real table. Then your room **dissolves into the place like ink soaking into washi**. A desk stands exactly where your real table is, so every touch is still real. The menu's **Scene** button dissolves back to your room.
+You start in your own room: the paper or keyboard lands on your real table, and you stay in mixed reality. The menu's **Scene** button dissolves your room into the craft's 360-degree place, like ink soaking into washi, or into **your own photo** (add any picture on the start page: a 360 panorama is used as it is, and an ordinary photo is turned into one). A desk stands exactly where your real table is, so every touch is still real. The menu's **Scene** button dissolves back to your room.
 
 ![Writing on a real table](docs/media/02-real-table-watch.png)
 
@@ -19,7 +19,7 @@ You start in your own room: the paper or keyboard lands on your real table. Then
 
 - **Platform:** WebXR in Meta Quest Browser (Quest 3 / 3S), built with the Immersive Web SDK (IWSDK) 1.1.0. No install: judges open a URL.
 - **Competition:** Meta VR Start Developer Competition 2026. Suggested track: Productivity (learning a skill). Division: New Experience.
-- **Status (18 Nov 2026):** both crafts are built and pass an automated end-to-end test in the IWSDK emulator. It has not yet been run on a physical headset; see [docs/TESTING.md](docs/TESTING.md).
+- **Status (18 Nov 2026):** both crafts are built and pass automated end-to-end tests in the IWSDK emulator, and a tester has tried it on a Quest 3S (fixes from that session are in). See [docs/TESTING.md](docs/TESTING.md).
 
 ## The experience (about 5 to 10 minutes)
 1. **Start at my desk.** In the browser page, press the button (or the browser's Enter XR). You stay seated, and passthrough shows your real room.
@@ -133,6 +133,7 @@ To add a character, drop its KanjiVG SVG into `tools/kanjivg/`, run `npm run dat
   - Kennin-ji moss garden veranda, by AsPJT, **CC0**, via Wikimedia Commons.
   - Chinese Garden and Ballroom HDRIs, **Poly Haven**, CC0.
   - Historic Cloister Passage HDRI by Elvis Posa, **Poly Haven**, CC0.
+  - Studio lighting: Brown Photostudio 02 HDRI by Sergej Majboroda, **Poly Haven**, CC0.
 - **Music:**
   - "Yoiyami Core Theme" and "Oriental Somber" (opengameart.org/node/155193), both CC0.
   - "Asianoriental1" and "Asianoriental2" by Tozan, CC0.
