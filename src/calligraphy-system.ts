@@ -272,6 +272,11 @@ export class CalligraphySystem extends createSystem({
   private penOffset?: Vector3;
   /** A fingertip has found the real table this session (pen calibration needs it first). */
   private surfaceTouched = false;
+  private recenterPos = new Vector3();
+  /** The reference space whose 'reset' (holding the Meta button) we listen to. */
+  private resetRef?: XRReferenceSpace;
+  private recenterPending = false;
+  private sayAudio?: HTMLAudioElement;
   private penHand?: XRHandedness;
   private penM = new Matrix4();
   private penCand = new Matrix4();
@@ -457,6 +462,8 @@ export class CalligraphySystem extends createSystem({
     if (import.meta.env.DEV) {
       // Dev only: tools feed a test photo to the own-background converter.
       (window as unknown as { __hoamAddPano?: (f: File) => Promise<void> }).__hoamAddPano = (f) => this.addPano(f);
+      (window as unknown as { __hoamFireReset?: () => void }).__hoamFireReset = () =>
+        this.renderer.xr.getReferenceSpace()?.dispatchEvent(new Event('reset'));
       (window as unknown as { __hoamPaint?: (t: string) => void }).__hoamPaint = (t) => {
         this.describePano();
         (this.genOverlay!.querySelector('#hoam-gen-text') as HTMLTextAreaElement).value = t;
@@ -637,6 +644,8 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'btn-unit-next', () => this.pageUnit(1));
     on(this.menu, 'btn-review', () => this.startReview());
     on(this.menu, 'btn-tool', () => this.toggleWriteWith());
+    on(this.menu, 'btn-say', () => this.sayCharacter());
+    on(this.menu, 'btn-recenter', () => this.recenter('menu'));
     on(this.menu, 'lang-english', () => this.setLanguage('english'));
     on(this.welcome, 'share-button', () => void this.copyTuneLink());
     on(this.menu, 'btn-slower', () => this.setTempo(this.tempo - 0.1));
@@ -977,6 +986,7 @@ export class CalligraphySystem extends createSystem({
     if (!b.panel.visible || this.hidden.has(b.id)) return false;
     if (b.id.startsWith('lang-') && this.hidden.has('languages')) return false;
     if (b.id === 'btn-record' && this.hidden.has('piano-row')) return false;
+    if ((b.id === 'btn-tool' || b.id === 'btn-say') && this.hidden.has('tool-row')) return false;
     if (b.id === 'btn-next' || b.id === 'btn-again') {
       if (!this.captionActionsShown) return false;
       if (b.id === 'btn-next' && this.lessonIndex === this.lessonCount() - 1) return false;
@@ -1295,6 +1305,8 @@ export class CalligraphySystem extends createSystem({
     this.text(this.menu, 'streak', days > 0 ? `${days}-day streak  -  ${goal}` : `Daily goal: ${DAILY_GOAL} lessons`);
     this.display('btn-review', this.reviewIndex() >= 0);
     this.display('tool-row', !piano);
+    this.display('btn-say', !piano);
+    this.text(this.menu, 'btn-say-label', `Hear it (${{ chinese: 'Mandarin', japanese: 'Japanese', english: 'English' }[this.language]})`);
     this.text(this.menu, 'btn-tool-label', this.writeWith === 'pen' ? 'Write with: a real pen (beta)' : 'Write with: fingertip');
   }
 
@@ -1548,6 +1560,7 @@ export class CalligraphySystem extends createSystem({
     if (watchFirst) {
       this.mode = 'watch';
       this.startWatchChoreo(1);
+      this.sayCharacter();
       this.setCaption(
         this.lessonEyebrow(),
         'Watch the master',
@@ -2309,6 +2322,40 @@ export class CalligraphySystem extends createSystem({
       this.calibHold = 0;
       ring.scale.setScalar(1);
     }
+  }
+
+  /**
+   * Recenter (menu button, or holding the Meta button): the set comes to rest
+   * right in front of you, at the height of the table already found.
+   */
+  private recenter(why: string): void {
+    if (this.mode === 'demo2d' || this.mode === 'placing') return;
+    this.readHead();
+    this.desk.root.updateWorldMatrix(true, false);
+    const y = this.desk.root.matrixWorld.elements[13];
+    const p = this.recenterPos.copy(this.head).addScaledVector(this.fwd, 0.38);
+    p.y = y;
+    this.setDeskWorldPose(p, Math.atan2(-this.fwd.x, -this.fwd.z));
+    if (this.penDown) this.cancelStroke();
+    this.tipFilter.reset();
+    this.piano.fitToFloor(y);
+    this.layoutPanels();
+    this.sfx.chime(0, 0.12);
+    this.log(`recentred (${why}) at [${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}]`);
+  }
+
+  /** The lesson's character, letter or word spoken (clips in Yosun Chang's voice, public/audio/{zh,ja,en}). */
+  private sayCharacter(): void {
+    if (this.craft !== 'calligraphy') return;
+    const dir = { chinese: 'zh', japanese: 'ja', english: 'en' }[this.language];
+    const url = `${import.meta.env.BASE_URL}audio/${dir}/${this.lesson.id}.mp3`;
+    if (!this.sayAudio) this.sayAudio = new Audio();
+    this.sayAudio.src = url;
+    this.sayAudio.volume = 1;
+    void this.sayAudio.play().then(
+      () => this.log(`say ${this.lesson.id}`),
+      (error: unknown) => this.log(`say ${this.lesson.id} failed ${String(error)}`),
+    );
   }
 
   /** Fingertip (default) or a real pen or brush held in the hand (beta). */
@@ -3215,6 +3262,19 @@ export class CalligraphySystem extends createSystem({
   update(delta: number): void {
     const dt = Math.min(delta, 0.05);
     this.clock += dt;
+    // Holding the Meta button recenters the headset's view; the browser tells
+    // us with a 'reset' event on the reference space. Bring the set along.
+    const ref = this.renderer.xr.getReferenceSpace();
+    if (ref && ref !== this.resetRef) {
+      this.resetRef = ref;
+      ref.addEventListener('reset', () => {
+        this.recenterPending = true;
+      });
+    }
+    if (this.recenterPending && this.renderer.xr.isPresenting) {
+      this.recenterPending = false;
+      this.recenter('headset recenter');
+    }
     this.ghost.tick(this.clock);
     const saved = this.deskMemory.tick(dt, this.desk.root);
     if (saved) this.log(saved);

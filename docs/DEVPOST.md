@@ -19,6 +19,7 @@ You put on a Quest, sit at a table and press "Begin at my desk". A writing set l
 - Then you write it stroke by stroke with your fingertip on the real desk, while the master's hand leads at your tempo. Stay close to it and the two hands lock together, and your ink turns gold.
 - Each stroke is scored on path, direction, order, speed and staying in step, with a specific hint when it misses ("Other direction", "Slower").
 - There are about 160 short lessons in units, like a language app: Japanese (kanji and hiragana), Chinese, and English italic letters and words.
+- Each character, letter or word is spoken as the master writes it (Mandarin, Japanese or English, and again with "Hear it"), in our teammate Yosun Chang's voice.
 - English is written with a virtual broad-edge nib, so downstrokes come out thick and hairlines thin, the way a real dip pen behaves.
 
 **Piano**
@@ -27,6 +28,9 @@ You put on a Quest, sit at a table and press "Begin at my desk". A writing set l
 - Several fingers and chords work.
 - There are 26 songs and exercises, from Happy Birthday through the black-key layout, sharps and flats, scales, and well-known public-domain melodies. A new short phrase to echo is generated every day.
 - You can play your own tune and the master learns it and teaches it back. You can also import a MIDI file, or share a tune as a link that someone else opens on their Quest.
+
+**Comfort**
+- "Recenter in front of me" on the menu, or holding the Meta button, brings the whole set right in front of you at your table's height.
 
 **The master lets go**
 - Each time you pass a lesson, the master helps less: full guide, then only the outline, then from memory.
@@ -94,7 +98,8 @@ What we want to do next:
 - **Work with teachers.** We are not calligraphers or piano teachers. Next we want to work with calligraphy and piano teachers to check the lesson order, the scoring and the hints, and to learn how they correct students.
 - **More real-world testing:** more rooms and more people, with performance captured on the headset.
 - **Feedback teachers use:** the master's correction marks in vermilion ink on your page, finger numbers for the piano, and playing a duet with the master.
-- **Writing with a real pen or brush:** this is in beta. You hold a real pen and the app learns where its tip is, but it needs testing on a headset before it can become the default.
+- **Writing with a real pen or brush:** this is in beta. A fingertip touch finds your table, then you rest the pen's tip on the seal and the app learns where the tip is from your hand. Our headset tester found it first learned the fingertip instead of the pen; that is fixed, and it needs more headset testing before it can become the default.
+- **More of our tester's ideas:** writing surfaces you choose from objects on the desk (calligraphy grid paper, parchment, a zen sand garden, water, snow), lining the set up to the real table with a tracked controller, and quick controls in the top cap of the 360 place.
 
 ## Credits
 
@@ -105,6 +110,7 @@ What we want to do next:
 - **Text to 360 (beta):** [DiT360](https://huggingface.co/spaces/Insta360-Research/DiT360) by Insta360 Research (MIT), called as a public Hugging Face Space.
 - **Textures:** Poly Haven and ambientCG (CC0).
 - **Hands:** WebXR Input Profiles generic hand (MIT); base hand pose from IWER (MIT, Meta Platforms).
+- **Pronunciation (Mandarin, Japanese, English):** Yosun Chang's voice (Ink and Ivory team), generated with ElevenLabs.
 - **Melodies:** traditional or by composers who died long ago (public domain); Happy Birthday's melody is public domain. Our own note sequences and exercises.
 
 Code: https://github.com/shiwani42/ink-and-ivory

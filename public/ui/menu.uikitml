@@ -98,10 +98,14 @@
   </div>
   <div id="tool-row" class="row">
     <div id="btn-tool" class="btn grow"><div id="btn-tool-label" class="btn-label">Write with: fingertip</div></div>
+    <div id="btn-say" class="btn grow"><div id="btn-say-label" class="btn-label">Hear it (Japanese)</div></div>
   </div>
   <div class="row">
     <div id="btn-scene" class="btn grow"><div id="btn-scene-label" class="btn-label">Scene: my room</div></div>
     <div id="btn-place" class="btn grow"><div id="btn-place-label" class="btn-label">Move paper here</div></div>
   </div>
-  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0; italic letters original. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, ambientCG; garden 360 by Yosun Chang. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
+  <div class="row">
+    <div id="btn-recenter" class="btn grow"><div class="btn-label">Recenter in front of me</div></div>
+  </div>
+  <div class="credits">Strokes: KanjiVG, CC BY-SA 3.0; italic letters original. Hand: WebXR Input Profiles, MIT. Scenes, light and textures: Poly Haven, ambientCG; garden 360 and voice by Yosun Chang. Music: Yoiyami, Tozan (OpenGameArt). All CC0. Piano: Salamander Grand, A. Holm, CC-BY 3.0.</div>
 </div>
