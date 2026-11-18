@@ -196,11 +196,15 @@ export class Environment {
   }
 
   hide(): void {
+    this.loading++; // a place still loading must not appear after this
+    this.current = undefined;
     this.target = 0;
   }
 
   /** Jump straight to your own room (no dissolve), e.g. on entering the headset. */
   snapToRoom(): void {
+    this.loading++;
+    this.current = undefined;
     this.target = 0;
     this.material.uniforms.uOpacity.value = 0;
     this.mesh.visible = false;

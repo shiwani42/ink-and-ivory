@@ -13,7 +13,7 @@
   .body { color: #3d342c; font-family: inter; font-size: 25px; font-weight: 500; line-height: 34px; }
   .score { color: #7a520a; font-family: inter; font-size: 23px; font-weight: 700; margin-top: 2px; }
 </style>
-<div class="card">
+<div id="caption-card" class="card">
   <div id="cap-eyebrow" class="eyebrow">INK AND IVORY</div>
   <div id="cap-title" class="title">Finding your desk</div>
   <div id="cap-body" class="body">Sit at a table in good light.</div>

@@ -259,6 +259,8 @@ export class CalligraphySystem extends createSystem({
   private toolTip = new Vector3();
   private toolWeb = new Vector3();
   private toolTmp = new Vector3();
+  private lastEye = new Vector3(0, 0.44, 0.4);
+  private fitClock = 0;
   /**
    * Real pen mode (beta): you hold a real pen, brush or chopstick and its tip
    * touches the desk. Touching the seal with the tip teaches where the tip
@@ -1048,9 +1050,51 @@ export class CalligraphySystem extends createSystem({
       }
       this.aimPanelAt(this.caption, eye);
     }
+    this.lastEye.copy(eye);
+    this.fitPanelsAboveDesk();
   }
 
-  /** Turn a +Z-facing panel so it faces a point (both in its parent's space). */
+  /**
+   * No panel may cut into the desk (or the piano). Measure each panel's real
+   * bounds in desk space, lift it so its lowest edge clears the surface, and
+   * if that would raise its top far above the eyes, shrink it a little
+   * instead (down to 80%). Re-run while panels lay themselves out.
+   */
+  private fitPanelsAboveDesk(): void {
+    const piano = this.craft === 'piano';
+    const clear = piano ? 0.07 : 0.03; // above the keys and case, or the paper and tools
+    for (const [panel, cardId] of [[this.menu, 'menu-card'], [this.caption, 'caption-card']] as const) {
+      if (!panel?.visible) continue;
+      // A UIKit element's world matrix maps the unit square onto its
+      // rectangle: its corners give the card's true extent (Box3 can't
+      // measure UIKit's instanced text).
+      const card = panel.getElementById(cardId) as unknown as Object3D | undefined;
+      if (!card) continue;
+      for (let pass = 0; pass < 2; pass++) {
+        this.desk.root.updateWorldMatrix(true, true);
+        panel.updateWorldMatrix(true, true);
+        const e = card.matrixWorld.elements;
+        const reach = Math.abs(e[1]) / 2 + Math.abs(e[5]) / 2; // half extent along world up
+        if (reach < 1e-4) break; // not laid out yet
+        const deskY = this.desk.root.matrixWorld.elements[13];
+        const bottom = e[13] - reach - deskY;
+        const top = e[13] + reach - deskY;
+        if (bottom >= clear - 0.002) break;
+        const lift = clear - bottom;
+        const maxTop = this.lastEye.y + 0.12;
+        if (top + lift > maxTop && pass === 0) {
+          // Too tall to sit above the desk at this height: shrink, then lift.
+          const height = Math.max(0.05, top - bottom);
+          const k = Math.max(0.8, (maxTop - clear) / height);
+          panel.scale.multiplyScalar(k);
+          continue;
+        }
+        panel.position.y += lift;
+        if (import.meta.env.DEV) this.log(`panel ${cardId} lifted ${(lift * 100).toFixed(1)} cm (bottom was ${(bottom * 100).toFixed(1)} cm)`);
+      }
+    }
+  }
+
   private aimPanelAt(panel: { position: Vector3; rotation: { order: string; x: number; y: number; z: number } }, target: Vector3): void {
     const dx = target.x - panel.position.x;
     const dy = target.y - panel.position.y;
@@ -3120,6 +3164,11 @@ export class CalligraphySystem extends createSystem({
       this.sfx.setScratch(0);
       this.cues.hideAll();
       return;
+    }
+    this.fitClock += dt;
+    if (this.fitClock > 0.5) {
+      this.fitClock = 0;
+      this.fitPanelsAboveDesk();
     }
     this.readTip(dt);
     this.updatePoke();
