@@ -3,7 +3,8 @@
 
 The emulated right hand takes a tripod (pen) grip. A real pen can't be
 emulated, so the test decides where the pen's tip is: D below and in front
-of the index knuckle. It rests that tip on the seal to calibrate, then writes
+of the index knuckle. A fingertip touch on the seal finds the table first,
+then it rests that tip on the seal to calibrate, then writes
 lesson 1's strokes by moving the knuckle so that the tip follows each stroke.
 The app must learn the offset and score the strokes like fingertip writing.
 
@@ -74,9 +75,16 @@ def main():
     layout = json.loads(m.group(1))
     E.wait_for(r'^calibrate$', m1, 20)
 
-    print('3. pen grip, tip on the seal, keep still')
-    E.cli('xr', 'set-hand-pose', payload={'device': 'hand-right', 'poseId': 'tripod'})
     seal = layout['seal']
+    print('3a. a fingertip finds the table first')
+    E.cli('xr', 'set-hand-pose', payload={'device': 'hand-right', 'poseId': 'point'})
+    E.hand_to((seal[0], seal[1] + 0.05, seal[2]), 0.6, 'hand-right')
+    E.hand_to((seal[0], seal[1] + E.CONTACT, seal[2]), 0.4, 'hand-right')
+    time.sleep(0.6)
+    E.wait_for(r'calibrated offset .*, now the pen', m1, 6)
+    E.hand_to((seal[0], seal[1] + 0.1, seal[2]), 0.3, 'hand-right')
+    print('3b. pen grip, tip on the seal, keep still')
+    E.cli('xr', 'set-hand-pose', payload={'device': 'hand-right', 'poseId': 'tripod'})
     knuckle_to((seal[0], seal[1] + 0.08, seal[2]), 0.6)
     t = E.cli('xr', 'get-transform', payload={'device': 'hand-right'})
     ORIENT['q'] = t['data']['result']['orientation']
