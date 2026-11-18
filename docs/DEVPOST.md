@@ -12,7 +12,7 @@ Mixed reality can put the teacher's hand right next to yours, on your own desk, 
 
 ## What it does
 
-You put on a Quest, sit at a table and press "Begin at my desk". A writing set lands on your real table, in your own room. If you like, the Scene button fades your room into a place where the craft is practised (a Japanese garden veranda, a Chinese garden, or a medieval cloister for English lettering), or into a photo of your own.
+You put on a Quest, sit at a table and press "Begin at my desk". A writing set lands on your real table, in your own room. If you like, the Scene button fades your room into a place where the craft is practised (a Japanese garden veranda, a Chinese garden, or a medieval cloister for English lettering), or into a photo of your own. In beta, you can also describe a place in words and an AI model paints it as a 360 background.
 
 **Calligraphy**
 - A translucent master's hand writes the character first, holding a brush (or a broad-edge pen for English).
@@ -102,6 +102,7 @@ What we want to do next:
 - **Piano samples:** Salamander Grand Piano by Alexander Holm, CC-BY 3.0.
 - **360-degree places:** Japanese garden veranda by Yosun Chang (Ink and Ivory team); Chinese Garden, Ballroom and Historic Cloister Passage (by Elvis Posa) HDRIs from Poly Haven (CC0). Studio lighting: Brown Photostudio 02 by Sergej Majboroda, Poly Haven (CC0).
 - **Music:** "Yoiyami Core Theme", "Oriental Somber", and "Asianoriental1" and "Asianoriental2" by Tozan, CC0 via OpenGameArt.
+- **Text to 360 (beta):** [DiT360](https://huggingface.co/spaces/Insta360-Research/DiT360) by Insta360 Research (MIT), called as a public Hugging Face Space.
 - **Textures:** Poly Haven and ambientCG (CC0).
 - **Hands:** WebXR Input Profiles generic hand (MIT); base hand pose from IWER (MIT, Meta Platforms).
 - **Melodies:** traditional or by composers who died long ago (public domain); Happy Birthday's melody is public domain. Our own note sequences and exercises.

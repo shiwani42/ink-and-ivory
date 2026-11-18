@@ -56,6 +56,7 @@ import { GOLD, GUIDE_COLOR, INK_COLOR, InkRibbon, VERMILION } from './ink/ink-ri
 
 import { Environment, SCENES, type SceneDef } from './env/environment.js';
 import { loadOwnPano, makeOwnPano } from './env/own-pano.js';
+import { generatePano } from './env/text-pano.js';
 import { DeskMemory } from './mr/desk-memory.js';
 import { gatherPlanes } from './mr/plane-source.js';
 import { describeReport, emptyReport, findTableSpot, type PlaneInput, resetReport } from './mr/room-placement.js';
@@ -274,6 +275,8 @@ export class CalligraphySystem extends createSystem({
   private penCand = new Matrix4();
   private penCandidate?: { m: Matrix4; height: number; hand?: XRHandedness };
   private midiInput?: HTMLInputElement;
+  private genOverlay?: HTMLDivElement;
+  private generating = false;
   private status?: UIKitMLAsset; // body-locked card shown while finding the desk
   private statusEntity?: Entity;
   private textScale = 1;
@@ -449,6 +452,11 @@ export class CalligraphySystem extends createSystem({
     if (import.meta.env.DEV) {
       // Dev only: tools feed a test photo to the own-background converter.
       (window as unknown as { __hoamAddPano?: (f: File) => Promise<void> }).__hoamAddPano = (f) => this.addPano(f);
+      (window as unknown as { __hoamPaint?: (t: string) => void }).__hoamPaint = (t) => {
+        this.describePano();
+        (this.genOverlay!.querySelector('#hoam-gen-text') as HTMLTextAreaElement).value = t;
+        this.genOverlay!.querySelector('form')!.requestSubmit();
+      };
       void import('./env/logo-cap.js').then(({ drawLogo }) => {
         (window as unknown as { __hoamLogo?: () => string }).__hoamLogo = () => drawLogo(1024).toDataURL('image/png');
       });
@@ -637,6 +645,7 @@ export class CalligraphySystem extends createSystem({
     on(this.menu, 'lang-chinese', () => this.setLanguage('chinese'));
     on(this.menu, 'btn-scene', () => this.cycleScene());
     on(this.welcome, 'pano-button', () => this.pickPano());
+    on(this.welcome, 'gen-button', () => this.describePano());
     on(this.menu, 'craft-piano', () => this.setCraft('piano'));
     on(this.menu, 'btn-record', () => this.startListening());
     on(this.welcome, 'midi-button', () => this.pickMidi());
@@ -740,6 +749,83 @@ export class CalligraphySystem extends createSystem({
       this.cleanupFuncs.push(() => input.remove());
     }
     this.panoInput.click();
+  }
+
+  /**
+   * Start page (beta): describe a place in words and DiT360 paints a 360
+   * panorama of it, which becomes your own background. A plain DOM form over
+   * the 2D page: typing works with the Quest Browser's keyboard here, before
+   * the headset session starts.
+   */
+  private describePano(): void {
+    if (this.generating) return;
+    if (!this.genOverlay) {
+      const wrap = document.createElement('div');
+      wrap.style.cssText =
+        'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(21,17,13,0.55);z-index:20;font-family:Inter,system-ui,sans-serif';
+      wrap.innerHTML = `
+        <form style="width:min(520px,calc(100vw - 32px));box-sizing:border-box;background:#f4ede0;border:2px solid #d8ccb4;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:12px;color:#1d1813">
+          <div style="color:#a8231a;font-size:13px;font-weight:700;letter-spacing:2.4px">TEXT TO 360 (BETA)</div>
+          <label for="hoam-gen-text" style="font-size:18px;font-weight:600;line-height:1.4">Describe the place you want around you while you practise.</label>
+          <textarea id="hoam-gen-text" rows="3" maxlength="300" style="font:inherit;font-size:17px;padding:10px 12px;border-radius:12px;border:2px solid #d8ccb4;background:#fffaf1;color:#1d1813;resize:vertical">A quiet Japanese tea room with tatami mats and paper screens, soft morning light</textarea>
+          <div style="display:flex;gap:10px">
+            <button type="submit" id="hoam-gen-go" style="flex:1;height:52px;border:0;border-radius:14px;background:#1d1813;color:#f4ede0;font:inherit;font-size:17px;font-weight:700;cursor:pointer">Paint it</button>
+            <button type="button" id="hoam-gen-close" style="height:52px;padding:0 18px;border:2px solid #d8ccb4;border-radius:14px;background:#ebe1cf;color:#1d1813;font:inherit;font-size:17px;font-weight:600;cursor:pointer">Close</button>
+          </div>
+          <div id="hoam-gen-status" role="status" style="font-size:15px;line-height:1.45;color:#3d342c;min-height:22px"></div>
+          <div style="font-size:13px;line-height:1.4;color:#6f6255">Painted by DiT360 (Insta360 Research), a free public AI model on Hugging Face. It takes about a minute and only a few paintings a day per connection. Your words are sent to that service.</div>
+        </form>`;
+      document.body.appendChild(wrap);
+      this.genOverlay = wrap;
+      this.cleanupFuncs.push(() => wrap.remove());
+      const form = wrap.querySelector('form')!;
+      const close = () => {
+        if (!this.generating) wrap.style.display = 'none';
+      };
+      wrap.querySelector('#hoam-gen-close')!.addEventListener('click', close);
+      wrap.addEventListener('click', (e) => {
+        if (e.target === wrap) close();
+      });
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = (wrap.querySelector('#hoam-gen-text') as HTMLTextAreaElement).value.trim();
+        if (text) void this.paintPano(text);
+      });
+    }
+    this.genOverlay.style.display = 'flex';
+  }
+
+  private async paintPano(prompt: string): Promise<void> {
+    const wrap = this.genOverlay!;
+    const status = wrap.querySelector('#hoam-gen-status') as HTMLDivElement;
+    const go = wrap.querySelector('#hoam-gen-go') as HTMLButtonElement;
+    const say = (s: string) => {
+      status.textContent = s;
+      this.text(this.welcome, 'midi-note', s);
+    };
+    this.generating = true;
+    go.disabled = true;
+    go.style.opacity = '0.5';
+    const t0 = performance.now();
+    say('Sending your description...');
+    try {
+      const file = await generatePano(prompt, say);
+      this.log(`text to 360 painted in ${Math.round((performance.now() - t0) / 1000)} s, ${(file.size / 1e6).toFixed(1)} MB`);
+      await this.addPano(file);
+      say('Done: your painted place is now your background. Press "Begin at my desk"; the menu\'s Scene button switches it on or off.');
+      this.generating = false;
+      setTimeout(() => {
+        if (!this.generating) wrap.style.display = 'none';
+      }, 2500);
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error);
+      say(`Sorry, it could not be painted: ${why}`);
+      this.log(`text to 360 failed: ${why}`);
+    } finally {
+      this.generating = false;
+      go.disabled = false;
+      go.style.opacity = '1';
+    }
   }
 
   private async addPano(file: File): Promise<void> {
